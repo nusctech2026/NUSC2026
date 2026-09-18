@@ -402,7 +402,8 @@
       gap: 6px;
       transform: translateX(100%);
       transition: transform .4s var(--ease);
-      overflow: hidden
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .drawer.open {
@@ -2313,11 +2314,12 @@
       }
 
       .hero {
-        min-height: 94svh
+        min-height: 90svh;
+        align-items: center;
       }
 
       .hero-in {
-        padding: 120px 0 58px
+        padding: 100px 0 80px;
       }
 
       .hero-sub {
