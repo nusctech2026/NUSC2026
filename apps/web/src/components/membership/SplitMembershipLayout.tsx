@@ -8,7 +8,7 @@ import './membership.css';
 export default function SplitMembershipLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
+  const [successData, setSuccessData] = useState<{ first_name: string; membership_number: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -36,7 +36,7 @@ export default function SplitMembershipLayout() {
     if (result.success) {
       setSuccessData(result.member);
     } else {
-      setError(result.error);
+      setError(result.error || 'An unexpected error occurred');
     }
   };
 
