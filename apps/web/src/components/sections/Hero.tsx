@@ -23,8 +23,11 @@ export function Hero() {
           <h1><span className="rise">Rise</span><span className="tog">Together.</span></h1>
           <div className="hero-beat">Born in 2024. <b>Champions in 2025.</b> Just getting started.</div>
           <p className="hero-sub">A community football club from Nagaland, competing hard and building players for the next level.</p>
-          <div className="hero-actions">
+          <div className="hero-actions" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <a className="btn btn-red btn-lg" href="#journey">Our Journey <span className="ar">↓</span></a>
+            <a className="btn btn-outline btn-lg" href="https://instagram.com/nagalandunited" target="_blank" rel="noopener noreferrer" style={{ border: '1px solid rgba(255, 255, 255, 0.4)', background: 'transparent' }}>
+              Follow NUSC <span className="ar">↗</span>
+            </a>
           </div>
         </div>
         <div className="scroll-cue" aria-hidden="true"><span className="mouse"></span>Scroll</div>

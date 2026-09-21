@@ -2402,4 +2402,21 @@
         transform: none;
         transition: none
       }
-    }
+    }/* Light Theme Nav */
+.nav.nav-light.scrolled {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.nav.nav-light.scrolled::after {
+  border-color: rgba(0, 0, 0, 0.05);
+}
+.nav.nav-light .brand-txt { color: #0f172a; }
+.nav.nav-light .brand-txt span { color: #475569; }
+.nav.nav-light .nav-links a { color: #475569; }
+.nav.nav-light .nav-links a:hover,
+.nav.nav-light .nav-links a.active { color: #0f172a; }
+.nav.nav-light .nav-links a::after { background: var(--red); }
+.nav.nav-light .burger { border-color: rgba(15, 23, 42, 0.25); }
+.nav.nav-light .burger span, 
+.nav.nav-light .burger::before, 
+.nav.nav-light .burger::after { background: #0f172a; }

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "dev:web": "npm run dev -w @nusc/web -- -p 3000",
@@ -19,6 +20,7 @@
     "test:browser": "playwright test"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
     "next": "16.3.4",
     "react": "19.3.0",
     "react-dom": "19.3.0"
