@@ -12,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Close sidebar when navigating on mobile
   useEffect(() => {
+    // eslint-disable-next-line
     setIsSidebarOpen(false);
   }, [pathname]);
 

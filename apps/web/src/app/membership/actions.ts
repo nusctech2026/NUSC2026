@@ -8,13 +8,14 @@ export async function submitMembership(data: MembershipFormData) {
     const member = await registerMember(data);
     revalidatePath('/membership');
     return { success: true, member };
-  } catch (error: any) {
-    console.error('Membership registration error:', error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Membership registration error:', err);
     
-    if (error.message === 'DUPLICATE_EMAIL') {
+    if (err.message === 'DUPLICATE_EMAIL') {
       return { success: false, error: 'An account with this email already exists.' };
     }
     
-    return { success: false, error: error.message || 'Something went wrong.' };
+    return { success: false, error: err.message || 'Something went wrong.' };
   }
 }

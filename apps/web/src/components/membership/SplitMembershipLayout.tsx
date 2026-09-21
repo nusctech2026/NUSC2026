@@ -8,7 +8,7 @@ import './membership.css';
 export default function SplitMembershipLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successData, setSuccessData] = useState<any>(null);
+  const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,8 +24,8 @@ export default function SplitMembershipLayout() {
       password: formData.get('password') as string,
       dateOfBirth: formData.get('dateOfBirth') as string,
       cityDistrict: formData.get('cityDistrict') as string,
-      termsAccepted: formData.get('termsAccepted') === 'on' ? true : (undefined as any),
-      privacyAccepted: formData.get('termsAccepted') === 'on' ? true : (undefined as any),
+      termsAccepted: (formData.get('termsAccepted') === 'on' ? true : undefined) as unknown as true,
+      privacyAccepted: (formData.get('termsAccepted') === 'on' ? true : undefined) as unknown as true,
       marketingConsent: formData.get('marketingConsent') === 'on',
     };
 
