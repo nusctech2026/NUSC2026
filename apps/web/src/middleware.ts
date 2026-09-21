@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server';
-import { updateSession } from '@nusc/db';
+import { updateSession } from '@nusc/db/src/client/middleware';
 
 export async function middleware(request: NextRequest) {
   return await updateSession(request);
