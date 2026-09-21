@@ -21,6 +21,7 @@ export default function MembershipForm() {
       lastName: formData.get('lastName') as string,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
+      password: formData.get('password') as string,
       dateOfBirth: formData.get('dateOfBirth') as string,
       cityDistrict: formData.get('cityDistrict') as string,
       termsAccepted: formData.get('termsAccepted') === 'on' ? true : (undefined as any),
@@ -98,17 +99,24 @@ export default function MembershipForm() {
               <input type="email" id="email" name="email" required />
             </div>
             <div className="mem-form-group">
-              <label htmlFor="phone">Phone Number *</label>
-              <input type="tel" id="phone" name="phone" required />
+              <label htmlFor="password">Password *</label>
+              <input type="password" id="password" name="password" required />
             </div>
           </div>
 
           <div className="mem-form-row">
             <div className="mem-form-group">
+              <label htmlFor="phone">Phone Number *</label>
+              <input type="tel" id="phone" name="phone" required />
+            </div>
+            <div className="mem-form-group">
               <label htmlFor="dateOfBirth">Date of Birth *</label>
               <input type="date" id="dateOfBirth" name="dateOfBirth" required />
             </div>
-            <div className="mem-form-group">
+          </div>
+
+          <div className="mem-form-row">
+            <div className="mem-form-group" style={{ width: '100%' }}>
               <label htmlFor="cityDistrict">City / District *</label>
               <input type="text" id="cityDistrict" name="cityDistrict" required />
             </div>
