@@ -6,7 +6,12 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   { settings: { next: { rootDir: ["apps/web/", "apps/store/"] } } },
-  { rules: { "react/no-unescaped-entities": "off" } },
+  { 
+    rules: { 
+      "react/no-unescaped-entities": "off",
+      "@next/next/no-html-link-for-pages": "off"
+    } 
+  },
   globalIgnores([
     ".next/**",
     "apps/*/.next/**",
