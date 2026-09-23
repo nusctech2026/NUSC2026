@@ -1,27 +1,24 @@
 import React from 'react';
 import Link from 'next/link';
-import { createServerClient } from '@nusc/db';
 import { redirect } from 'next/navigation';
+import { getDashboardData } from './service';
 
 export const metadata = {
   title: 'Dashboard Overview | NUSC Membership',
 };
 
 export default async function DashboardPage() {
-  const supabase = await createServerClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
+  let dashboardData;
+  try {
+    dashboardData = await getDashboardData();
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      redirect('/login');
+    }
+    return <div>Error loading dashboard data.</div>;
   }
 
-  // Fetch member profile
-  const { data: member } = await supabase
-    .from('members')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const { member, wallet, upcomingMatches } = dashboardData;
 
   if (!member) {
     return <div>Error loading member data.</div>;
@@ -63,7 +60,7 @@ export default async function DashboardPage() {
         {/* Background decorative elements */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.1, background: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.4) 0%, transparent 50%)' }} />
         
-        <div className="member-card-header" style={{ position: 'relative', zIndex: 10, display: 'flex' }}>
+        <div className="member-card-header" style={{ position: 'relative', zIndex: 10, display: 'flex', justifyContent: 'space-between' }}>
           <div>
             <p style={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem', opacity: 0.8, marginBottom: '8px' }}>
               Membership Number
@@ -72,10 +69,17 @@ export default async function DashboardPage() {
               {member.membership_number}
             </p>
           </div>
-          <div className="logo" style={{ width: '60px', height: '60px', background: 'var(--logo) center/contain no-repeat', opacity: 0.9 }}></div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem', opacity: 0.8, marginBottom: '8px' }}>
+              Available Points
+            </p>
+            <p style={{ fontFamily: '"Barlow Condensed", sans-serif', fontWeight: 800, lineHeight: 1, fontSize: '2rem' }}>
+              {wallet ? wallet.available_points : 0}
+            </p>
+          </div>
         </div>
 
-        <div className="member-card-stats" style={{ position: 'relative', zIndex: 10 }}>
+        <div className="member-card-stats" style={{ position: 'relative', zIndex: 10, marginTop: '30px' }}>
           <div>
             <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.7, marginBottom: '4px' }}>Member Name</p>
             <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{member.first_name} {member.last_name}</p>
@@ -118,52 +122,82 @@ export default async function DashboardPage() {
       </div>
 
       <div style={{ marginTop: '24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '16px', color: '#0f172a' }}>Perks & Benefits</h2>
-        <ul className="perks-list">
-          <li className="perk-item">
-            <div className="perk-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-            </div>
-            <div>
-              <div className="perk-title">10% Off Store Wide</div>
-              <div className="perk-desc">Enjoy an exclusive member discount on all official merchandise.</div>
-            </div>
-          </li>
-          <li className="perk-item">
-            <div className="perk-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            </div>
-            <div>
-              <div className="perk-title">Priority Event Access</div>
-              <div className="perk-desc">Get early access to tickets for meet and greets, player events, and more.</div>
-            </div>
-          </li>
-        </ul>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '16px', color: '#0f172a' }}>Upcoming Matches & Tickets</h2>
+        {upcomingMatches.length === 0 ? (
+          <p style={{ color: '#64748b' }}>No upcoming matches scheduled at this time.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {upcomingMatches.map(({ match, benefits }) => (
+              <div key={match.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>{match.opponent}</h3>
+                    <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                      {new Date(match.match_date).toLocaleDateString('en-GB', {
+                        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })} • {match.venue}
+                    </p>
+                  </div>
+                  <div style={{ padding: '4px 12px', background: '#f1f5f9', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 500, textTransform: 'uppercase' }}>
+                    {match.status}
+                  </div>
+                </div>
+
+                {benefits.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase' }}>Available Member Benefits</h4>
+                    {benefits.map((benefit: any) => {
+                      const isAvailable = benefit.claimState === 'available';
+                      const hasSufficientPoints = wallet && wallet.available_points >= benefit.points_cost;
+                      const canRedeem = isAvailable && hasSufficientPoints;
+                      
+                      let statusColor = '#64748b';
+                      if (benefit.claimState === 'available') statusColor = '#10b981';
+                      if (benefit.claimState === 'closed') statusColor = '#ef4444';
+                      if (benefit.claimState === 'upcoming') statusColor = '#f59e0b';
+
+                      return (
+                        <div key={benefit.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '12px', borderRadius: '6px' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#1e293b' }}>{benefit.name}</div>
+                            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                              Cost: {benefit.points_cost} Points • Discount: {benefit.discount_type === 'percentage' ? `${benefit.discount_value}%` : `£${benefit.discount_value}`}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: statusColor, fontWeight: 500, marginTop: '4px' }}>
+                              Status: {benefit.claimState.toUpperCase()}
+                              {benefit.claimState === 'upcoming' && benefit.claim_start ? ` (Opens ${new Date(benefit.claim_start).toLocaleDateString('en-GB')})` : ''}
+                            </div>
+                          </div>
+                          <button 
+                            disabled={true} 
+                            style={{ 
+                              padding: '8px 16px', 
+                              background: canRedeem ? 'var(--navy-600)' : '#cbd5e1', 
+                              color: canRedeem ? '#fff' : '#64748b', 
+                              border: 'none', 
+                              borderRadius: '6px', 
+                              fontWeight: 600,
+                              cursor: 'not-allowed',
+                              opacity: 0.8
+                            }}
+                            title="Ticket purchasing will be enabled soon (Ticket 4)"
+                          >
+                            Redeem & Buy Ticket
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ color: '#64748b', fontSize: '0.9rem' }}>No benefits defined for this match yet.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div style={{ marginTop: '24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '8px', color: '#0f172a' }}>Recent Transactions</h2>
-        <div className="timeline">
-          <div className="timeline-item">
-            <div className="timeline-dot"></div>
-            <div className="timeline-content">
-              <div className="timeline-date">{startDate}</div>
-              <div className="timeline-title">Membership Registration (1 Year)</div>
-              <div className="timeline-amount">£35.00</div>
-            </div>
-          </div>
-          <div className="timeline-item">
-            <div className="timeline-dot"></div>
-            <div className="timeline-content">
-              <div className="timeline-date">Pending</div>
-              <div className="timeline-title">Welcome Pack Sent</div>
-              <div className="timeline-amount" style={{ color: '#64748b' }}>Included</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="store-banner">
+      <div className="store-banner" style={{ marginTop: '24px' }}>
         <div className="store-banner-content">
           <h3 className="store-banner-title">Shop the Store</h3>
           <p className="store-banner-desc">Connect your membership number to the NUSC store to automatically apply your 10% discount at checkout!</p>
