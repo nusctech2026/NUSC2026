@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getDashboardData } from './service';
+import { RedeemButton } from './RedeemButton';
 
 export const metadata = {
   title: 'Dashboard Overview | NUSC Membership',
@@ -168,22 +169,11 @@ export default async function DashboardPage() {
                               {benefit.claimState === 'upcoming' && benefit.claim_start ? ` (Opens ${new Date(benefit.claim_start).toLocaleDateString('en-GB')})` : ''}
                             </div>
                           </div>
-                          <button 
-                            disabled={true} 
-                            style={{ 
-                              padding: '8px 16px', 
-                              background: canRedeem ? 'var(--navy-600)' : '#cbd5e1', 
-                              color: canRedeem ? '#fff' : '#64748b', 
-                              border: 'none', 
-                              borderRadius: '6px', 
-                              fontWeight: 600,
-                              cursor: 'not-allowed',
-                              opacity: 0.8
-                            }}
-                            title="Ticket purchasing will be enabled soon (Ticket 4)"
-                          >
-                            Redeem & Buy Ticket
-                          </button>
+                          <RedeemButton 
+                            matchId={match.id} 
+                            benefitId={benefit.id} 
+                            canRedeem={canRedeem} 
+                          />
                         </div>
                       );
                     })}
