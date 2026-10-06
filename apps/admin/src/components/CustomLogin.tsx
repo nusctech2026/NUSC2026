@@ -41,7 +41,7 @@ export const CustomLogin: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 400, margin: '100px auto', padding: 20, border: '1px solid #ccc', borderRadius: 8, background: '#fff' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: 20 }}>Staff Login</h2>
+      <h2 style={{ textAlign: 'center', marginBottom: 20, color: '#000' }}>Staff Login</h2>
       {error && <div style={{ color: 'red', marginBottom: 20, textAlign: 'center' }}>{error}</div>}
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
         <input 
@@ -50,7 +50,7 @@ export const CustomLogin: React.FC = () => {
           value={email} 
           onChange={e => setEmail(e.target.value)} 
           required
-          style={{ padding: 10, borderRadius: 4, border: '1px solid #ddd' }}
+          style={{ padding: 10, borderRadius: 4, border: '1px solid #ddd', color: '#000', background: '#fff' }}
         />
         <input 
           type="password" 
@@ -58,7 +58,7 @@ export const CustomLogin: React.FC = () => {
           value={password} 
           onChange={e => setPassword(e.target.value)} 
           required 
-          style={{ padding: 10, borderRadius: 4, border: '1px solid #ddd' }}
+          style={{ padding: 10, borderRadius: 4, border: '1px solid #ddd', color: '#000', background: '#fff' }}
         />
         <button 
           type="submit" 
