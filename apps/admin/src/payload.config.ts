@@ -37,7 +37,9 @@ export default buildConfig({
     },
     components: {
       views: {
-        // CustomLogin removed
+        login: {
+          Component: './components/CustomLogin#CustomLogin',
+        },
         CustomOrders: {
           path: '/orders',
           Component: './components/views/OrdersView#OrdersView',
