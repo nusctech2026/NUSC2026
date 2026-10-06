@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(dirname, '../../'),
   },
+  serverExternalPackages: ['pg'],
 }
 
 export default withPayload(nextConfig, { devBundleServerPackages: false })
