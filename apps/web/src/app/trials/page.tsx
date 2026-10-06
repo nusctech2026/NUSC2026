@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function TrialRegistrationPage() {
   return (
     <>
-      <Nav theme="light" />
+      <Nav theme="light" forceScrolled={true} />
       <main style={{ backgroundColor: 'var(--paper)', minHeight: '100vh', padding: '120px 20px 60px' }}>
         <div style={{
           maxWidth: '800px',

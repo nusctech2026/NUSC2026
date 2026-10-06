@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient as createBrowserClient } from '@nusc/db/src/client/browser';
 
-export function Nav({ theme = 'dark' }: { theme?: 'light' | 'dark' }) {
+export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light' | 'dark', forceScrolled?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeLink, setActiveLink] = useState('');
@@ -81,7 +81,7 @@ export function Nav({ theme = 'dark' }: { theme?: 'light' | 'dark' }) {
 
   return (
     <>
-      <nav className={`nav ${scrolled ? 'scrolled' : ''} ${theme === 'light' ? 'nav-light' : ''}`} id="nav" aria-label="Primary">
+      <nav className={`nav ${scrolled || forceScrolled ? 'scrolled' : ''} ${theme === 'light' ? 'nav-light' : ''}`} id="nav" aria-label="Primary">
         <div className="wrap nav-in">
           <a className="brand" href="#home" aria-label="Nagaland United Sports Club home" onClick={closeDrawer}>
             <span className="brand-mark" role="img" aria-label="NUSC crest"></span>
@@ -92,6 +92,7 @@ export function Nav({ theme = 'dark' }: { theme?: 'light' | 'dark' }) {
             <a href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Journey</a>
             <a href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</a>
             <a href="/#pathway" className={activeLink === 'pathway' ? 'active' : ''}>Pathway</a>
+            <a href="/trials" className={typeof window !== 'undefined' && window.location.pathname === '/trials' ? 'active' : ''}>Trials</a>
             <a href="/#community" className={activeLink === 'community' ? 'active' : ''}>Community</a>
             <a href="/#partners" className={activeLink === 'partners' ? 'active' : ''}>Partners</a>
           </div>
@@ -121,6 +122,7 @@ export function Nav({ theme = 'dark' }: { theme?: 'light' | 'dark' }) {
         <a href="/#journey" onClick={closeDrawer}>Journey<small>The rise, year by year</small></a>
         <a href="/#honours" onClick={closeDrawer}>Honours<small>Champions • Representing Nagaland</small></a>
         <a href="/#pathway" onClick={closeDrawer}>Pathway<small>Players • Inspire Institute</small></a>
+        <a href="/trials" onClick={closeDrawer}>Trials<small>U23 Registrations</small></a>
         <a href="/#community" onClick={closeDrawer}>Community<small>Peace Pays</small></a>
         <a href="/#partners" onClick={closeDrawer}>Partners<small>Support NUSC</small></a>
         {isLoggedIn ? (
