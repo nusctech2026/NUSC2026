@@ -63,14 +63,27 @@ export type SupportedTimezones =
 
 export interface Config {
   auth: {
-    users: UserAuthOperations;
+    admins: AdminAuthOperations;
   };
   blocks: {};
   collections: {
-    users: User;
+    admins: Admin;
     media: Media;
-    matches: Match;
-    match_benefits: MatchBenefit;
+    'website-media': WebsiteMedia;
+    pages: Page;
+    news: News;
+    teams: Team;
+    players: Player;
+    fixtures: Fixture;
+    events: Event;
+    sponsors: Sponsor;
+    galleries: Gallery;
+    membership_plans: MembershipPlan;
+    membership_benefits: MembershipBenefit;
+    members: Member;
+    benefit_redemptions: BenefitRedemption;
+    'trial-registrations': TrialRegistration;
+    user_roles: UserRole;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -78,10 +91,23 @@ export interface Config {
   };
   collectionsJoins: {};
   collectionsSelect: {
-    users: UsersSelect<false> | UsersSelect<true>;
+    admins: AdminsSelect<false> | AdminsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
-    matches: MatchesSelect<false> | MatchesSelect<true>;
-    match_benefits: MatchBenefitsSelect<false> | MatchBenefitsSelect<true>;
+    'website-media': WebsiteMediaSelect<false> | WebsiteMediaSelect<true>;
+    pages: PagesSelect<false> | PagesSelect<true>;
+    news: NewsSelect<false> | NewsSelect<true>;
+    teams: TeamsSelect<false> | TeamsSelect<true>;
+    players: PlayersSelect<false> | PlayersSelect<true>;
+    fixtures: FixturesSelect<false> | FixturesSelect<true>;
+    events: EventsSelect<false> | EventsSelect<true>;
+    sponsors: SponsorsSelect<false> | SponsorsSelect<true>;
+    galleries: GalleriesSelect<false> | GalleriesSelect<true>;
+    membership_plans: MembershipPlansSelect<false> | MembershipPlansSelect<true>;
+    membership_benefits: MembershipBenefitsSelect<false> | MembershipBenefitsSelect<true>;
+    members: MembersSelect<false> | MembersSelect<true>;
+    benefit_redemptions: BenefitRedemptionsSelect<false> | BenefitRedemptionsSelect<true>;
+    'trial-registrations': TrialRegistrationsSelect<false> | TrialRegistrationsSelect<true>;
+    user_roles: UserRolesSelect<false> | UserRolesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -91,19 +117,25 @@ export interface Config {
     defaultIDType: string;
   };
   fallbackLocale: null;
-  globals: {};
-  globalsSelect: {};
+  globals: {
+    'website-settings': WebsiteSetting;
+    navigation: Navigation;
+  };
+  globalsSelect: {
+    'website-settings': WebsiteSettingsSelect<false> | WebsiteSettingsSelect<true>;
+    navigation: NavigationSelect<false> | NavigationSelect<true>;
+  };
   locale: null;
   widgets: {
     collections: CollectionsWidget;
   };
-  user: User;
+  user: Admin;
   jobs: {
     tasks: unknown;
     workflows: unknown;
   };
 }
-export interface UserAuthOperations {
+export interface AdminAuthOperations {
   forgotPassword: {
     email: string;
     password: string;
@@ -123,29 +155,21 @@ export interface UserAuthOperations {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
+ * via the `definition` "admins".
  */
-export interface User {
+export interface Admin {
   id: string;
-  updatedAt: string;
-  createdAt: string;
+  supabase_user_id: string;
   email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  resetPasswordRequestedAt?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
+  display_roles?:
     | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
+        role?: string | null;
+        id?: string | null;
       }[]
     | null;
-  password?: string | null;
-  collection: 'users';
+  updatedAt: string;
+  createdAt: string;
+  collection: 'admins';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -168,36 +192,391 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "matches".
+ * via the `definition` "website-media".
  */
-export interface Match {
+export interface WebsiteMedia {
   id: string;
-  opponent: string;
-  matchDate: string;
-  venue: string;
-  ahibiEventId?: string | null;
-  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  alt: string;
+  caption?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    hero?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages".
+ */
+export interface Page {
+  id: string;
+  title: string;
+  slug?: string | null;
+  layout?:
+    | (
+        | {
+            headline: string;
+            subheadline?: string | null;
+            backgroundImage?: (string | null) | WebsiteMedia;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'hero';
+          }
+        | {
+            content: {
+              root: {
+                type: string;
+                children: {
+                  type: any;
+                  version: number;
+                  [k: string]: unknown;
+                }[];
+                direction: ('ltr' | 'rtl') | null;
+                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                indent: number;
+                version: number;
+              };
+              [k: string]: unknown;
+            };
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'content';
+          }
+      )[]
+    | null;
+  seo?: {
+    /**
+     * Optimized title for search engines. Leave blank to fallback to the default title.
+     */
+    title?: string | null;
+    /**
+     * Recommended length is 150-160 characters.
+     */
+    description?: string | null;
+    /**
+     * Image displayed when shared on social networks.
+     */
+    ogImage?: (string | null) | WebsiteMedia;
+  };
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "news".
+ */
+export interface News {
+  id: string;
+  title: string;
+  slug?: string | null;
+  publishDate?: string | null;
+  author?: string | null;
+  coverImage?: (string | null) | WebsiteMedia;
+  content?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  seo?: {
+    /**
+     * Optimized title for search engines. Leave blank to fallback to the default title.
+     */
+    title?: string | null;
+    /**
+     * Recommended length is 150-160 characters.
+     */
+    description?: string | null;
+    /**
+     * Image displayed when shared on social networks.
+     */
+    ogImage?: (string | null) | WebsiteMedia;
+  };
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams".
+ */
+export interface Team {
+  id: string;
+  name: string;
+  slug?: string | null;
+  ageGroup?: string | null;
+  coach?: string | null;
+  season?: string | null;
+  photo?: (string | null) | WebsiteMedia;
+  status?: ('active' | 'archived') | null;
   updatedAt: string;
   createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "match_benefits".
+ * via the `definition` "players".
  */
-export interface MatchBenefit {
+export interface Player {
   id: string;
-  match: string | Match;
   name: string;
-  description?: string | null;
-  pointsCost: number;
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  claimStart: string;
-  claimEnd: string;
-  active?: boolean | null;
-  maxRedemptionsPerMember: number;
+  slug?: string | null;
+  shirtNumber?: number | null;
+  position?: string | null;
+  team?: (string | null) | Team;
+  photo?: (string | null) | WebsiteMedia;
+  bio?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  status?: ('active' | 'archived') | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fixtures".
+ */
+export interface Fixture {
+  id: string;
+  opponent: string;
+  dateTime: string;
+  homeAway?: ('home' | 'away') | null;
+  venue?: string | null;
+  competition?: string | null;
+  matchStatus?: ('upcoming' | 'in_progress' | 'completed' | 'postponed' | 'cancelled') | null;
+  /**
+   * e.g. 2-1 (W)
+   */
+  scoreResult?: string | null;
+  /**
+   * Link to a news article match report.
+   */
+  matchReport?: (string | null) | News;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events".
+ */
+export interface Event {
+  id: string;
+  title: string;
+  slug?: string | null;
+  dateTime: string;
+  location?: string | null;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  registrationLink?: string | null;
+  status?: ('upcoming' | 'ongoing' | 'completed' | 'cancelled') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sponsors".
+ */
+export interface Sponsor {
+  id: string;
+  name: string;
+  logo: string | WebsiteMedia;
+  website?: string | null;
+  sponsorshipTier?: ('platinum' | 'gold' | 'silver' | 'bronze' | 'partner') | null;
+  displayOrder?: number | null;
+  status?: ('active' | 'inactive') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "galleries".
+ */
+export interface Gallery {
+  id: string;
+  title: string;
+  date?: string | null;
+  linkedMatch?: (string | null) | Fixture;
+  linkedEvent?: (string | null) | Event;
+  photos?:
+    | {
+        photo: string | WebsiteMedia;
+        caption?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  displayOrder?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership_plans".
+ */
+export interface MembershipPlan {
+  id: string;
+  name: string;
+  slug: string;
+  /**
+   * Price in minor units (e.g., paise). 300000 = ₹3,000.
+   */
+  price: number;
+  billing_cycle: 'season' | 'annual' | 'monthly';
+  description?: string | null;
+  is_purchasable_online?: boolean | null;
+  is_active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership_benefits".
+ */
+export interface MembershipBenefit {
+  id: string;
+  plan: string | MembershipPlan;
+  category: 'tickets' | 'discount' | 'content' | 'events' | 'physical_goods' | 'other';
+  description: string;
+  /**
+   * Machine readable rules (e.g., {"discount_percent": 10})
+   */
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  is_active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "members".
+ */
+export interface Member {
+  id: string;
+  /**
+   * Supabase auth.user UUID
+   */
+  user_id: string;
+  plan: string | MembershipPlan;
+  status: 'active' | 'expired' | 'cancelled' | 'pending_payment';
+  start_date: string;
+  end_date?: string | null;
+  lead_member?: (string | null) | Member;
+  payment_id?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "benefit_redemptions".
+ */
+export interface BenefitRedemption {
+  id: string;
+  member: string | Member;
+  benefit: string | MembershipBenefit;
+  redeemed_at: string;
+  notes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trial-registrations".
+ */
+export interface TrialRegistration {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  indigenousCertificate: string | Media;
+  aadharCard: string | Media;
+  crsNumber: string;
+  location?: string | null;
+  address: string;
+  eventDate?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user_roles".
+ */
+export interface UserRole {
+  id: string;
+  user_id: string;
+  role: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -224,25 +603,77 @@ export interface PayloadLockedDocument {
   id: string;
   document?:
     | ({
-        relationTo: 'users';
-        value: string | User;
+        relationTo: 'admins';
+        value: string | Admin;
       } | null)
     | ({
         relationTo: 'media';
         value: string | Media;
       } | null)
     | ({
-        relationTo: 'matches';
-        value: string | Match;
+        relationTo: 'website-media';
+        value: string | WebsiteMedia;
       } | null)
     | ({
-        relationTo: 'match_benefits';
-        value: string | MatchBenefit;
+        relationTo: 'pages';
+        value: string | Page;
+      } | null)
+    | ({
+        relationTo: 'news';
+        value: string | News;
+      } | null)
+    | ({
+        relationTo: 'teams';
+        value: string | Team;
+      } | null)
+    | ({
+        relationTo: 'players';
+        value: string | Player;
+      } | null)
+    | ({
+        relationTo: 'fixtures';
+        value: string | Fixture;
+      } | null)
+    | ({
+        relationTo: 'events';
+        value: string | Event;
+      } | null)
+    | ({
+        relationTo: 'sponsors';
+        value: string | Sponsor;
+      } | null)
+    | ({
+        relationTo: 'galleries';
+        value: string | Gallery;
+      } | null)
+    | ({
+        relationTo: 'membership_plans';
+        value: string | MembershipPlan;
+      } | null)
+    | ({
+        relationTo: 'membership_benefits';
+        value: string | MembershipBenefit;
+      } | null)
+    | ({
+        relationTo: 'members';
+        value: string | Member;
+      } | null)
+    | ({
+        relationTo: 'benefit_redemptions';
+        value: string | BenefitRedemption;
+      } | null)
+    | ({
+        relationTo: 'trial-registrations';
+        value: string | TrialRegistration;
+      } | null)
+    | ({
+        relationTo: 'user_roles';
+        value: string | UserRole;
       } | null);
   globalSlug?: string | null;
   user: {
-    relationTo: 'users';
-    value: string | User;
+    relationTo: 'admins';
+    value: string | Admin;
   };
   updatedAt: string;
   createdAt: string;
@@ -254,8 +685,8 @@ export interface PayloadLockedDocument {
 export interface PayloadPreference {
   id: string;
   user: {
-    relationTo: 'users';
-    value: string | User;
+    relationTo: 'admins';
+    value: string | Admin;
   };
   key?: string | null;
   value?:
@@ -283,26 +714,19 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users_select".
+ * via the `definition` "admins_select".
  */
-export interface UsersSelect<T extends boolean = true> {
-  updatedAt?: T;
-  createdAt?: T;
+export interface AdminsSelect<T extends boolean = true> {
+  supabase_user_id?: T;
   email?: T;
-  resetPasswordToken?: T;
-  resetPasswordExpiration?: T;
-  salt?: T;
-  hash?: T;
-  resetPasswordRequestedAt?: T;
-  loginAttempts?: T;
-  lockUntil?: T;
-  sessions?:
+  display_roles?:
     | T
     | {
+        role?: T;
         id?: T;
-        createdAt?: T;
-        expiresAt?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -324,34 +748,293 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "matches_select".
+ * via the `definition` "website-media_select".
  */
-export interface MatchesSelect<T extends boolean = true> {
-  opponent?: T;
-  matchDate?: T;
-  venue?: T;
-  ahibiEventId?: T;
+export interface WebsiteMediaSelect<T extends boolean = true> {
+  alt?: T;
+  caption?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        card?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        hero?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages_select".
+ */
+export interface PagesSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  layout?:
+    | T
+    | {
+        hero?:
+          | T
+          | {
+              headline?: T;
+              subheadline?: T;
+              backgroundImage?: T;
+              id?: T;
+              blockName?: T;
+            };
+        content?:
+          | T
+          | {
+              content?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  seo?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        ogImage?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "news_select".
+ */
+export interface NewsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  publishDate?: T;
+  author?: T;
+  coverImage?: T;
+  content?: T;
+  seo?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        ogImage?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams_select".
+ */
+export interface TeamsSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  ageGroup?: T;
+  coach?: T;
+  season?: T;
+  photo?: T;
   status?: T;
   updatedAt?: T;
   createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "match_benefits_select".
+ * via the `definition` "players_select".
  */
-export interface MatchBenefitsSelect<T extends boolean = true> {
-  match?: T;
+export interface PlayersSelect<T extends boolean = true> {
   name?: T;
-  description?: T;
-  pointsCost?: T;
-  discountType?: T;
-  discountValue?: T;
-  claimStart?: T;
-  claimEnd?: T;
-  active?: T;
-  maxRedemptionsPerMember?: T;
+  slug?: T;
+  shirtNumber?: T;
+  position?: T;
+  team?: T;
+  photo?: T;
+  bio?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fixtures_select".
+ */
+export interface FixturesSelect<T extends boolean = true> {
+  opponent?: T;
+  dateTime?: T;
+  homeAway?: T;
+  venue?: T;
+  competition?: T;
+  matchStatus?: T;
+  scoreResult?: T;
+  matchReport?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events_select".
+ */
+export interface EventsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  dateTime?: T;
+  location?: T;
+  description?: T;
+  registrationLink?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sponsors_select".
+ */
+export interface SponsorsSelect<T extends boolean = true> {
+  name?: T;
+  logo?: T;
+  website?: T;
+  sponsorshipTier?: T;
+  displayOrder?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "galleries_select".
+ */
+export interface GalleriesSelect<T extends boolean = true> {
+  title?: T;
+  date?: T;
+  linkedMatch?: T;
+  linkedEvent?: T;
+  photos?:
+    | T
+    | {
+        photo?: T;
+        caption?: T;
+        id?: T;
+      };
+  displayOrder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership_plans_select".
+ */
+export interface MembershipPlansSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  price?: T;
+  billing_cycle?: T;
+  description?: T;
+  is_purchasable_online?: T;
+  is_active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership_benefits_select".
+ */
+export interface MembershipBenefitsSelect<T extends boolean = true> {
+  plan?: T;
+  category?: T;
+  description?: T;
+  metadata?: T;
+  is_active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "members_select".
+ */
+export interface MembersSelect<T extends boolean = true> {
+  user_id?: T;
+  plan?: T;
+  status?: T;
+  start_date?: T;
+  end_date?: T;
+  lead_member?: T;
+  payment_id?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "benefit_redemptions_select".
+ */
+export interface BenefitRedemptionsSelect<T extends boolean = true> {
+  member?: T;
+  benefit?: T;
+  redeemed_at?: T;
+  notes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trial-registrations_select".
+ */
+export interface TrialRegistrationsSelect<T extends boolean = true> {
+  fullName?: T;
+  email?: T;
+  phone?: T;
+  dateOfBirth?: T;
+  indigenousCertificate?: T;
+  aadharCard?: T;
+  crsNumber?: T;
+  location?: T;
+  address?: T;
+  eventDate?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user_roles_select".
+ */
+export interface UserRolesSelect<T extends boolean = true> {
+  user_id?: T;
+  role?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -392,6 +1075,159 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "website-settings".
+ */
+export interface WebsiteSetting {
+  id: string;
+  contactDetails?: {
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+  };
+  socialLinks?:
+    | {
+        platform?: ('facebook' | 'twitter' | 'instagram' | 'linkedin' | 'youtube') | null;
+        url?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  branding?: {
+    logo?: (string | null) | WebsiteMedia;
+    favicon?: (string | null) | WebsiteMedia;
+  };
+  defaultSEO?: {
+    /**
+     * Optimized title for search engines. Leave blank to fallback to the default title.
+     */
+    title?: string | null;
+    /**
+     * Recommended length is 150-160 characters.
+     */
+    description?: string | null;
+    /**
+     * Image displayed when shared on social networks.
+     */
+    ogImage?: (string | null) | WebsiteMedia;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "navigation".
+ */
+export interface Navigation {
+  id: string;
+  header?:
+    | {
+        type?: ('reference' | 'custom') | null;
+        reference?: (string | null) | Page;
+        url?: string | null;
+        label: string;
+        newTab?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  footer?:
+    | {
+        type?: ('reference' | 'custom') | null;
+        reference?: (string | null) | Page;
+        url?: string | null;
+        label: string;
+        newTab?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  externalLinks?:
+    | {
+        type?: ('reference' | 'custom') | null;
+        reference?: (string | null) | Page;
+        url?: string | null;
+        label: string;
+        newTab?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "website-settings_select".
+ */
+export interface WebsiteSettingsSelect<T extends boolean = true> {
+  contactDetails?:
+    | T
+    | {
+        email?: T;
+        phone?: T;
+        address?: T;
+      };
+  socialLinks?:
+    | T
+    | {
+        platform?: T;
+        url?: T;
+        id?: T;
+      };
+  branding?:
+    | T
+    | {
+        logo?: T;
+        favicon?: T;
+      };
+  defaultSEO?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        ogImage?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "navigation_select".
+ */
+export interface NavigationSelect<T extends boolean = true> {
+  header?:
+    | T
+    | {
+        type?: T;
+        reference?: T;
+        url?: T;
+        label?: T;
+        newTab?: T;
+        id?: T;
+      };
+  footer?:
+    | T
+    | {
+        type?: T;
+        reference?: T;
+        url?: T;
+        label?: T;
+        newTab?: T;
+        id?: T;
+      };
+  externalLinks?:
+    | T
+    | {
+        type?: T;
+        reference?: T;
+        url?: T;
+        label?: T;
+        newTab?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

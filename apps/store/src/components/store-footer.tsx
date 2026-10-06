@@ -41,12 +41,12 @@ export function StoreFooter() {
           <div className="sf-col">
             <h4 className="sf-heading">SHOP</h4>
             <nav className="sf-nav">
-              <Link href="#">Home Kits</Link>
-              <Link href="#">Away Kits</Link>
-              <Link href="#">Third Kits</Link>
-              <Link href="#">Training Wear</Link>
-              <Link href="#">Goalkeeper Kits</Link>
-              <Link href="#">Limited Editions</Link>
+              <Link href="/category/home-kits">Home Kits</Link>
+              <Link href="/category/away-kits">Away Kits</Link>
+              <Link href="/category/third-kits">Third Kits</Link>
+              <Link href="/category/training-wear">Training Wear</Link>
+              <Link href="/category/goalkeeper-kits">Goalkeeper Kits</Link>
+              <Link href="/category/limited-editions">Limited Editions</Link>
             </nav>
           </div>
 
@@ -54,12 +54,12 @@ export function StoreFooter() {
           <div className="sf-col">
             <h4 className="sf-heading">CLUB</h4>
             <nav className="sf-nav">
-              <Link href="#">About the Club</Link>
-              <Link href="#">First Team</Link>
-              <Link href="#">Academy</Link>
-              <Link href="#">Women's Team</Link>
-              <Link href="#">Club History</Link>
-              <Link href="#">Stadium Tours</Link>
+              <a href="https://nusc.com/about">About the Club</a>
+              <a href="https://nusc.com/team/first-team">First Team</a>
+              <a href="https://nusc.com/academy">Academy</a>
+              <a href="https://nusc.com/team/womens">Women's Team</a>
+              <a href="https://nusc.com/history">Club History</a>
+              <a href="https://nusc.com/stadium-tours">Stadium Tours</a>
             </nav>
           </div>
 
@@ -67,12 +67,12 @@ export function StoreFooter() {
           <div className="sf-col">
             <h4 className="sf-heading">HELP</h4>
             <nav className="sf-nav">
-              <Link href="#">Size Guide</Link>
-              <Link href="#">Delivery Info</Link>
-              <Link href="#">Returns & Refunds</Link>
-              <Link href="#">Track My Order</Link>
-              <Link href="#">FAQs</Link>
-              <Link href="#">Contact Us</Link>
+              <Link href="/size-guide">Size Guide</Link>
+              <Link href="/legal/shipping">Delivery Info</Link>
+              <Link href="/legal/returns">Returns & Refunds</Link>
+              <Link href="/account/orders">Track My Order</Link>
+              <Link href="/faqs">FAQs</Link>
+              <Link href="/contact">Contact Us</Link>
             </nav>
           </div>
 
@@ -80,11 +80,11 @@ export function StoreFooter() {
           <div className="sf-col">
             <h4 className="sf-heading">MEMBERSHIP</h4>
             <nav className="sf-nav">
-              <Link href="#">Season Tickets</Link>
-              <Link href="#">Fan Club</Link>
-              <Link href="#">Loyalty Points</Link>
-              <Link href="#">Gift Cards</Link>
-              <Link href="#">Corporate Packages</Link>
+              <a href="https://nusc.com/tickets/season">Season Tickets</a>
+              <a href="https://nusc.com/fan-club">Fan Club</a>
+              <Link href="/account/benefits">Loyalty Points</Link>
+              <Link href="/category/gift-cards">Gift Cards</Link>
+              <a href="https://nusc.com/corporate">Corporate Packages</a>
             </nav>
           </div>
         </div>
@@ -116,8 +116,8 @@ export function StoreFooter() {
             &copy; 2026 KITSHOP &mdash; OFFICIAL CLUB STORE. ALL RIGHTS RESERVED.
           </div>
           <div className="sf-legal-links">
-            <Link href="#">Privacy Policy</Link>
-            <Link href="#">Terms of Use</Link>
+            <Link href="/legal/privacy-policy">Privacy Policy</Link>
+            <Link href="/legal/terms">Terms of Use</Link>
             <Link href="#">Cookie Settings</Link>
             <Link href="#">Accessibility</Link>
           </div>

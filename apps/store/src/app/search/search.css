@@ -1,0 +1,77 @@
+.search-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+.search-mobile-action-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--white);
+  border-top: 1px solid var(--line-l);
+  z-index: 50;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+}
+
+@media (max-width: 992px) {
+  .search-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .search-filters-sidebar {
+    display: none !important; /* On mobile, we usually have a filter modal/button */
+  }
+  .search-mobile-action-bar {
+    display: flex;
+  }
+}
+
+
+.search-mobile-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: none;
+  border: none;
+  font-weight: 600;
+  color: var(--navy-900);
+  cursor: pointer;
+}
+
+.search-mobile-action-btn:not(:last-child) {
+  border-right: 1px solid var(--line-l);
+}
+
+.search-mobile-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.search-mobile-modal {
+  background: var(--white);
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 24px 24px 0 0;
+  padding: 32px 24px;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

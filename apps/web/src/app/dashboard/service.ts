@@ -1,14 +1,35 @@
 import { createServerClient } from '@nusc/db';
 
+export interface MembershipPlan {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  billing_cycle: string;
+  description: string;
+  is_purchasable_online: boolean;
+  is_active: boolean;
+}
+
+export interface Member {
+  id: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  plan: MembershipPlan;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
+
 export interface DashboardData {
-  member: any;
-  wallet: {
-    available_points: number;
-  } | null;
-  upcomingMatches: {
-    match: any;
-    benefits: any[];
-  }[];
+  profile: UserProfile;
+  membership: Member | null;
+  availablePlans: MembershipPlan[];
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -19,81 +40,31 @@ export async function getDashboardData(): Promise<DashboardData> {
     throw new Error('Unauthorized');
   }
 
-  // 1. Fetch member profile
-  const { data: member } = await supabase
+  const profile: UserProfile = {
+    id: user.id,
+    email: user.email || '',
+    first_name: user.user_metadata?.first_name || '',
+    last_name: user.user_metadata?.last_name || '',
+  };
+
+  // Fetch the user's active membership along with the plan details
+  const { data: membershipData } = await supabase
     .from('members')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  // 2. Fetch wallet
-  const { data: wallet } = await supabase
-    .from('member_wallets')
-    .select('available_points')
+    .select('*, plan:membership_plans(*)')
     .eq('user_id', user.id)
-    .single();
+    .eq('status', 'active')
+    .maybeSingle();
 
-  // 3. Fetch upcoming scheduled matches (where match_date is in the future)
-  const now = new Date().toISOString();
-  const { data: matches } = await supabase
-    .from('matches')
+  // Fetch all active membership plans to show upgrades
+  const { data: plans } = await supabase
+    .from('membership_plans')
     .select('*')
-    .eq('status', 'scheduled')
-    .gte('match_date', now)
-    .order('match_date', { ascending: true });
-
-  const upcomingMatches = [];
-
-  if (matches && matches.length > 0) {
-    const matchIds = matches.map((m: any) => m.id);
-    
-    // Fetch active benefits for these matches
-    const { data: allBenefits } = await supabase
-      .from('match_benefits')
-      .select('*')
-      .in('match_id', matchIds)
-      .eq('active', true);
-
-    const benefitsByMatch = (allBenefits || []).reduce((acc: any, benefit: any) => {
-      // Calculate claim-window state based on server-side time
-      let claimState = 'unavailable';
-      const claimStart = benefit.claim_start ? new Date(benefit.claim_start) : null;
-      const claimEnd = benefit.claim_end ? new Date(benefit.claim_end) : null;
-      const currentTime = new Date();
-
-      if (!claimStart && !claimEnd) {
-        claimState = 'available'; // No window specified means always available
-      } else if (claimStart && currentTime < claimStart) {
-        claimState = 'upcoming';
-      } else if (claimEnd && currentTime > claimEnd) {
-        claimState = 'closed';
-      } else {
-        claimState = 'available';
-      }
-
-      const enhancedBenefit = {
-        ...benefit,
-        claimState,
-      };
-
-      if (!acc[benefit.match_id]) {
-        acc[benefit.match_id] = [];
-      }
-      acc[benefit.match_id].push(enhancedBenefit);
-      return acc;
-    }, {});
-
-    for (const match of matches) {
-      upcomingMatches.push({
-        match,
-        benefits: benefitsByMatch[match.id] || [],
-      });
-    }
-  }
+    .eq('is_active', true)
+    .order('price', { ascending: true });
 
   return {
-    member,
-    wallet,
-    upcomingMatches
+    profile,
+    membership: membershipData as Member | null,
+    availablePlans: (plans || []) as MembershipPlan[],
   };
 }

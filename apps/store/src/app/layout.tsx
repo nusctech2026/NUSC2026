@@ -8,6 +8,7 @@ import { Cart } from "@/components/cart";
 import { Wishlist } from "@/components/wishlist";
 import { MobileNav } from "@/components/mobile-nav";
 import { SmoothScrolling } from "@/components/SmoothScrolling";
+import { NetworkStatus } from "@/components/network-status";
 import "./globals.css";
 
 const inter = Inter({
@@ -44,6 +45,7 @@ export default function StoreLayout({
       className={`${inter.variable} ${barlow.variable}`}
     >
       <body suppressHydrationWarning>
+        <NetworkStatus />
         <SmoothScrolling>
           <a className="skip-link" href="#main-content">
             Skip to content
@@ -88,9 +90,9 @@ export default function StoreLayout({
                   <Wishlist />
                 </span>
                 <Cart />
-                <button aria-label="Account" className="icon-btn">
+                <Link href="/login" aria-label="Account" className="icon-btn">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-                </button>
+                </Link>
               </div>
             </div>
           </header>

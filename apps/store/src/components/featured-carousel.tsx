@@ -4,11 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { Star, Shield, Plus, Heart } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-export function FeaturedCarousel({ products }: { products: any[] }) {
+export function FeaturedCarousel({ products }: { products: { id: string, name: string, image: string, price: string | number }[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
+  const router = useRouter();
 
   const handleScroll = () => {
     if (scrollRef.current) {
@@ -47,7 +49,7 @@ export function FeaturedCarousel({ products }: { products: any[] }) {
       </button>
       <div className="featured-grid" ref={scrollRef} onScroll={handleScroll}>
         {products.map((product, index) => (
-          <article className="featured-card" key={`${product.name}-${index}`}>
+          <article className="featured-card" key={`${product.id}-${index}`}>
             <div className="fc-image-wrap">
               <div className={`fc-badge ${index % 2 === 0 ? 'authentic' : 'exclusive'}`}>
                 {index % 2 === 0 ? (
@@ -56,16 +58,18 @@ export function FeaturedCarousel({ products }: { products: any[] }) {
                   <><Shield size={12} strokeWidth={2.5} /> NUSC Exclusive</>
                 )}
               </div>
-              <Image
-                className="fc-photo"
-                src={product.image}
-                alt={product.name}
-                fill
-                sizes="(max-width: 980px) 100vw, 33vw"
-                style={{ objectFit: 'cover' }}
-              />
-              <button className="fc-quick-add">
-                QUICK ADD <Plus size={16} strokeWidth={2} />
+              <Link href={`/product/${product.id}`} style={{ display: 'block', width: '100%', height: '100%' }}>
+                <Image
+                  className="fc-photo"
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 980px) 100vw, 33vw"
+                  style={{ objectFit: 'cover' }}
+                />
+              </Link>
+              <button className="fc-quick-add" onClick={() => router.push(`/product/${product.id}`)}>
+                VIEW DETAILS <Plus size={16} strokeWidth={2} />
               </button>
             </div>
             <div className="fc-info-wrap">
@@ -73,8 +77,10 @@ export function FeaturedCarousel({ products }: { products: any[] }) {
                 <p className="fc-subtitle">
                   {index % 2 === 0 ? "PRO MATCH COLLECTION" : "SUPPORTER COLLECTION"}
                 </p>
-                <h3 className="fc-title">{product.name}</h3>
-                <div className="fc-price">{product.price} INR</div>
+                <Link href={`/product/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <h3 className="fc-title">{product.name}</h3>
+                </Link>
+                <div className="fc-price">{product.price}</div>
               </div>
               <button className="fc-wishlist-btn" aria-label="Save to wishlist">
                 <Heart size={16} strokeWidth={1.5} />

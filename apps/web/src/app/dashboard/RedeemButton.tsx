@@ -17,13 +17,32 @@ export function RedeemButton({ matchId, benefitId, canRedeem }: { matchId: strin
       const result = await redeemBenefitAction(matchId, benefitId);
       
       if (result.success) {
-        // Redirect to Ahibi
-        const ahibiUrl = `https://ahibi.in/nusc-checkout?r=${result.token}&eventId=${result.ahibiEventId}`;
-        window.location.href = ahibiUrl;
+        // Redirect to Ahibi via POST form submission (STAGING URL UNTIL CONTRACT CONFIRMED)
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = process.env.NEXT_PUBLIC_AHIBI_CHECKOUT_URL || 'https://staging.ahibi.in/mock-nusc-checkout';
+        
+        const authInput = document.createElement('input');
+        authInput.type = 'hidden';
+        authInput.name = 'authorization';
+        authInput.value = result.token;
+        
+        const eventInput = document.createElement('input');
+        eventInput.type = 'hidden';
+        eventInput.name = 'eventId';
+        eventInput.value = result.ahibiEventId;
+        
+        form.appendChild(authInput);
+        form.appendChild(eventInput);
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Form submission happens immediately, but we can clean up transiently
+        document.body.removeChild(form);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'Failed to redeem benefit');
+      setError(err instanceof Error ? err.message : 'Failed to redeem benefit');
       setLoading(false);
     }
   };

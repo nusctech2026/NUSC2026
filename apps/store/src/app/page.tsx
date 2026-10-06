@@ -5,35 +5,13 @@ import { ShopHeroCarousel } from "@/components/shop-hero-carousel";
 import { FeaturedCarousel } from "@/components/featured-carousel";
 import { emailLink } from "@/content/site";
 import { ChevronRight } from "lucide-react";
+import { createServerClient } from "@nusc/db";
 
 export const metadata: Metadata = {
   title: "Shop",
   description:
     "Frontend preview for the official NUSC store landing page. Products, prices and stock await club approval.",
 };
-
-const matchKits = [
-  {
-    name: "NUSC 2026 Home Kit",
-    price: "₹ 1,899",
-    image: "/images/jersey (4).jpg",
-  },
-  {
-    name: "NUSC 2026 Away Kit",
-    price: "₹ 1,899",
-    image: "/images/jersey (5).jpg",
-  },
-  {
-    name: "NUSC 2026 Third Kit",
-    price: "₹ 1,899",
-    image: "/images/jersey (6).jpg",
-  },
-  {
-    name: "NUSC 2026 Goalkeeper Kit",
-    price: "₹ 1,999",
-    image: "/images/jersey (7).jpg",
-  },
-];
 
 const popularCategories = [
   {
@@ -87,7 +65,50 @@ const discoverCollections = [
   }
 ];
 
-export default function ShopPage() {
+export default async function ShopPage() {
+  const supabase = await createServerClient();
+  const { data: dbProducts } = await supabase
+    .from('products')
+    .select(`
+      *,
+      product_images (
+        storage_path,
+        display_order
+      ),
+      product_variants (
+        id,
+        sku,
+        size,
+        color,
+        stock_quantity,
+        price_override
+      )
+    `)
+    .eq('is_archived', false)
+    .eq('is_featured', true)
+    .limit(10);
+
+  // Format the db products to match what FeaturedCarousel expects
+  const featuredKits = dbProducts ? dbProducts.map(p => {
+    // Determine image URL
+    // We'll fall back to a placeholder if no images exist
+    const images = p.product_images || [];
+    images.sort((a: any, b: any) => a.display_order - b.display_order);
+    
+    let imagePath = "/images/jersey (4).jpg";
+    if (images.length > 0 && images[0].storage_path) {
+      const sp = images[0].storage_path;
+      imagePath = sp.startsWith('/') ? sp : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product_images/${sp}`;
+    }
+    
+    return {
+      id: p.id,
+      name: p.name,
+      price: `₹ ${(p.base_price / 100).toLocaleString('en-IN')}`,
+      image: imagePath,
+    };
+  }) : [];
+
   return (
     <div className="shop-preview">
       <ShopHeroCarousel />
@@ -102,7 +123,7 @@ export default function ShopPage() {
               <Link href="#women">WOMEN</Link>
             </div>
           </div>
-          <FeaturedCarousel products={[...matchKits, ...matchKits.map(k => ({...k, name: k.name + " (Away)"}))]} />
+          <FeaturedCarousel products={featuredKits} />
         </div>
       </section>
 
