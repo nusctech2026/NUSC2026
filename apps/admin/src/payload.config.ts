@@ -36,10 +36,10 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
     components: {
-      beforeLogin: [
-        './components/CustomLogin#CustomLogin'
-      ],
       views: {
+        login: {
+          Component: './components/CustomLogin#CustomLogin',
+        },
         CustomOrders: {
           path: '/orders',
           Component: './components/views/OrdersView#OrdersView',
