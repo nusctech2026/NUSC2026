@@ -89,12 +89,10 @@ export default function TrialRegistrationForm() {
         <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>Name</label>
         <div className="form-row" style={{ marginBottom: 0 }}>
           <div style={{ flex: 1 }}>
-            <input type="text" id="firstName" name="firstName" required style={inputStyle} />
-            <span style={helperStyle}>First Name</span>
+            <input type="text" id="firstName" name="firstName" required placeholder="First Name" style={inputStyle} />
           </div>
           <div style={{ flex: 1 }}>
-            <input type="text" id="lastName" name="lastName" required style={inputStyle} />
-            <span style={helperStyle}>Last Name</span>
+            <input type="text" id="lastName" name="lastName" required placeholder="Last Name" style={inputStyle} />
           </div>
         </div>
       </div>
@@ -107,8 +105,7 @@ export default function TrialRegistrationForm() {
         </div>
         <div style={{ flex: 1 }}>
           <label htmlFor="email" style={labelStyle}>E-mail</label>
-          <input type="email" id="email" name="email" required placeholder="ex: myname@example.com" style={inputStyle} />
-          <span style={helperStyle}>example@example.com</span>
+          <input type="email" id="email" name="email" required placeholder="example@example.com" style={inputStyle} />
         </div>
       </div>
 
@@ -121,15 +118,13 @@ export default function TrialRegistrationForm() {
       {/* Address */}
       <div style={{ marginBottom: '24px' }}>
         <label htmlFor="address" style={labelStyle}>Residential Address</label>
-        <textarea id="address" name="address" required rows={3} placeholder="Street address, City, District" style={{...inputStyle, resize: 'vertical'}}></textarea>
-        <span style={helperStyle}>Must be an address within Nagaland</span>
+        <textarea id="address" name="address" required rows={3} placeholder="Street address, City, District (Must be within Nagaland)" style={{...inputStyle, resize: 'vertical'}}></textarea>
       </div>
 
       {/* CRS Number */}
       <div style={{ marginBottom: '24px' }}>
         <label htmlFor="crsNumber" style={labelStyle}>CRS Number</label>
-        <input type="text" id="crsNumber" name="crsNumber" required style={inputStyle} />
-        <span style={helperStyle}>As provided during preliminary registration</span>
+        <input type="text" id="crsNumber" name="crsNumber" required placeholder="As provided during preliminary registration" style={inputStyle} />
       </div>
 
       {/* Documents */}
