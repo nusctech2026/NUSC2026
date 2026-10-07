@@ -64,6 +64,43 @@ export default function TrialRegistrationForm() {
           gap: 20px;
           margin-bottom: 24px;
         }
+        .tooltip-container {
+          position: relative;
+          display: flex;
+          align-items: center;
+          cursor: help;
+        }
+        .tooltip-content {
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          margin-bottom: 8px;
+          padding: 8px 12px;
+          background: #333;
+          color: white;
+          font-size: 0.85rem;
+          border-radius: 4px;
+          width: 250px;
+          text-align: center;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s;
+          z-index: 10;
+        }
+        .tooltip-content::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border-width: 5px;
+          border-style: solid;
+          border-color: #333 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-content {
+          opacity: 1;
+        }
         @media (max-width: 600px) {
           .form-container {
             padding: 24px 16px;
@@ -123,7 +160,19 @@ export default function TrialRegistrationForm() {
 
       {/* CRS Number */}
       <div style={{ marginBottom: '24px' }}>
-        <label htmlFor="crsNumber" style={labelStyle}>CRS Number</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <label htmlFor="crsNumber" style={{ ...labelStyle, marginBottom: 0 }}>CRS Number</label>
+          <div className="tooltip-container">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)' }}>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <div className="tooltip-content">
+              Centralized Registration System (CRS) Number assigned to players by AIFF
+            </div>
+          </div>
+        </div>
         <input type="text" id="crsNumber" name="crsNumber" required placeholder="As provided during preliminary registration" style={inputStyle} />
       </div>
 
@@ -169,10 +218,14 @@ export default function TrialRegistrationForm() {
           borderRadius: '4px',
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
-          transition: 'background 0.2s'
+          transition: 'background 0.2s',
+          marginBottom: '24px'
         }}>
           {isSubmitting ? 'Submitting...' : 'Submit Application'}
         </button>
+        <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
+          For any inquiries or questions, please contact <strong>+91 70853 33972</strong>
+        </p>
       </div>
     </form>
     </>

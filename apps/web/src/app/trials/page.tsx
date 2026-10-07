@@ -170,7 +170,7 @@ export default function TrialRegistrationPage() {
                 textShadow: '0 1px 2px rgba(0,0,0,0.3)',
                 lineHeight: 1.6
               }}>
-                RENPO LU ASTRO TURF, Ungma<br />
+                Renpo Lu Astro Turf, Ungma<br />
                 Mokokchung<br />
                 October 21, 2026<br />
                 U-23 | Indigenous Nagas Only
