@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getDashboardData } from './service';
+import UpgradePlans from '@/components/membership/UpgradePlans';
 
 export const metadata = {
   title: 'Dashboard Overview | NUSC Membership',
@@ -84,64 +85,10 @@ export default async function DashboardPage() {
       )}
       
       {/* Upgrades Section */}
-      <div style={{ marginTop: '40px' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '24px', color: '#0f172a' }}>
-          {membership ? 'Available Upgrades' : 'Choose a Membership Plan'}
-        </h2>
-        
-        {availableUpgrades.length === 0 ? (
-          <p style={{ color: '#64748b' }}>You are currently on the highest tier. Thank you for your incredible support!</p>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-            {availableUpgrades.map(plan => (
-              <div key={plan.id} style={{ 
-                background: '#fff', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '12px', 
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a' }}>{plan.name}</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#2563eb', margin: '12px 0' }}>
-                  ₹{(plan.price / 100).toLocaleString()}
-                </p>
-                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '24px', flexGrow: 1 }}>
-                  {plan.description || 'Premium access and exclusive benefits.'}
-                </p>
-                
-                {plan.is_purchasable_online ? (
-                  <button style={{
-                    width: '100%',
-                    padding: '12px',
-                    background: 'var(--navy-600)',
-                    color: '#fff',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}>
-                    {membership ? 'Upgrade Now' : 'Join Now'}
-                  </button>
-                ) : (
-                  <button style={{
-                    width: '100%',
-                    padding: '12px',
-                    background: '#f1f5f9',
-                    color: '#475569',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    border: '1px solid #cbd5e1',
-                    cursor: 'pointer'
-                  }}>
-                    Contact Us to Purchase
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <UpgradePlans 
+        availableUpgrades={availableUpgrades} 
+        hasMembership={!!membership} 
+      />
 
       <div className="store-banner" style={{ marginTop: '40px', padding: '24px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
         <div className="store-banner-content">

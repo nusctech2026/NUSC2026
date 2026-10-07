@@ -188,6 +188,16 @@ export default function TrialRegistrationPage() {
                 FREE REGISTRATION
               </div>
 
+              <div style={{
+                marginTop: '8px',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                color: '#ff8383ff',
+                textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+              }}>
+                Last Date to Register: October 15, 2026
+              </div>
+
               <p style={{ marginTop: '4px', fontSize: '0.95rem', fontStyle: 'italic', opacity: 0.85, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                 Rise Together.
               </p>

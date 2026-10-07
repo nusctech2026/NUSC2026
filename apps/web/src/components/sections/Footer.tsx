@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export function Footer() {
   return (
@@ -18,12 +19,12 @@ export function Footer() {
         </div>
         <div className="f-col">
           <h4>Explore</h4>
-          <a href="#club">Club</a>
-          <a href="#journey">Journey</a>
-          <a href="#honours">Honours</a>
-          <a href="#pathway">Pathway</a>
-          <a href="#community">Community</a>
-          <a href="#partners">Partners</a>
+          <Link href="/#club">Club</Link>
+          <Link href="/#journey">Journey</Link>
+          <Link href="/#honours">Honours</Link>
+          <Link href="/#pathway">Pathway</Link>
+          <Link href="/#community">Community</Link>
+          <Link href="/#partners">Partners</Link>
         </div>
         <div className="f-col">
           <h4>Contact</h4>

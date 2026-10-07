@@ -26,6 +26,7 @@ import { DownloadAadhar as DownloadAadhar_d362f213792f35fadc41fdd32f266de8 } fro
 import { StoreNavLinks as StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { CatalogNavLinks as CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { SystemNavLinks as SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
+import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 import { CustomLogin as CustomLogin_06a9c4b912dc02730afb7cefbca6de7f } from '../../../components/CustomLogin'
 import { OrdersView as OrdersView_04717927b5eaccacd5274d7b29ef4f54 } from '../../../components/views/OrdersView'
 import { FulfilmentView as FulfilmentView_59b9d61e4abb4ff84499d08e3e943afe } from '../../../components/views/FulfilmentView'
@@ -75,6 +76,7 @@ export const importMap = {
   "./components/nav/StoreNavLinks#StoreNavLinks": StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#CatalogNavLinks": CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#SystemNavLinks": SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
+  "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
   "./components/CustomLogin#CustomLogin": CustomLogin_06a9c4b912dc02730afb7cefbca6de7f,
   "./components/views/OrdersView#OrdersView": OrdersView_04717927b5eaccacd5274d7b29ef4f54,
   "./components/views/FulfilmentView#FulfilmentView": FulfilmentView_59b9d61e4abb4ff84499d08e3e943afe,
