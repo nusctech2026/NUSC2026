@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient as createBrowserClient } from '@nusc/db/src/client/browser';
 
 export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light' | 'dark', forceScrolled?: boolean }) {
@@ -83,24 +84,24 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
     <>
       <nav className={`nav ${scrolled || forceScrolled ? 'scrolled' : ''} ${theme === 'light' ? 'nav-light' : ''}`} id="nav" aria-label="Primary">
         <div className="wrap nav-in">
-          <a className="brand" href="#home" aria-label="Nagaland United Sports Club home" onClick={closeDrawer}>
+          <Link className="brand" href="/" aria-label="Nagaland United Sports Club home" onClick={closeDrawer}>
             <span className="brand-mark" role="img" aria-label="NUSC crest"></span>
             <span className="brand-txt"><b>Nagaland United</b><span>Sports Club</span></span>
-          </a>
+          </Link>
           <div className="nav-links" id="navlinks">
-            <a href="/#club" className={activeLink === 'club' ? 'active' : ''}>Club</a>
-            <a href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Journey</a>
-            <a href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</a>
-            <a href="/#pathway" className={activeLink === 'pathway' ? 'active' : ''}>Pathway</a>
-            <a href="/trials" className={typeof window !== 'undefined' && window.location.pathname === '/trials' ? 'active' : ''}>Trials</a>
-            <a href="/#community" className={activeLink === 'community' ? 'active' : ''}>Community</a>
-            <a href="/#partners" className={activeLink === 'partners' ? 'active' : ''}>Partners</a>
+            <Link href="/#club" className={activeLink === 'club' ? 'active' : ''}>Club</Link>
+            <Link href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Journey</Link>
+            <Link href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</Link>
+            <Link href="/#pathway" className={activeLink === 'pathway' ? 'active' : ''}>Pathway</Link>
+            <Link href="/trials" className={typeof window !== 'undefined' && window.location.pathname === '/trials' ? 'active' : ''}>Trials</Link>
+            <Link href="/#community" className={activeLink === 'community' ? 'active' : ''}>Community</Link>
+            <Link href="/#partners" className={activeLink === 'partners' ? 'active' : ''}>Partners</Link>
           </div>
           
           {isLoggedIn ? (
-            <a href="/dashboard" className="btn btn-red nav-cta">Dashboard</a>
+            <Link href="/dashboard" className="btn btn-red nav-cta">Dashboard</Link>
           ) : (
-            <a href="/membership" className="btn btn-red nav-cta">Membership</a>
+            <Link href="/membership" className="btn btn-red nav-cta">Membership</Link>
           )}
 
           <button 
@@ -118,17 +119,17 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
 
       <div className={`drawer ${isOpen ? 'open' : ''}`} id="drawer">
         <div className="burst faint" aria-hidden="true"></div>
-        <a href="/#club" onClick={closeDrawer}>Club<small>Snapshot • Who We Are • Mission</small></a>
-        <a href="/#journey" onClick={closeDrawer}>Journey<small>The rise, year by year</small></a>
-        <a href="/#honours" onClick={closeDrawer}>Honours<small>Champions • Representing Nagaland</small></a>
-        <a href="/#pathway" onClick={closeDrawer}>Pathway<small>Players • Inspire Institute</small></a>
-        <a href="/trials" onClick={closeDrawer}>Trials<small>U23 Registrations</small></a>
-        <a href="/#community" onClick={closeDrawer}>Community<small>Peace Pays</small></a>
-        <a href="/#partners" onClick={closeDrawer}>Partners<small>Support NUSC</small></a>
+        <Link href="/#club" onClick={closeDrawer}>Club<small>Snapshot • Who We Are • Mission</small></Link>
+        <Link href="/#journey" onClick={closeDrawer}>Journey<small>The rise, year by year</small></Link>
+        <Link href="/#honours" onClick={closeDrawer}>Honours<small>Champions • Representing Nagaland</small></Link>
+        <Link href="/#pathway" onClick={closeDrawer}>Pathway<small>Players • Inspire Institute</small></Link>
+        <Link href="/trials" onClick={closeDrawer}>Trials<small>U23 Registrations</small></Link>
+        <Link href="/#community" onClick={closeDrawer}>Community<small>Peace Pays</small></Link>
+        <Link href="/#partners" onClick={closeDrawer}>Partners<small>Support NUSC</small></Link>
         {isLoggedIn ? (
-          <a href="/dashboard" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Dashboard</a>
+          <Link href="/dashboard" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Dashboard</Link>
         ) : (
-          <a href="/membership" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Membership</a>
+          <Link href="/membership" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Membership</Link>
         )}
 
       </div>
