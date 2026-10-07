@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { submitRegistration } from './actions';
 
 export default function TrialRegistrationForm() {
@@ -34,7 +35,20 @@ export default function TrialRegistrationForm() {
     return (
       <div style={{ background: '#f0fdf4', border: '1px solid #86efac', color: '#166534', padding: '24px', borderRadius: '8px', textAlign: 'center', margin: '40px' }}>
         <h2 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Application Submitted</h2>
-        <p>Thank you for registering for the NUSC U23 Trials. We will review your application and contact you soon.</p>
+        <p style={{ marginBottom: '24px' }}>Thank you for registering for the NUSC U23 Trials. We will review your application and contact you soon.</p>
+        <Link href="/" style={{
+          display: 'inline-block',
+          background: 'var(--navy-600, #1a3f7a)',
+          color: 'white',
+          padding: '10px 24px',
+          borderRadius: '4px',
+          textDecoration: 'none',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em'
+        }}>
+          Return Home
+        </Link>
       </div>
     );
   }

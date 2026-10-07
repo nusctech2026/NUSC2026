@@ -12,11 +12,104 @@ export default function TrialRegistrationPage() {
   return (
     <>
       <Nav theme="light" forceScrolled={true} />
-      <main style={{ backgroundColor: 'var(--paper)', minHeight: '100vh', padding: '120px 20px 60px' }}>
+      <main style={{
+        position: 'relative',
+        background: 'linear-gradient(135deg, #1b4b6b 0%, #297a95 100%)',
+        minHeight: '100vh',
+        padding: '120px 20px 60px',
+        overflow: 'hidden'
+      }}>
+
+        {/* Polaroids Background Layer */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 0 }}>
+          {/* Polaroid 1 - Top Left */}
+          <div style={{
+            position: 'absolute',
+            top: '-5%',
+            left: '-2%',
+            width: '280px',
+            height: '320px',
+            backgroundColor: 'white',
+            padding: '12px 12px 40px 12px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+            transform: 'rotate(-12deg)',
+            zIndex: 1
+          }}>
+            <img src="/images/nusc1.jpg" alt="Football" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+
+          {/* Polaroid 2 - Middle Left */}
+          <div style={{
+            position: 'absolute',
+            top: '35%',
+            left: '-5%',
+            width: '260px',
+            height: '300px',
+            backgroundColor: 'white',
+            padding: '12px 12px 40px 12px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+            transform: 'rotate(8deg)',
+            zIndex: 2
+          }}>
+            <img src="/images/nusc2.jpg" alt="Football" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+
+          {/* Polaroid 3 - Bottom Left */}
+          <div style={{
+            position: 'absolute',
+            bottom: '-10%',
+            left: '2%',
+            width: '300px',
+            height: '330px',
+            backgroundColor: '#f4f4f0',
+            padding: '12px 12px 50px 12px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+            transform: 'rotate(-15deg)',
+            zIndex: 3
+          }}>
+            <img src="/images/nusc3.jpg" alt="Football boots" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+
+          {/* Polaroid 4 - Bottom Right */}
+          <div style={{
+            position: 'absolute',
+            bottom: '-5%',
+            right: '2%',
+            width: '340px',
+            height: '300px',
+            backgroundColor: 'white',
+            padding: '15px 15px 45px 15px',
+            boxShadow: '0 15px 40px rgba(0,0,0,0.4)',
+            transform: 'rotate(10deg)',
+            zIndex: 1
+          }}>
+            <img src="/images/nusc4.jpg" alt="Football player" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+
+          {/* Polaroid 5 - Top Right */}
+          <div style={{
+            position: 'absolute',
+            top: '10%',
+            right: '-5%',
+            width: '240px',
+            height: '240px',
+            backgroundColor: 'white',
+            padding: '10px 10px 30px 10px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            transform: 'rotate(-25deg)',
+            zIndex: 1,
+            opacity: 0.8
+          }}>
+            <img src="/images/nusc5.jpg" alt="Football field" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+        </div>
+
         <div style={{
+          position: 'relative',
+          zIndex: 10,
           maxWidth: '800px',
           margin: '0 auto',
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
           backgroundColor: 'var(--white)',
           overflow: 'hidden',
           borderRadius: '8px'
@@ -69,17 +162,17 @@ export default function TrialRegistrationPage() {
               }}>
                 NUSC TRIALS
               </h1>
-              
-              <p style={{ 
-                marginTop: '16px', 
-                fontSize: '1.05rem', 
-                color: 'rgba(255,255,255,0.95)', 
+
+              <p style={{
+                marginTop: '16px',
+                fontSize: '1.05rem',
+                color: 'rgba(255,255,255,0.95)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.3)',
                 lineHeight: 1.6
               }}>
-                RENPO LU ASTRO TURF, Ungma<br/>
-                Mokokchung<br/>
-                October 21, 2026<br/>
+                RENPO LU ASTRO TURF, Ungma<br />
+                Mokokchung<br />
+                October 21, 2026<br />
                 U-23 | Indigenous Nagas Only
               </p>
 
@@ -94,7 +187,7 @@ export default function TrialRegistrationPage() {
               }}>
                 FREE REGISTRATION
               </div>
-              
+
               <p style={{ marginTop: '4px', fontSize: '0.95rem', fontStyle: 'italic', opacity: 0.85, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                 Rise Together.
               </p>
