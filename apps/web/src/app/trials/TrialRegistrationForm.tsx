@@ -54,7 +54,30 @@ export default function TrialRegistrationForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ padding: '40px' }}>
+    <>
+      <style>{`
+        .form-container {
+          padding: 40px;
+        }
+        .form-row {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 24px;
+        }
+        @media (max-width: 600px) {
+          .form-container {
+            padding: 24px 16px;
+          }
+          .form-row {
+            flex-direction: column;
+            gap: 16px;
+          }
+          .submit-btn {
+            width: 100%;
+          }
+        }
+      `}</style>
+      <form onSubmit={handleSubmit} className="form-container">
       {error && (
         <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '12px 16px', borderRadius: '4px', marginBottom: '24px', fontSize: '0.9rem' }}>
           {error}
@@ -64,7 +87,7 @@ export default function TrialRegistrationForm() {
       {/* Name Row */}
       <div style={{ marginBottom: '24px' }}>
         <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>Name</label>
-        <div style={{ display: 'flex', gap: '20px' }}>
+        <div className="form-row" style={{ marginBottom: 0 }}>
           <div style={{ flex: 1 }}>
             <input type="text" id="firstName" name="firstName" required style={inputStyle} />
             <span style={helperStyle}>First Name</span>
@@ -77,7 +100,7 @@ export default function TrialRegistrationForm() {
       </div>
 
       {/* Phone and Email Row */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '24px' }}>
+      <div className="form-row">
         <div style={{ flex: 1 }}>
           <label htmlFor="phone" style={labelStyle}>Phone Number</label>
           <input type="tel" id="phone" name="phone" required placeholder="(000) 000-0000" style={inputStyle} />
@@ -139,7 +162,7 @@ export default function TrialRegistrationForm() {
       </div>
 
       <div style={{ textAlign: 'center' }}>
-        <button type="submit" disabled={isSubmitting} style={{
+        <button type="submit" disabled={isSubmitting} className="submit-btn" style={{
           background: 'var(--red)',
           color: 'var(--white)',
           border: 'none',
@@ -157,6 +180,7 @@ export default function TrialRegistrationForm() {
         </button>
       </div>
     </form>
+    </>
   );
 }
 
