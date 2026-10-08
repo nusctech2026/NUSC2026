@@ -5,6 +5,9 @@ export const TrialRegistrations: CollectionConfig = {
   admin: {
     useAsTitle: 'fullName',
     group: 'Registrations',
+    components: {
+      beforeListTable: ['./components/ExportButton#ExportButton'],
+    },
   },
   access: {
     read: () => true,
