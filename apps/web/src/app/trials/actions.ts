@@ -4,58 +4,56 @@ export async function submitRegistration(formData: FormData) {
   try {
     const payloadUrl = process.env.NEXT_PUBLIC_PAYLOAD_URL || 'http://localhost:3002';
 
-    // 1. Upload Indigenous Certificate
+    // 1 & 2. Upload files concurrently
     const certFile = formData.get('indigenousCertificate') as File;
-    let certificateId = null;
-
-    if (certFile && certFile.size > 0) {
-      const mediaFormData = new FormData();
-      mediaFormData.append('file', certFile);
-      mediaFormData.append('_payload', JSON.stringify({ alt: formData.get('fullName') + ' Indigenous Certificate' }));
-
-      const mediaRes = await fetch(`${payloadUrl}/api/media`, {
-        method: 'POST',
-        body: mediaFormData,
-      });
-
-      if (!mediaRes.ok) {
-        const errorText = await mediaRes.text();
-        return { error: 'Failed to upload certificate: ' + errorText };
-      }
-
-      const mediaData = await mediaRes.json();
-      certificateId = mediaData.doc.id;
-    }
-
-    if (!certificateId) {
-      return { error: 'Indigenous certificate is required.' };
-    }
-
-    // 2. Upload Aadhar Card
     const aadharFile = formData.get('aadharCard') as File;
+    let certificateId = null;
     let aadharCardId = null;
 
-    if (aadharFile && aadharFile.size > 0) {
-      const mediaFormData = new FormData();
-      mediaFormData.append('file', aadharFile);
-      mediaFormData.append('_payload', JSON.stringify({ alt: formData.get('fullName') + ' Aadhar Card' }));
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
-      const mediaRes = await fetch(`${payloadUrl}/api/media`, {
+    if (!certFile || certFile.size === 0) {
+      return { error: 'Indigenous certificate is required.' };
+    }
+    if (certFile.size > MAX_FILE_SIZE) {
+      return { error: 'Indigenous certificate must be less than 2MB.' };
+    }
+    
+    if (!aadharFile || aadharFile.size === 0) {
+      return { error: 'Aadhar card is required.' };
+    }
+    if (aadharFile.size > MAX_FILE_SIZE) {
+      return { error: 'Aadhar card must be less than 2MB.' };
+    }
+
+    const uploadFile = async (file: File, altText: string) => {
+      const mediaFormData = new FormData();
+      mediaFormData.append('file', file);
+      mediaFormData.append('_payload', JSON.stringify({ alt: altText }));
+
+      const res = await fetch(`${payloadUrl}/api/media`, {
         method: 'POST',
         body: mediaFormData,
       });
 
-      if (!mediaRes.ok) {
-        const errorText = await mediaRes.text();
-        return { error: 'Failed to upload Aadhar card: ' + errorText };
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to upload ${altText}: ${errorText}`);
       }
 
-      const mediaData = await mediaRes.json();
-      aadharCardId = mediaData.doc.id;
-    }
+      const data = await res.json();
+      return data.doc.id;
+    };
 
-    if (!aadharCardId) {
-      return { error: 'Aadhar card is required.' };
+    try {
+      const [certId, aadharId] = await Promise.all([
+        uploadFile(certFile, formData.get('fullName') + ' Indigenous Certificate'),
+        uploadFile(aadharFile, formData.get('fullName') + ' Aadhar Card')
+      ]);
+      certificateId = certId;
+      aadharCardId = aadharId;
+    } catch (e: any) {
+      return { error: e.message };
     }
 
     // 3. Submit the registration
@@ -63,6 +61,7 @@ export async function submitRegistration(formData: FormData) {
       fullName: formData.get('fullName'),
       email: formData.get('email'),
       phone: formData.get('phone'),
+      playerPosition: formData.get('playerPosition'),
       address: formData.get('address'),
       dateOfBirth: formData.get('dateOfBirth'),
       aadharCard: aadharCardId,

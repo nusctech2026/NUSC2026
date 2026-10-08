@@ -15,6 +15,23 @@ export default function TrialRegistrationForm() {
     setError(null);
 
     const formData = new FormData(e.currentTarget);
+    
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    
+    const aadharFile = formData.get('aadharCard') as File;
+    if (aadharFile && aadharFile.size > MAX_FILE_SIZE) {
+      setError('Aadhar Card file size must be less than 2MB.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const certFile = formData.get('indigenousCertificate') as File;
+    if (certFile && certFile.size > MAX_FILE_SIZE) {
+      setError('Indigenous Certificate file size must be less than 2MB.');
+      setIsSubmitting(false);
+      return;
+    }
+
     // Combine first and last name
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
@@ -146,10 +163,40 @@ export default function TrialRegistrationForm() {
         </div>
       </div>
 
-      {/* DOB Row */}
-      <div style={{ marginBottom: '24px' }}>
-        <label htmlFor="dateOfBirth" style={labelStyle}>Date of Birth</label>
-        <input type="date" id="dateOfBirth" name="dateOfBirth" required style={inputStyle} />
+      {/* DOB and Position Row */}
+      <div className="form-row">
+        <div style={{ flex: 1 }}>
+          <label htmlFor="dateOfBirth" style={labelStyle}>Date of Birth</label>
+          <input type="date" id="dateOfBirth" name="dateOfBirth" required style={inputStyle} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label htmlFor="playerPosition" style={labelStyle}>Player Position</label>
+          <select id="playerPosition" name="playerPosition" required style={inputStyle} defaultValue="">
+            <option value="" disabled>Select position</option>
+            <optgroup label="Goalkeeper">
+              <option value="Goalkeeper (GK)">Goalkeeper (GK)</option>
+            </optgroup>
+            <optgroup label="Defender">
+              <option value="Center Back (CB)">Center Back (CB)</option>
+              <option value="Right Back (RB)">Right Back (RB)</option>
+              <option value="Left Back (LB)">Left Back (LB)</option>
+              <option value="Right Wing Back (RWB)">Right Wing Back (RWB)</option>
+              <option value="Left Wing Back (LWB)">Left Wing Back (LWB)</option>
+            </optgroup>
+            <optgroup label="Midfielder">
+              <option value="Defensive Midfielder (CDM)">Defensive Midfielder (CDM)</option>
+              <option value="Central Midfielder (CM)">Central Midfielder (CM)</option>
+              <option value="Attacking Midfielder (CAM)">Attacking Midfielder (CAM)</option>
+              <option value="Right Midfielder (RM)">Right Midfielder (RM)</option>
+              <option value="Left Midfielder (LM)">Left Midfielder (LM)</option>
+            </optgroup>
+            <optgroup label="Forward">
+              <option value="Right Winger (RW)">Right Winger (RW)</option>
+              <option value="Left Winger (LW)">Left Winger (LW)</option>
+              <option value="Center Forward / Striker (ST)">Center Forward / Striker (ST)</option>
+            </optgroup>
+          </select>
+        </div>
       </div>
 
       {/* Address */}
@@ -187,7 +234,7 @@ export default function TrialRegistrationForm() {
             background: '#fafafa'
           }}>
             <input type="file" id="aadharCard" name="aadharCard" required accept="image/*,.pdf" style={{ width: '100%' }} />
-            <span style={{...helperStyle, marginTop: '8px'}}>Please upload a clear scan of your Aadhar Card (JPG, PNG, PDF).</span>
+            <span style={{...helperStyle, marginTop: '8px'}}>Please upload a clear scan of your Aadhar Card (JPG, PNG, PDF). Max size: 2MB.</span>
           </div>
         </div>
 
@@ -200,7 +247,7 @@ export default function TrialRegistrationForm() {
             background: '#fafafa'
           }}>
             <input type="file" id="indigenousCertificate" name="indigenousCertificate" required accept="image/*,.pdf" style={{ width: '100%' }} />
-            <span style={{...helperStyle, marginTop: '8px'}}>Please upload a clear scan of your Indigenous Certificate (JPG, PNG, PDF).</span>
+            <span style={{...helperStyle, marginTop: '8px'}}>Please upload a clear scan of your Indigenous Certificate (JPG, PNG, PDF). Max size: 2MB.</span>
           </div>
         </div>
       </div>

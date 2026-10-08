@@ -21,7 +21,7 @@ export const TrialRegistrations: CollectionConfig = {
           limit: 5000,
         });
         
-        const headers = ['id', 'fullName', 'email', 'phone', 'dateOfBirth', 'crsNumber', 'address', 'aadharCard', 'indigenousCertificate', 'location', 'eventDate', 'createdAt'];
+        const headers = ['id', 'fullName', 'email', 'phone', 'playerPosition', 'dateOfBirth', 'crsNumber', 'address', 'aadharCard', 'indigenousCertificate', 'location', 'eventDate', 'createdAt'];
         const csvRows = [headers.join(',')];
         
         for (const doc of result.docs) {
@@ -62,6 +62,12 @@ export const TrialRegistrations: CollectionConfig = {
       name: 'phone',
       type: 'text',
       required: true,
+    },
+    {
+      name: 'playerPosition',
+      label: 'Player Position',
+      type: 'text',
+      required: false,
     },
     {
       name: 'dateOfBirth',

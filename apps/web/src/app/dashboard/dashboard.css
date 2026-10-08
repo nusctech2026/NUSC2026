@@ -192,8 +192,10 @@
   }
 
   .dashboard-sidebar.collapsed .dashboard-sidebar-header {
-    padding: 32px 16px;
-    justify-content: center;
+    flex-direction: column;
+    padding: 24px 16px;
+    gap: 24px;
+    align-items: center;
   }
 
   .dashboard-sidebar.collapsed .nav-link {

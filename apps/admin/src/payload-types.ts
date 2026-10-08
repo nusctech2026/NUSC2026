@@ -561,6 +561,7 @@ export interface TrialRegistration {
   fullName: string;
   email: string;
   phone: string;
+  playerPosition?: string | null;
   dateOfBirth: string;
   indigenousCertificate: string | Media;
   aadharCard: string | Media;
@@ -1022,6 +1023,7 @@ export interface TrialRegistrationsSelect<T extends boolean = true> {
   fullName?: T;
   email?: T;
   phone?: T;
+  playerPosition?: T;
   dateOfBirth?: T;
   indigenousCertificate?: T;
   aadharCard?: T;

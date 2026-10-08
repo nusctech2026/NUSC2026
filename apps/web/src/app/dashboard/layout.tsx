@@ -9,7 +9,7 @@ import './dashboard.css';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(true);
 
   // Close sidebar when navigating on mobile
   useEffect(() => {
