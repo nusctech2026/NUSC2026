@@ -46,6 +46,24 @@ export default function TrialRegistrationForm() {
     const lastName = formData.get('lastName') as string;
     const fullName = `${firstName} ${lastName}`;
 
+    // Age validation (Under 23)
+    const dobString = formData.get('dateOfBirth') as string;
+    if (dobString) {
+      const dob = new Date(dobString);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+
+      if (age > 23) {
+        setError('You must be 23 years old or younger to participate in these trials.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const payloadUrl = process.env.NEXT_PUBLIC_PAYLOAD_URL || 'http://localhost:3001';
 
     try {

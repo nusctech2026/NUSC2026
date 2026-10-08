@@ -94,6 +94,20 @@ export const TrialRegistrations: CollectionConfig = {
       label: 'Date of Birth',
       type: 'date',
       required: true,
+      validate: (value) => {
+        if (!value) return true;
+        const dob = new Date(value as string);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+        if (age > 23) {
+          return 'You must be 23 years old or younger to register.';
+        }
+        return true;
+      },
       admin: {
         date: {
           displayFormat: 'dd-MM-yyyy',
