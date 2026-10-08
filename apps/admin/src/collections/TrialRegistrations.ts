@@ -96,7 +96,7 @@ export const TrialRegistrations: CollectionConfig = {
       required: true,
       validate: (value) => {
         if (!value) return true;
-        const dob = new Date(value as string);
+        const dob = new Date(value as any);
         const today = new Date();
         let age = today.getFullYear() - dob.getFullYear();
         const m = today.getMonth() - dob.getMonth();
