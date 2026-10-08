@@ -137,8 +137,8 @@ export default buildConfig({
   ],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
-  cors: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.29.107:3000', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
-  csrf: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.29.107:3000', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
+  cors: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
+  csrf: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
