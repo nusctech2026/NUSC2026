@@ -98,8 +98,16 @@ export default function TrialRegistrationForm() {
       });
 
       if (!regRes.ok) {
-        const errorText = await regRes.text();
-        throw new Error('Failed to submit registration: ' + errorText);
+        const errorData = await regRes.json().catch(() => null);
+        if (errorData && errorData.errors) {
+          // Check for unique constraint validation error
+          const isUniqueError = JSON.stringify(errorData).includes('Value must be unique');
+          if (isUniqueError && JSON.stringify(errorData).includes('crsNumber')) {
+            throw new Error('A registration with this CRS Number already exists. You can only register once.');
+          }
+          throw new Error(errorData.message || 'Failed to submit registration.');
+        }
+        throw new Error('Failed to submit registration. Please try again.');
       }
 
       setSuccess(true);

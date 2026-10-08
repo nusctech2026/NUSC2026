@@ -118,6 +118,7 @@ export const TrialRegistrations: CollectionConfig = {
       label: 'CRS Number',
       type: 'text',
       required: true,
+      unique: true,
     },
     {
       name: 'location',
