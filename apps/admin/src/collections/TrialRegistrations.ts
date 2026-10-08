@@ -47,7 +47,8 @@ export const TrialRegistrations: CollectionConfig = {
           const row = headers.map(header => {
             let val = doc[header as keyof typeof doc];
             if (val && typeof val === 'object' && 'url' in val) {
-               val = val.url;
+               const serverUrl = process.env.NEXT_PUBLIC_PAYLOAD_URL || process.env.PAYLOAD_PUBLIC_SERVER_URL || 'https://admin.nagalandunited.com';
+               val = `${serverUrl}${val.url}`;
             } else if (val && typeof val === 'object') {
                val = JSON.stringify(val);
             }
