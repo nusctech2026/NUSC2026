@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { submitRegistration } from './actions';
 
 export default function TrialRegistrationForm() {
   const [error, setError] = useState<string | null>(null);
@@ -19,14 +18,24 @@ export default function TrialRegistrationForm() {
     const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
     
     const aadharFile = formData.get('aadharCard') as File;
-    if (aadharFile && aadharFile.size > MAX_FILE_SIZE) {
+    if (!aadharFile || aadharFile.size === 0) {
+      setError('Aadhar Card is required.');
+      setIsSubmitting(false);
+      return;
+    }
+    if (aadharFile.size > MAX_FILE_SIZE) {
       setError('Aadhar Card file size must be less than 2MB.');
       setIsSubmitting(false);
       return;
     }
 
     const certFile = formData.get('indigenousCertificate') as File;
-    if (certFile && certFile.size > MAX_FILE_SIZE) {
+    if (!certFile || certFile.size === 0) {
+      setError('Indigenous Certificate is required.');
+      setIsSubmitting(false);
+      return;
+    }
+    if (certFile.size > MAX_FILE_SIZE) {
       setError('Indigenous Certificate file size must be less than 2MB.');
       setIsSubmitting(false);
       return;
@@ -35,15 +44,68 @@ export default function TrialRegistrationForm() {
     // Combine first and last name
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
-    formData.append('fullName', `${firstName} ${lastName}`);
+    const fullName = `${firstName} ${lastName}`;
 
-    const result = await submitRegistration(formData);
+    const payloadUrl = process.env.NEXT_PUBLIC_PAYLOAD_URL || 'http://localhost:3001';
 
-    if (result?.error) {
-      setError(result.error);
-      setIsSubmitting(false);
-    } else if (result?.success) {
+    try {
+      const uploadFile = async (file: File, altText: string) => {
+        // Payload CMS requires unique filenames, so we prepend a timestamp and random string
+        const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${file.name}`;
+        const renamedFile = new File([file], uniqueFilename, { type: file.type });
+
+        const mediaFormData = new FormData();
+        mediaFormData.append('file', renamedFile);
+        mediaFormData.append('_payload', JSON.stringify({ alt: altText }));
+
+        const res = await fetch(`${payloadUrl}/api/media`, {
+          method: 'POST',
+          body: mediaFormData,
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Failed to upload ${altText}: ${errorText}`);
+        }
+
+        const data = await res.json();
+        return data.doc.id;
+      };
+
+      const [certId, aadharId] = await Promise.all([
+        uploadFile(certFile, fullName + ' Indigenous Certificate'),
+        uploadFile(aadharFile, fullName + ' Aadhar Card')
+      ]);
+
+      const registrationData = {
+        fullName,
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        playerPosition: formData.get('playerPosition'),
+        address: formData.get('address'),
+        dateOfBirth: formData.get('dateOfBirth'),
+        aadharCard: aadharId,
+        crsNumber: formData.get('crsNumber'),
+        indigenousCertificate: certId,
+      };
+
+      const regRes = await fetch(`${payloadUrl}/api/trial-registrations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationData),
+      });
+
+      if (!regRes.ok) {
+        const errorText = await regRes.text();
+        throw new Error('Failed to submit registration: ' + errorText);
+      }
+
       setSuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred.');
+    } finally {
       setIsSubmitting(false);
     }
   };
