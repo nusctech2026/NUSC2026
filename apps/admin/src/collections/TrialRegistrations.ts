@@ -24,8 +24,24 @@ export const TrialRegistrations: CollectionConfig = {
           limit: 5000,
         });
         
-        const headers = ['id', 'fullName', 'email', 'phone', 'playerPosition', 'dateOfBirth', 'crsNumber', 'address', 'aadharCard', 'indigenousCertificate', 'location', 'eventDate', 'createdAt'];
-        const csvRows = [headers.join(',')];
+        const fieldMap: Record<string, string> = {
+          'id': 'ID',
+          'fullName': 'Full Name',
+          'email': 'Email',
+          'phone': 'Phone Number',
+          'playerPosition': 'Player Position',
+          'dateOfBirth': 'Date of Birth',
+          'crsNumber': 'CRS Number',
+          'address': 'Residential Address',
+          'aadharCard': 'Aadhar Card URL',
+          'indigenousCertificate': 'Indigenous Certificate URL',
+          'location': 'Trial Location',
+          'eventDate': 'Trial Date',
+          'createdAt': 'Registered At'
+        };
+        const headers = Object.keys(fieldMap);
+        const headerLabels = Object.values(fieldMap);
+        const csvRows = [headerLabels.map(label => `"${label}"`).join(',')];
         
         for (const doc of result.docs) {
           const row = headers.map(header => {
