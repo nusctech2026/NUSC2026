@@ -112,7 +112,11 @@ export default function TrialRegistrationForm() {
 
       setSuccess(true);
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      if (err.message === 'Failed to fetch') {
+        setError('Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        setError(err.message || 'An unexpected error occurred.');
+      }
     } finally {
       setIsSubmitting(false);
     }
