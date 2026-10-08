@@ -1,3 +1,5 @@
+import { Nav } from "@/components/sections/Nav";
+import { Footer } from "@/components/sections/Footer";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
 import { pages } from "@/content/pages";
@@ -11,8 +13,12 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <>
+      <Nav />
+      <main>
       <PageHeader {...pages.careers} />
       <Careers />
+          </main>
+      <Footer />
     </>
   );
 }

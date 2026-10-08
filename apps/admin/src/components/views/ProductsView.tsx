@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '../../utils/supabaseBrowserClient'
 import { createProduct, updateProduct, archiveProduct, createVariant, updateVariant, addProductImage, removeProductImage } from '../../actions/products'
 
 export const ProductsView: React.FC = () => {
@@ -32,10 +32,7 @@ export const ProductsView: React.FC = () => {
 
   const [saving, setSaving] = useState(false)
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = getSupabaseBrowserClient()
 
   const fetchProducts = async () => {
     setLoading(true)

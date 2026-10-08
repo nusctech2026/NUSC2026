@@ -1,8 +1,13 @@
+'use client'
 import React from 'react'
 import Link from 'next/link'
-import { NavGroup } from '@payloadcms/ui'
+import { NavGroup, useAuth } from '@payloadcms/ui'
 
 export const StoreNavLinks: React.FC = () => {
+  const { user } = useAuth()
+  const userRoles = Array.isArray((user as any)?.roles) ? (user as any).roles : ((user as any)?.display_roles?.map((r: any) => typeof r === 'string' ? r : r?.role) || [])
+  if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return null;
+
   return (
     <NavGroup label="Store Operations">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px' }}>
@@ -17,6 +22,10 @@ export const StoreNavLinks: React.FC = () => {
 }
 
 export const CatalogNavLinks: React.FC = () => {
+  const { user } = useAuth()
+  const userRoles = Array.isArray((user as any)?.roles) ? (user as any).roles : ((user as any)?.display_roles?.map((r: any) => typeof r === 'string' ? r : r?.role) || [])
+  if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return null;
+
   return (
     <NavGroup label="Store Catalog">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px' }}>
@@ -32,6 +41,10 @@ export const CatalogNavLinks: React.FC = () => {
 }
 
 export const SystemNavLinks: React.FC = () => {
+  const { user } = useAuth()
+  const userRoles = Array.isArray((user as any)?.roles) ? (user as any).roles : ((user as any)?.display_roles?.map((r: any) => typeof r === 'string' ? r : r?.role) || [])
+  if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return null;
+
   return (
     <NavGroup label="System">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '24px' }}>

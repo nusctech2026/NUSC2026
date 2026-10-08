@@ -26,7 +26,7 @@ export function Club() {
             opening doors for the next player.</p>
         </div>
         <div className="panel reveal d1">
-          <span className="slot" aria-hidden="true">Team photo slot</span>
+          <span className="slot" aria-hidden="true"></span>
           <div className="burst" aria-hidden="true"></div>
           <span className="p-crest" aria-hidden="true"></span>
           <div className="p-label"><span>Club Identity</span><strong>Unity · Progress · Excellence</strong></div>

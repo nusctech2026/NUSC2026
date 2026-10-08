@@ -109,32 +109,85 @@ export default buildConfig({
         './components/nav/StoreNavLinks#StoreNavLinks',
         './components/nav/StoreNavLinks#CatalogNavLinks',
         './components/nav/StoreNavLinks#SystemNavLinks',
+      ],
+      providers: [
+        './components/providers/TabSessionProvider#TabSessionProvider',
       ]
     }
   },
   collections: [
-    Admins,
+    ...[
+      Admins,
+      WebsiteMedia,
+      Pages,
+      News,
+      Teams,
+      Players,
+      Fixtures,
+      Events,
+      Sponsors,
+      Galleries,
+      MembershipPlans,
+      MembershipBenefits,
+      Members,
+      BenefitRedemptions,
+      UserRoles
+    ].map(collection => ({
+      ...collection,
+      admin: {
+        ...(collection.admin || {}),
+        hidden: (args: any) => {
+          const user = args?.user;
+          const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.display_roles?.map((r: any) => r.role) || []);
+          if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return true;
+          const hidden = collection.admin?.hidden;
+          if (typeof hidden === 'function') return hidden(args);
+          return hidden || false;
+        }
+      },
+      access: {
+        ...(collection.access || {}),
+        read: (args: any) => {
+          const user = args?.req?.user;
+          const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.display_roles?.map((r: any) => r.role) || []);
+          if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return false;
+          if (collection.access?.read) return collection.access.read(args);
+          return true; // fallback
+        }
+      }
+    })),
     Media,
-    WebsiteMedia,
-    Pages,
-    News,
-    Teams,
-    Players,
-    Fixtures,
-    Events,
-    Sponsors,
-    Galleries,
-    MembershipPlans,
-    MembershipBenefits,
-    Members,
-    BenefitRedemptions,
-    TrialRegistrations,
-    UserRoles
-  ],
+    TrialRegistrations
+  ] as any,
   globals: [
-    WebsiteSettings,
-    Navigation
-  ],
+    ...[
+      WebsiteSettings,
+      Navigation
+    ].map(global => ({
+      ...global,
+      admin: {
+        ...(global.admin || {}),
+        hidden: (args: any) => {
+          const user = args?.user;
+          const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.display_roles?.map((r: any) => r.role) || []);
+          if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return true;
+          const hidden = global.admin?.hidden;
+          if (typeof hidden === 'function') return hidden(args);
+          return hidden || false;
+        }
+      },
+      access: {
+        ...(global.access || {}),
+        read: (args: any) => {
+          const user = args?.req?.user;
+          const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.display_roles?.map((r: any) => r.role) || []);
+          if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return false;
+          if (global.access?.read) return global.access.read(args);
+          return true; // fallback
+        }
+      }
+    }))
+  ] as any,
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   cors: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),

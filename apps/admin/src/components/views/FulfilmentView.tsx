@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '../../utils/supabaseBrowserClient'
 import { fulfillOrder } from '../../actions/orders'
 
 export const FulfilmentView: React.FC = () => {
@@ -13,10 +13,7 @@ export const FulfilmentView: React.FC = () => {
   const [trackingNumber, setTrackingNumber] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = getSupabaseBrowserClient()
 
   const fetchOrders = async () => {
     setLoading(true)

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '../../utils/supabaseBrowserClient'
 
 export const ReturnsView: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([])
@@ -9,10 +9,7 @@ export const ReturnsView: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    const supabase = getSupabaseBrowserClient()
 
     const fetchReturns = async () => {
       setLoading(true)

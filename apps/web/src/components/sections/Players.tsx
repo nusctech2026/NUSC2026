@@ -131,7 +131,7 @@ export function Players() {
       </div>
       <div className="rep-grid">
         <article className="repcard reveal">
-          <span className="slot" aria-hidden="true">Player graphic slot</span>
+          <span className="slot" aria-hidden="true"></span>
           <div className="burst" aria-hidden="true"></div>
           <div className="rc-in">
             <div className="role">Captain · Mon District</div>
@@ -140,7 +140,7 @@ export function Players() {
           </div>
         </article>
         <article className="repcard reveal d1">
-          <span className="slot" aria-hidden="true">Player graphic slot</span>
+          <span className="slot" aria-hidden="true"></span>
           <div className="burst" aria-hidden="true"></div>
           <div className="rc-in">
             <div className="role">Best Defender · Tournament</div>

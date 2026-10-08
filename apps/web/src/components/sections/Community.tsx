@@ -34,8 +34,7 @@ export function Community() {
       </div>
       <div className="flagship reveal">
         <span className="slot" aria-hidden="true"
-          style={{position: 'absolute', top: '16px', left: '18px', zIndex: 3, fontSize: '.56rem', letterSpacing: '.14em', textTransform: 'uppercase', color: '#8ea3c2', border: '1px dashed rgba(255,255,255,.28)', padding: '5px 9px', borderRadius: '20px'}}>Outreach
-          photo slot</span>
+          style={{position: 'absolute', top: '16px', left: '18px', zIndex: 3, fontSize: '.56rem', letterSpacing: '.14em', textTransform: 'uppercase', color: '#8ea3c2', border: '1px dashed rgba(255,255,255,.28)', padding: '5px 9px', borderRadius: '20px'}}></span>
         <div className="burst" aria-hidden="true"></div>
         <div className="fl-in">
           <div className="tag">Flagship Initiative</div>
@@ -51,3 +50,4 @@ export function Community() {
     </>
   );
 }
+

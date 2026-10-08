@@ -110,10 +110,12 @@ export default async function ShopPage() {
   }) : [];
 
   return (
-    <div className="shop-preview">
+    <div className="shop-preview" id="shop">
+      <div id="training-wear" />
+      <div id="accessories" />
       <ShopHeroCarousel />
 
-      <section className="shop-section" id="featured-kits">
+      <section className="shop-section" id="match-kits">
         <div className="shop-wrap">
           <div className="category-section-head">
             <h2>FEATURED KITS</h2>
@@ -127,7 +129,7 @@ export default async function ShopPage() {
         </div>
       </section>
 
-      <section className="promo-banner-section">
+      <section className="promo-banner-section" id="offers">
         <div className="promo-banner-wrap">
           <div className="promo-banner">
             <div className="promo-content">
@@ -149,6 +151,7 @@ export default async function ShopPage() {
       </section>
 
       <section className="shop-section" id="popular-categories">
+        <div id="men" /><div id="kids" /><div id="women" />
         <div className="shop-wrap">
           <div className="category-section-head">
             <h2>MOST POPULAR CATEGORIES</h2>
@@ -177,7 +180,7 @@ export default async function ShopPage() {
         </div>
       </section>
 
-      <section className="shop-section" id="discover-collections">
+      <section className="shop-section" id="collections">
         <div className="shop-wrap">
           <div className="category-section-head">
             <h2>DISCOVER ALL COLLECTIONS</h2>

@@ -49,7 +49,7 @@ export const supabaseStrategy: AuthStrategy = {
       return { user: null }
     }
 
-    const validRoles = ['super_admin', 'store_manager', 'content_editor', 'support', 'fulfillment_staff']
+    const validRoles = ['super_admin', 'store_manager', 'content_editor', 'support', 'fulfillment_staff', 'trials_manager']
     const hasAdminRole = rolesData.some(r => validRoles.includes(r.role))
     
     if (!hasAdminRole) {
@@ -69,11 +69,52 @@ export const supabaseStrategy: AuthStrategy = {
     })
 
     if (docs.length > 0) {
+      const adminDoc = docs[0]
+      const newDisplayRoles = rolesData.map(r => ({ role: r.role }))
+      
+      // Update Payload DB to match Supabase roles so that /api/admins/me endpoint returns the correct roles
+      try {
+        await payload.update({
+          collection: 'admins',
+          id: adminDoc.id,
+          data: {
+            display_roles: newDisplayRoles,
+          }
+        })
+      } catch (err) {
+        console.error('Failed to sync roles to Payload DB', err)
+      }
+
       return {
         user: {
-          ...docs[0],
+          ...adminDoc,
           collection: 'admins',
+          roles: rolesData.map(r => r.role),
+          display_roles: newDisplayRoles,
         },
+      }
+    } else {
+      // Auto-create the admin record so we don't have to manually insert into Payload DB
+      const email = claimsData?.claims?.email || `${userId}@placeholder.com`
+      try {
+        const newAdmin = await payload.create({
+          collection: 'admins',
+          data: {
+            supabase_user_id: userId,
+            email: email,
+            display_roles: rolesData.map(r => ({ role: r.role })),
+          },
+        })
+        return {
+          user: {
+            ...newAdmin,
+            collection: 'admins',
+            roles: rolesData.map(r => r.role),
+            display_roles: rolesData.map(r => ({ role: r.role })),
+          },
+        }
+      } catch (err) {
+        console.error('Failed to auto-create admin user in Payload', err)
       }
     }
 

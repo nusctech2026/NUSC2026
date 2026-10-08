@@ -30,8 +30,8 @@ export const CustomLogin: React.FC = () => {
         throw new Error(data.error || 'Login failed')
       }
 
-      router.push('/admin')
-      router.refresh()
+      sessionStorage.setItem('tab_session', 'active')
+      window.location.href = '/admin'
     } catch (err: any) {
       setError(err.message)
     } finally {

@@ -27,6 +27,7 @@ import { ExportButton as ExportButton_e9b1764876e4b0596b213a1cacb561c4 } from '.
 import { StoreNavLinks as StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { CatalogNavLinks as CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { SystemNavLinks as SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
+import { TabSessionProvider as TabSessionProvider_35f1d9022e3049b2cfc03e8c0f1ece06 } from '../../../components/providers/TabSessionProvider'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 import { CustomLogin as CustomLogin_06a9c4b912dc02730afb7cefbca6de7f } from '../../../components/CustomLogin'
 import { OrdersView as OrdersView_04717927b5eaccacd5274d7b29ef4f54 } from '../../../components/views/OrdersView'
@@ -78,6 +79,7 @@ export const importMap = {
   "./components/nav/StoreNavLinks#StoreNavLinks": StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#CatalogNavLinks": CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#SystemNavLinks": SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
+  "./components/providers/TabSessionProvider#TabSessionProvider": TabSessionProvider_35f1d9022e3049b2cfc03e8c0f1ece06,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
   "./components/CustomLogin#CustomLogin": CustomLogin_06a9c4b912dc02730afb7cefbca6de7f,
   "./components/views/OrdersView#OrdersView": OrdersView_04717927b5eaccacd5274d7b29ef4f54,

@@ -1,3 +1,5 @@
+import { Nav } from "@/components/sections/Nav";
+import { Footer } from "@/components/sections/Footer";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
@@ -12,6 +14,8 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <>
+      <Nav />
+      <main>
       <PageHeader {...pages.contact} />
       <section className="sect">
         <div className="wrap contact-grid">
@@ -64,6 +68,8 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
+          </main>
+      <Footer />
     </>
   );
 }

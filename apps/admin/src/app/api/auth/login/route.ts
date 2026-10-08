@@ -20,6 +20,9 @@ export async function POST(request: Request) {
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => {
+                // Delete expiration properties to create a Session Cookie (expires when browser closes)
+                delete options.maxAge;
+                delete options.expires;
                 cookieStore.set(name, value, options)
               })
             } catch (error) {
@@ -51,13 +54,14 @@ export async function POST(request: Request) {
     const { data: rolesData, error: rolesError } = await supabase
       .from('user_roles')
       .select('role')
+      .eq('user_id', user.id)
     
     if (rolesError || !rolesData || rolesData.length === 0) {
       await supabase.auth.signOut()
       return NextResponse.json({ error: 'Unauthorized: No valid roles' }, { status: 403 })
     }
 
-    const validRoles = ['super_admin', 'store_manager', 'content_editor', 'support', 'fulfillment_staff']
+    const validRoles = ['super_admin', 'store_manager', 'content_editor', 'support', 'fulfillment_staff', 'trials_manager']
     const hasAdminRole = rolesData.some(r => validRoles.includes(r.role))
     
     if (!hasAdminRole) {

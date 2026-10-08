@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '../../utils/supabaseBrowserClient'
 import { adjustInventory } from '../../actions/inventory'
 
 export const InventoryView: React.FC = () => {
@@ -14,10 +14,7 @@ export const InventoryView: React.FC = () => {
   const [reason, setReason] = useState<string>('')
   const [saving, setSaving] = useState(false)
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = getSupabaseBrowserClient()
 
   const fetchVariants = async () => {
     setLoading(true)

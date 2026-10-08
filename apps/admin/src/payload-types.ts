@@ -68,7 +68,6 @@ export interface Config {
   blocks: {};
   collections: {
     admins: Admin;
-    media: Media;
     'website-media': WebsiteMedia;
     pages: Page;
     news: News;
@@ -82,8 +81,9 @@ export interface Config {
     membership_benefits: MembershipBenefit;
     members: Member;
     benefit_redemptions: BenefitRedemption;
-    'trial-registrations': TrialRegistration;
     user_roles: UserRole;
+    media: Media;
+    'trial-registrations': TrialRegistration;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -92,7 +92,6 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     admins: AdminsSelect<false> | AdminsSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
     'website-media': WebsiteMediaSelect<false> | WebsiteMediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     news: NewsSelect<false> | NewsSelect<true>;
@@ -106,8 +105,9 @@ export interface Config {
     membership_benefits: MembershipBenefitsSelect<false> | MembershipBenefitsSelect<true>;
     members: MembersSelect<false> | MembersSelect<true>;
     benefit_redemptions: BenefitRedemptionsSelect<false> | BenefitRedemptionsSelect<true>;
-    'trial-registrations': TrialRegistrationsSelect<false> | TrialRegistrationsSelect<true>;
     user_roles: UserRolesSelect<false> | UserRolesSelect<true>;
+    media: MediaSelect<false> | MediaSelect<true>;
+    'trial-registrations': TrialRegistrationsSelect<false> | TrialRegistrationsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -170,26 +170,6 @@ export interface Admin {
   updatedAt: string;
   createdAt: string;
   collection: 'admins';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
- */
-export interface Media {
-  id: string;
-  alt: string;
-  _objectKey?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -554,6 +534,35 @@ export interface BenefitRedemption {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user_roles".
+ */
+export interface UserRole {
+  id: string;
+  user_id: string;
+  role: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media".
+ */
+export interface Media {
+  id: string;
+  alt: string;
+  _objectKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "trial-registrations".
  */
 export interface TrialRegistration {
@@ -571,15 +580,6 @@ export interface TrialRegistration {
   eventDate?: string | null;
   updatedAt: string;
   createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user_roles".
- */
-export interface UserRole {
-  id: string;
-  user_id: string;
-  role: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -608,10 +608,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'admins';
         value: string | Admin;
-      } | null)
-    | ({
-        relationTo: 'media';
-        value: string | Media;
       } | null)
     | ({
         relationTo: 'website-media';
@@ -666,12 +662,16 @@ export interface PayloadLockedDocument {
         value: string | BenefitRedemption;
       } | null)
     | ({
-        relationTo: 'trial-registrations';
-        value: string | TrialRegistration;
-      } | null)
-    | ({
         relationTo: 'user_roles';
         value: string | UserRole;
+      } | null)
+    | ({
+        relationTo: 'media';
+        value: string | Media;
+      } | null)
+    | ({
+        relationTo: 'trial-registrations';
+        value: string | TrialRegistration;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -730,25 +730,6 @@ export interface AdminsSelect<T extends boolean = true> {
       };
   updatedAt?: T;
   createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media_select".
- */
-export interface MediaSelect<T extends boolean = true> {
-  alt?: T;
-  _objectKey?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1017,6 +998,33 @@ export interface BenefitRedemptionsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user_roles_select".
+ */
+export interface UserRolesSelect<T extends boolean = true> {
+  user_id?: T;
+  role?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media_select".
+ */
+export interface MediaSelect<T extends boolean = true> {
+  alt?: T;
+  _objectKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "trial-registrations_select".
  */
 export interface TrialRegistrationsSelect<T extends boolean = true> {
@@ -1033,14 +1041,6 @@ export interface TrialRegistrationsSelect<T extends boolean = true> {
   eventDate?: T;
   updatedAt?: T;
   createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user_roles_select".
- */
-export interface UserRolesSelect<T extends boolean = true> {
-  user_id?: T;
-  role?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

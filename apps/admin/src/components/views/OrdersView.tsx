@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '../../utils/supabaseBrowserClient'
 
 export const OrdersView: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([])
@@ -23,10 +23,7 @@ export const OrdersView: React.FC = () => {
     setError(null)
     
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
+      const supabase = getSupabaseBrowserClient()
 
       let query = supabase
         .from('orders')
@@ -86,10 +83,7 @@ export const OrdersView: React.FC = () => {
     setSelectedOrder(order)
     setLoadingItems(true)
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
+      const supabase = getSupabaseBrowserClient()
       const { data, error } = await supabase
         .from('order_items')
         .select('*, product_variants(sku, stock_quantity)')
