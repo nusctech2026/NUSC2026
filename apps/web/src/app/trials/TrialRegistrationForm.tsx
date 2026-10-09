@@ -64,6 +64,20 @@ export default function TrialRegistrationForm() {
       }
     }
 
+    const crsNumber = formData.get('crsNumber') as string;
+    if (crsNumber) {
+      if (crsNumber.length > 16) {
+        setError('CRS Number must be 16 characters or less.');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!/^[a-zA-Z0-9-]+$/.test(crsNumber)) {
+        setError('Invalid CRS Number format. Please enter only the alphanumeric CRS Number without spaces or special characters.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const payloadUrl = process.env.NEXT_PUBLIC_PAYLOAD_URL || 'http://localhost:3001';
 
     try {
@@ -312,7 +326,18 @@ export default function TrialRegistrationForm() {
             </div>
           </div>
         </div>
-        <input type="text" id="crsNumber" name="crsNumber" required placeholder="As provided during preliminary registration" style={inputStyle} />
+        <input 
+          type="text" 
+          id="crsNumber" 
+          name="crsNumber" 
+          required 
+          maxLength={16}
+          pattern="^[a-zA-Z0-9-]*$"
+          title="Please enter a valid CRS number (letters, numbers, and hyphens only)."
+          placeholder="As provided during preliminary registration" 
+          style={inputStyle} 
+        />
+        <span style={{...helperStyle, marginTop: '8px'}}>Format: Alphanumeric and hyphens only. Max 16 characters.</span>
       </div>
 
       {/* Documents */}
