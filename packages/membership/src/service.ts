@@ -1,5 +1,6 @@
 import { createAdminClient, createServerClient } from '@nusc/db';
 import { membershipSchema, MembershipFormData } from './schemas';
+import Razorpay from 'razorpay';
 
 export async function registerMember(data: MembershipFormData) {
   // Validate data with Zod
@@ -17,22 +18,6 @@ export async function registerMember(data: MembershipFormData) {
   // Normalize email and phone
   const normalizedEmail = memberData.email.toLowerCase().trim();
   const normalizedPhone = memberData.phone.replace(/\D/g, '');
-
-  // Check for duplicate email (in our members table)
-  const { data: existingMember, error: duplicateCheckError } = await adminSupabase
-    .from('members')
-    .select('id')
-    .eq('email', normalizedEmail)
-    .single();
-
-  if (duplicateCheckError && duplicateCheckError.code !== 'PGRST116') {
-    // PGRST116 means 0 rows returned, which is good
-    throw new Error(`Database error: ${duplicateCheckError.message}`);
-  }
-
-  if (existingMember) {
-    throw new Error('DUPLICATE_EMAIL');
-  }
 
   // Create user in Supabase Auth using admin client to bypass rate limits
   const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
@@ -52,36 +37,57 @@ export async function registerMember(data: MembershipFormData) {
     throw new Error('Failed to create user account.');
   }
 
-  // Generate a random membership number
-  const randomSuffix = Math.floor(100000 + Math.random() * 900000); // 6 digits
-  const membershipNumber = `NUSC-${randomSuffix}`;
-
-  // Insert member into members table using admin client (to bypass RLS if any)
-  const { data: insertedMember, error: insertError } = await adminSupabase
-    .from('members')
-    .insert([
-      {
-        id: authData.user.id, // Link member record to Auth User ID
-        membership_number: membershipNumber,
-        first_name: memberData.firstName.trim(),
-        last_name: memberData.lastName.trim(),
-        email: normalizedEmail,
-        phone: normalizedPhone,
-        date_of_birth: memberData.dateOfBirth,
-        city_district: memberData.cityDistrict.trim(),
-        membership_type: 'standard',
-        status: 'active',
-        marketing_consent: !!memberData.marketingConsent,
-      },
-    ])
-    .select()
+  // Get base membership plan ID
+  const { data: basePlan, error: planError } = await adminSupabase
+    .from('membership_plans')
+    .select('id')
+    .ilike('slug', 'Base-membership%')
     .single();
 
-  if (insertError) {
-    // Attempt rollback of Auth user if member insert fails
+  if (planError || !basePlan) {
+    // Attempt rollback of Auth user
     await adminSupabase.auth.admin.deleteUser(authData.user.id);
-    throw new Error(`Failed to create member record: ${insertError.message}`);
+    throw new Error('Could not find base membership plan');
   }
 
-  return insertedMember;
+  // Insert member into members table using admin client (to bypass RLS if any)
+  const { data: rpcData, error: rpcError } = await adminSupabase.rpc('create_member_profile_and_record', {
+    p_user_id: authData.user.id,
+    p_first_name: memberData.firstName.trim(),
+    p_last_name: memberData.lastName.trim(),
+    p_phone: normalizedPhone,
+    p_address: memberData.cityDistrict.trim(),
+    p_dob: memberData.dateOfBirth,
+    p_plan_id: basePlan.id,
+    p_membership_type: 'standard'
+  });
+
+  if (rpcError) {
+    // Attempt rollback of Auth user if member insert fails
+    await adminSupabase.auth.admin.deleteUser(authData.user.id);
+    throw new Error(`Failed to create member record: ${rpcError.message}`);
+  }
+
+  // Initiate ₹10 Razorpay Order
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
+  });
+
+  let paymentOrderId = null;
+  try {
+    const order = await razorpay.orders.create({
+      amount: 1000, // ₹10 in paise
+      currency: 'INR',
+      receipt: `reg_${authData.user.id}`,
+      notes: { userId: authData.user.id, type: 'registration_fee' }
+    });
+    paymentOrderId = order.id;
+  } catch (error) {
+    // Keep going, handle payment retry on the frontend if needed
+    console.error('Failed to initiate Razorpay order:', error);
+  }
+
+  return { ...rpcData, paymentOrderId };
 }
+

@@ -3,12 +3,58 @@
 import React, { useState } from 'react';
 import { submitMembership } from '@/app/membership/actions';
 import { MembershipFormData } from '@nusc/membership';
+import Script from 'next/script';
 import './membership.css';
 
 export default function SplitMembershipLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<{ first_name: string; membership_number: string } | null>(null);
+
+  const openRazorpay = (orderId: string, memberDetails: any) => {
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'dummy_key',
+      amount: "1000",
+      currency: "INR",
+      name: "NUSC",
+      description: "One-time Registration Fee",
+      order_id: orderId,
+      handler: function (response: any) {
+        setSuccessData({
+          first_name: memberDetails.first_name,
+          membership_number: memberDetails.member_number || memberDetails.membership_number,
+        });
+      },
+      prefill: {
+        name: memberDetails.first_name,
+        email: memberDetails.email,
+        contact: memberDetails.phone,
+      },
+      theme: {
+        color: "#1e293b",
+      },
+      modal: {
+        ondismiss: function () {
+          setSuccessData({
+            first_name: memberDetails.first_name,
+            membership_number: memberDetails.member_number || memberDetails.membership_number,
+          });
+        }
+      }
+    };
+    
+    // @ts-ignore
+    if (typeof window !== 'undefined' && window.Razorpay) {
+      // @ts-ignore
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } else {
+      setSuccessData({
+        first_name: memberDetails.first_name,
+        membership_number: memberDetails.member_number || memberDetails.membership_number,
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -34,7 +80,14 @@ export default function SplitMembershipLayout() {
     setIsSubmitting(false);
 
     if (result.success) {
-      setSuccessData(result.member);
+      if (result.member.paymentOrderId) {
+        openRazorpay(result.member.paymentOrderId, { ...result.member, email: data.email, phone: data.phone });
+      } else {
+        setSuccessData({
+          first_name: result.member.first_name,
+          membership_number: result.member.member_number || result.member.membership_number,
+        });
+      }
     } else {
       setError(result.error || 'An unexpected error occurred');
     }
@@ -42,7 +95,7 @@ export default function SplitMembershipLayout() {
 
   return (
     <div className="split-layout-wrapper">
-      
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       {/* LEFT SIDE - BENEFITS */}
       <div className="split-left-pane">
         {/* Background decorative elements */}

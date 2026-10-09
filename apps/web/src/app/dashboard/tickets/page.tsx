@@ -18,7 +18,7 @@ export default async function TicketsPage() {
   const { data: member } = await supabase
     .from('members')
     .select('membership_number')
-    .eq('id', user.id)
+    .eq('user_id', user.id)
     .single();
 
   return (

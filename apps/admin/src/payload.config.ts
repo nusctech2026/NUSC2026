@@ -22,6 +22,7 @@ import { Navigation } from './globals/website/Navigation'
 import { MembershipPlans } from './collections/membership/MembershipPlans'
 import { MembershipBenefits } from './collections/membership/MembershipBenefits'
 import { Members } from './collections/membership/Members'
+import { MemberProfiles } from './collections/membership/MemberProfiles'
 import { BenefitRedemptions } from './collections/membership/BenefitRedemptions'
 import { TrialRegistrations } from './collections/TrialRegistrations'
 import { UserRoles } from './collections/UserRoles'
@@ -130,6 +131,7 @@ export default buildConfig({
       MembershipPlans,
       MembershipBenefits,
       Members,
+      MemberProfiles,
       BenefitRedemptions,
       UserRoles
     ].map(collection => ({
@@ -190,8 +192,8 @@ export default buildConfig({
   ] as any,
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
-  cors: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
-  csrf: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
+  cors: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3102', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
+  csrf: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3102', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },

@@ -60,5 +60,26 @@ export const Members: CollectionConfig = {
       name: 'payment_id',
       type: 'text',
     },
+    {
+      name: 'membership_number',
+      type: 'text',
+      unique: true,
+      admin: {
+        readOnly: true,
+      }
+    },
+    {
+      name: 'registration_payment_status',
+      type: 'select',
+      options: [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Paid', value: 'paid' },
+      ],
+      defaultValue: 'pending',
+    },
+    {
+      name: 'registration_payment_id',
+      type: 'text',
+    },
   ],
 }
