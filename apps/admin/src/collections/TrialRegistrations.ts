@@ -153,6 +153,25 @@ export const TrialRegistrations: CollectionConfig = {
       type: 'text',
       required: true,
       unique: true,
+      validate: (value: unknown) => {
+        if (!value) return 'CRS Number is required.';
+        const valStr = String(value);
+        const lowerCrs = valStr.toLowerCase().trim();
+        const invalidWords = ['none', 'nill', 'nil', 'null', 'na', 'n/a', 'no', 'not applicable'];
+        if (invalidWords.includes(lowerCrs)) {
+          return 'Please enter a valid CRS Number. Words like "none" or "nill" are not accepted.';
+        }
+        if (!/\d/.test(valStr)) {
+          return 'A valid CRS Number must contain numbers.';
+        }
+        if (valStr.length > 16) {
+          return 'CRS Number must be 16 characters or less.';
+        }
+        if (!/^[a-zA-Z0-9-]+$/.test(valStr)) {
+          return 'Invalid CRS Number format. Please enter only the alphanumeric CRS Number without spaces or special characters.';
+        }
+        return true;
+      },
     },
     {
       name: 'location',
