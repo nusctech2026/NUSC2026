@@ -5,7 +5,8 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@nusc/db": "*",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "razorpay": "^2.9.8"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
