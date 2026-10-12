@@ -1,4 +1,4 @@
-import { createAdminClient, createServerClient } from '@nusc/db';
+import { createAdminClient } from '@nusc/db';
 import { membershipSchema, MembershipFormData } from './schemas';
 import Razorpay from 'razorpay';
 
@@ -11,9 +11,8 @@ export async function registerMember(data: MembershipFormData) {
 
   const memberData = parsedData.data;
 
-  // Initialize DB Clients
+  // Initialize DB Client
   const adminSupabase = createAdminClient();
-  const supabase = await createServerClient();
 
   // Normalize email and phone
   const normalizedEmail = memberData.email.toLowerCase().trim();
@@ -69,15 +68,23 @@ export async function registerMember(data: MembershipFormData) {
   }
 
   // Initiate ₹10 Razorpay Order
-  const useMock = process.env.RAZORPAY_MOCK === 'true';
+  const useMock = process.env.NODE_ENV !== 'production' && process.env.RAZORPAY_MOCK === 'true';
 
   let paymentOrderId = null;
   if (useMock) {
     paymentOrderId = 'mock_order_' + authData.user.id;
-    await adminSupabase
+    const { error: updateError } = await adminSupabase
       .from('members')
       .update({ registration_order_id: paymentOrderId })
       .eq('user_id', authData.user.id);
+
+    if (updateError) {
+      console.error('Failed to persist mock registration_order_id:', updateError);
+      await adminSupabase.from('members').delete().eq('user_id', authData.user.id);
+      await adminSupabase.from('member_profiles').delete().eq('user_id', authData.user.id);
+      await adminSupabase.auth.admin.deleteUser(authData.user.id);
+      throw new Error(`Failed to persist payment order: ${updateError.message}`);
+    }
   } else {
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key',
@@ -93,13 +100,29 @@ export async function registerMember(data: MembershipFormData) {
       paymentOrderId = order.id;
 
       // Persist order ID to members record for authoritative order-to-member binding
-      await adminSupabase
+      const { error: updateError } = await adminSupabase
         .from('members')
         .update({ registration_order_id: order.id })
         .eq('user_id', authData.user.id);
+
+      if (updateError) {
+        throw new Error(`Failed to persist payment order: ${updateError.message}`);
+      }
     } catch (error) {
-      console.error('Failed to initiate Razorpay order:', error);
+      console.error('Failed to initiate Razorpay order or persist registration_order_id:', error);
+      // Clean up member and auth user so user does not get stuck with duplicate email error on retry
+      await adminSupabase.from('members').delete().eq('user_id', authData.user.id);
+      await adminSupabase.from('member_profiles').delete().eq('user_id', authData.user.id);
+      await adminSupabase.auth.admin.deleteUser(authData.user.id);
+      throw new Error(`Failed to initiate payment: ${(error as Error).message}`);
     }
+  }
+
+  if (!paymentOrderId) {
+    await adminSupabase.from('members').delete().eq('user_id', authData.user.id);
+    await adminSupabase.from('member_profiles').delete().eq('user_id', authData.user.id);
+    await adminSupabase.auth.admin.deleteUser(authData.user.id);
+    throw new Error('Failed to obtain payment order ID');
   }
 
   return { ...rpcData, paymentOrderId };

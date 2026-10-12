@@ -126,12 +126,46 @@ export async function POST(req: Request) {
             } else {
                 // Distinct second captured payment for the same registration (duplicate financial charge)
                 console.warn(`[RECONCILIATION NEEDED] Duplicate financial charge detected for member ${member.id}: existing ${member.registration_payment_id}, duplicate ${paymentId}`);
+
+                // Persist durable, actionable reconciliation record for operations/finance review
+                let reconId: string | null = null;
+                try {
+                    const { data: reconRecord, error: reconError } = await adminSupabase
+                        .from('payment_reconciliations')
+                        .insert({
+                            member_id: member.id,
+                            order_id: orderId,
+                            existing_payment_id: member.registration_payment_id,
+                            duplicate_payment_id: paymentId,
+                            amount: amount,
+                            currency: currency,
+                            reason: 'duplicate_financial_charge',
+                            status: 'requires_manual_refund',
+                            metadata: {
+                                userId: userId,
+                                event: event.event,
+                                detected_at: new Date().toISOString(),
+                            }
+                        })
+                        .select('id')
+                        .single();
+
+                    if (reconError) {
+                        console.error('[RECONCILIATION PERSISTENCE FAILED]', reconError);
+                    } else if (reconRecord) {
+                        reconId = reconRecord.id;
+                    }
+                } catch (e) {
+                    console.error('[RECONCILIATION PERSISTENCE EXCEPTION]', e);
+                }
+
                 return new Response(JSON.stringify({ 
                     status: 'already_processed', 
                     member_id: member.id,
                     reason: 'duplicate_financial_charge',
                     existing_payment_id: member.registration_payment_id,
                     duplicate_payment_id: paymentId,
+                    reconciliation_id: reconId,
                     reconciliation_logged: true
                 }), {
                     status: 200,

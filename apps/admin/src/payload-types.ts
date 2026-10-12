@@ -521,6 +521,7 @@ export interface Member {
   membership_number?: string | null;
   registration_payment_status?: ('pending' | 'paid') | null;
   registration_payment_id?: string | null;
+  registration_order_id?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1011,6 +1012,7 @@ export interface MembersSelect<T extends boolean = true> {
   membership_number?: T;
   registration_payment_status?: T;
   registration_payment_id?: T;
+  registration_order_id?: T;
   updatedAt?: T;
   createdAt?: T;
 }

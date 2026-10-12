@@ -99,4 +99,24 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 5. Durable Payment Reconciliation Table for duplicate financial charges or exceptions
+CREATE TABLE IF NOT EXISTS public.payment_reconciliations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    member_id UUID REFERENCES public.members(id) ON DELETE CASCADE,
+    order_id VARCHAR NOT NULL,
+    existing_payment_id VARCHAR NOT NULL,
+    duplicate_payment_id VARCHAR NOT NULL,
+    amount INTEGER NOT NULL,
+    currency VARCHAR DEFAULT 'INR',
+    reason VARCHAR NOT NULL DEFAULT 'duplicate_financial_charge',
+    status VARCHAR NOT NULL DEFAULT 'requires_manual_refund',
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.payment_reconciliations ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.payment_reconciliations FROM anon, authenticated;
+GRANT ALL ON public.payment_reconciliations TO service_role, postgres;
+
 COMMIT;
