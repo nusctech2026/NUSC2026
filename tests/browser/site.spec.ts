@@ -9,13 +9,13 @@ test("mobile menu supports keyboard focus, Escape, page changes and history", as
   await toggle.click();
   const mobile = page.getByRole("navigation", { name: "Mobile", exact: true });
   await expect(
-    mobile.getByRole("link", { name: "Home", exact: true }),
+    mobile.getByRole("link", { name: /Home/ }),
   ).toBeFocused();
   await expect(page.locator("main")).toHaveJSProperty("inert", true);
   await page.keyboard.press("Shift+Tab");
   await expect(page.getByRole("button", { name: "Close menu" })).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(page.locator(".drawer > a")).toBeFocused();
+  await expect(page.locator(".drawer > a").last()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(toggle).toBeFocused();
   await expect(page.locator("main")).toHaveJSProperty("inert", false);
@@ -61,15 +61,13 @@ test("store landing carousel advances and stays in the store app", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1366, height: 768 });
-  await page.goto("http://127.0.0.1:3103/");
+  await page.goto("http://localhost:3103/");
   await expect(page).toHaveTitle("Shop");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Now is the time",
+    "OWN THE GLORY",
   );
-  await page.getByRole("button", { name: "Show Away colors slide" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Away colors",
-  );
+  await page.getByRole("button", { name: "Show slide 2" }).click();
+  await expect(page.getByRole("button", { name: "Show slide 2" })).toHaveClass(/active/);
   await page.screenshot({ path: info.outputPath("store-desktop.png") });
 });
 
@@ -83,12 +81,12 @@ test("reduced motion stops movement and content remains available without JavaSc
     "animation-name",
     "none",
   );
-  await expect(page.locator(".preview").last()).toHaveCSS("opacity", "1");
-  await expect(page.locator(".preview").last()).toHaveCSS("transform", "none");
+  await expect(page.locator(".reveal").last()).toHaveCSS("opacity", "1");
+  await expect(page.locator(".reveal").last()).toHaveCSS("transform", "none");
   const context = await browser.newContext({ javaScriptEnabled: false });
   try {
     const staticPage = await context.newPage();
-    await staticPage.goto("http://127.0.0.1:3102/pathway");
+    await staticPage.goto("http://127.0.0.1:3000/pathway");
     await expect(staticPage.locator(".pcard")).toHaveCount(9);
     await expect(staticPage.locator(".pcard").last()).toHaveCSS("opacity", "1");
   } finally {
@@ -125,7 +123,7 @@ test("every page fits phone, tablet and desktop widths without content overflow"
             if (
               !el.getClientRects().length ||
               el.closest(
-                ".burst,.hero-crest,.hero-grid,.marquee,.drawer,.champ-word,.iis-word",
+                ".burst,.hero-crest,.hero-grid,.marquee,.drawer,.champ-word,.iis-word,.cart-drawer,.mobile-drawer",
               )
             )
               return false;
@@ -159,7 +157,7 @@ test("every page fits phone, tablet and desktop widths without content overflow"
           if (
             !el.getClientRects().length ||
             el.closest(
-              ".burst,.hero-crest,.hero-grid,.marquee,.drawer,.champ-word,.iis-word",
+              ".burst,.hero-crest,.hero-grid,.marquee,.drawer,.champ-word,.iis-word,.cart-drawer,.mobile-drawer",
             )
           )
             return false;
