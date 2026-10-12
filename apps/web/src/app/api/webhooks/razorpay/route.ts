@@ -89,6 +89,28 @@ export async function POST(req: Request) {
 
         if (memberFetchError || !member) {
             console.error('Order not found or not associated with any member:', orderId, memberFetchError);
+
+            // Record unmapped order payment for durable operations reconciliation and manual refund
+            try {
+                await adminSupabase.from('payment_reconciliations').insert({
+                    order_id: orderId,
+                    existing_payment_id: 'none',
+                    duplicate_payment_id: paymentId,
+                    amount: amount,
+                    currency: currency,
+                    reason: 'unmapped_order_charge',
+                    status: 'requires_manual_refund',
+                    metadata: {
+                        userId: userId,
+                        event: event.event,
+                        error: 'Order not found in members table (likely rolled back registration)',
+                        detected_at: new Date().toISOString(),
+                    }
+                });
+            } catch (e) {
+                console.error('[UNMAPPED_CHARGE_RECONCILIATION_ERROR]', e);
+            }
+
             return new Response('Order not found or not associated with any member', { status: 404 });
         }
 

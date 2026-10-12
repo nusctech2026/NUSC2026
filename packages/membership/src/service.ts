@@ -2,6 +2,53 @@ import { createAdminClient } from '@nusc/db';
 import { membershipSchema, MembershipFormData } from './schemas';
 import Razorpay from 'razorpay';
 
+async function rollbackRegistration(
+  adminSupabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  triggerReason: string
+) {
+  const cleanupErrors: string[] = [];
+
+  try {
+    const { error: memberError } = await adminSupabase
+      .from('members')
+      .delete()
+      .eq('user_id', userId);
+    if (memberError) {
+      cleanupErrors.push(`members: ${memberError.message}`);
+    }
+  } catch (e) {
+    cleanupErrors.push(`members exception: ${(e as Error).message}`);
+  }
+
+  try {
+    const { error: profileError } = await adminSupabase
+      .from('member_profiles')
+      .delete()
+      .eq('user_id', userId);
+    if (profileError) {
+      cleanupErrors.push(`member_profiles: ${profileError.message}`);
+    }
+  } catch (e) {
+    cleanupErrors.push(`member_profiles exception: ${(e as Error).message}`);
+  }
+
+  try {
+    const { error: authError } = await adminSupabase.auth.admin.deleteUser(userId);
+    if (authError) {
+      cleanupErrors.push(`auth.users: ${authError.message}`);
+    }
+  } catch (e) {
+    cleanupErrors.push(`auth.users exception: ${(e as Error).message}`);
+  }
+
+  if (cleanupErrors.length > 0) {
+    console.error(
+      `[ROLLBACK_PARTIAL_FAILURE] Failed to completely clean up resources for newly created user ${userId} after "${triggerReason}": ${cleanupErrors.join('; ')}`
+    );
+  }
+}
+
 export async function registerMember(data: MembershipFormData) {
   // Validate data with Zod
   const parsedData = membershipSchema.safeParse(data);
@@ -26,7 +73,8 @@ export async function registerMember(data: MembershipFormData) {
   });
 
   if (authError) {
-    if (authError.message.includes('already registered')) {
+    const msg = authError.message.toLowerCase();
+    if (msg.includes('already registered') || msg.includes('already been registered')) {
       throw new Error('DUPLICATE_EMAIL');
     }
     throw new Error(`Failed to create account: ${authError.message}`);
@@ -44,8 +92,7 @@ export async function registerMember(data: MembershipFormData) {
     .single();
 
   if (planError || !basePlan) {
-    // Attempt rollback of Auth user
-    await adminSupabase.auth.admin.deleteUser(authData.user.id);
+    await rollbackRegistration(adminSupabase, authData.user.id, 'base membership plan not found');
     throw new Error('Could not find base membership plan');
   }
 
@@ -62,8 +109,7 @@ export async function registerMember(data: MembershipFormData) {
   });
 
   if (rpcError) {
-    // Attempt rollback of Auth user if member insert fails
-    await adminSupabase.auth.admin.deleteUser(authData.user.id);
+    await rollbackRegistration(adminSupabase, authData.user.id, `create_member_profile_and_record RPC failed: ${rpcError.message}`);
     throw new Error(`Failed to create member record: ${rpcError.message}`);
   }
 
@@ -80,9 +126,7 @@ export async function registerMember(data: MembershipFormData) {
 
     if (updateError) {
       console.error('Failed to persist mock registration_order_id:', updateError);
-      await adminSupabase.from('members').delete().eq('user_id', authData.user.id);
-      await adminSupabase.from('member_profiles').delete().eq('user_id', authData.user.id);
-      await adminSupabase.auth.admin.deleteUser(authData.user.id);
+      await rollbackRegistration(adminSupabase, authData.user.id, `mock order persistence failed: ${updateError.message}`);
       throw new Error(`Failed to persist payment order: ${updateError.message}`);
     }
   } else {
@@ -110,18 +154,13 @@ export async function registerMember(data: MembershipFormData) {
       }
     } catch (error) {
       console.error('Failed to initiate Razorpay order or persist registration_order_id:', error);
-      // Clean up member and auth user so user does not get stuck with duplicate email error on retry
-      await adminSupabase.from('members').delete().eq('user_id', authData.user.id);
-      await adminSupabase.from('member_profiles').delete().eq('user_id', authData.user.id);
-      await adminSupabase.auth.admin.deleteUser(authData.user.id);
+      await rollbackRegistration(adminSupabase, authData.user.id, `order creation/persistence failure: ${(error as Error).message}`);
       throw new Error(`Failed to initiate payment: ${(error as Error).message}`);
     }
   }
 
   if (!paymentOrderId) {
-    await adminSupabase.from('members').delete().eq('user_id', authData.user.id);
-    await adminSupabase.from('member_profiles').delete().eq('user_id', authData.user.id);
-    await adminSupabase.auth.admin.deleteUser(authData.user.id);
+    await rollbackRegistration(adminSupabase, authData.user.id, 'paymentOrderId is missing');
     throw new Error('Failed to obtain payment order ID');
   }
 
