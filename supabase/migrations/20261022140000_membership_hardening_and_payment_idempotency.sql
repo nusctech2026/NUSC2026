@@ -25,22 +25,22 @@ ALTER TABLE public.member_profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their own membership" ON public.members;
 CREATE POLICY "Users can view their own membership" 
     ON public.members FOR SELECT 
-    USING ((auth.uid())::text = user_id);
+    USING ((auth.uid())::text = (user_id)::text);
 
 DROP POLICY IF EXISTS "Users can view their own redemptions" ON public.benefit_redemptions;
 CREATE POLICY "Users can view their own redemptions" 
     ON public.benefit_redemptions FOR SELECT 
-    USING (EXISTS (SELECT 1 FROM public.members WHERE id = benefit_redemptions.member_id AND (auth.uid())::text = user_id));
+    USING (EXISTS (SELECT 1 FROM public.members WHERE id = benefit_redemptions.member_id AND (auth.uid())::text = (user_id)::text));
 
 DROP POLICY IF EXISTS "Users can view own profile" ON public.member_profiles;
 CREATE POLICY "Users can view own profile" 
     ON public.member_profiles FOR SELECT 
-    USING ((auth.uid())::text = user_id);
+    USING ((auth.uid())::text = (user_id)::text);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.member_profiles;
 CREATE POLICY "Users can update own profile" 
     ON public.member_profiles FOR UPDATE 
-    USING ((auth.uid())::text = user_id);
+    USING ((auth.uid())::text = (user_id)::text);
 
 -- 3. Authoritative order-to-member binding and unique payment constraints
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS registration_order_id VARCHAR;
