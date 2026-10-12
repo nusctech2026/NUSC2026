@@ -42,7 +42,12 @@ CREATE POLICY "Users can update own profile"
     ON public.member_profiles FOR UPDATE 
     USING ((auth.uid())::text = user_id);
 
--- 3. Atomic RPC for creating member profile and membership with sequence-backed membership numbers
+-- 3. Authoritative order-to-member binding and unique payment constraints
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS registration_order_id VARCHAR;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_registration_order_id ON public.members (registration_order_id) WHERE registration_order_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_registration_payment_id ON public.members (registration_payment_id) WHERE registration_payment_id IS NOT NULL;
+
+-- 4. Atomic RPC for creating member profile and membership with sequence-backed membership numbers
 CREATE OR REPLACE FUNCTION public.create_member_profile_and_record(
     p_user_id UUID,
     p_first_name TEXT,

@@ -80,6 +80,16 @@ export const Members: CollectionConfig = {
     {
       name: 'registration_payment_id',
       type: 'text',
+      admin: {
+        readOnly: true,
+      },
+    },
+    {
+      name: 'registration_order_id',
+      type: 'text',
+      admin: {
+        readOnly: true,
+      },
     },
   ],
 }

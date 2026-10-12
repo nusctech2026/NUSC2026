@@ -74,6 +74,10 @@ export async function registerMember(data: MembershipFormData) {
   let paymentOrderId = null;
   if (useMock) {
     paymentOrderId = 'mock_order_' + authData.user.id;
+    await adminSupabase
+      .from('members')
+      .update({ registration_order_id: paymentOrderId })
+      .eq('user_id', authData.user.id);
   } else {
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key',
@@ -87,6 +91,12 @@ export async function registerMember(data: MembershipFormData) {
         notes: { userId: authData.user.id, type: 'registration_fee' },
       });
       paymentOrderId = order.id;
+
+      // Persist order ID to members record for authoritative order-to-member binding
+      await adminSupabase
+        .from('members')
+        .update({ registration_order_id: order.id })
+        .eq('user_id', authData.user.id);
     } catch (error) {
       console.error('Failed to initiate Razorpay order:', error);
     }

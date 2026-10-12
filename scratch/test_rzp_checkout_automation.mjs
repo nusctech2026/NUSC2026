@@ -22,6 +22,9 @@ async function completeRazorpayCapture() {
   await page.goto('http://localhost:3000/membership');
   await page.waitForSelector('form');
 
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+  page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
+
   const timestamp = Date.now();
   const testEmail = `rzp.realtest.${timestamp}@example.com`;
 
@@ -34,24 +37,31 @@ async function completeRazorpayCapture() {
   await page.fill('input[name="password"]', 'SecurePassword123!');
   await page.locator('input[name="termsAccepted"]').dispatchEvent('click');
   await page.locator('button[type="submit"]').click();
+  console.log('Submitted form, waiting for Razorpay checkout modal...');
 
-  await page.waitForSelector('iframe.razorpay-checkout-frame', { timeout: 20000 });
+  await page.waitForSelector('iframe.razorpay-checkout-frame', { state: 'attached', timeout: 30000 });
+  console.log('Razorpay iframe attached!');
   const rzpFrame = page.frameLocator('iframe.razorpay-checkout-frame');
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(4000);
 
   const contactInput = rzpFrame.getByTestId('contactNumber');
-  if (await contactInput.isVisible()) {
+  if (await contactInput.isVisible().catch(() => false)) {
+    console.log('Filling contact number...');
     await contactInput.click();
     await contactInput.fill('9436012345');
     await page.waitForTimeout(500);
 
     const continueBtn = rzpFrame.locator('button').filter({ hasText: /Continue/i });
     await continueBtn.click();
+    console.log('Clicked Continue');
     await page.waitForTimeout(3000);
   }
 
-  await rzpFrame.locator('text=Netbanking').click();
-  await page.waitForTimeout(2000);
+  console.log('Looking for Netbanking...');
+  const netbankingBtn = rzpFrame.locator('text=Netbanking').first();
+  await netbankingBtn.waitFor({ state: 'visible', timeout: 30000 });
+  await netbankingBtn.click();
+  console.log('Clicked Netbanking');
 
   const popupPromise = context.waitForEvent('page', { timeout: 20000 });
   await rzpFrame.locator('text=Bank of Baroda').first().click();
