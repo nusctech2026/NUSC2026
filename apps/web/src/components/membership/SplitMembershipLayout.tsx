@@ -9,7 +9,7 @@ import './membership.css';
 export default function SplitMembershipLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successData, setSuccessData] = useState<{ first_name: string; membership_number: string } | null>(null);
+  const [successData, setSuccessData] = useState<{ first_name: string; membership_number: string; paymentStatus: 'pending' | 'paid' } | null>(null);
 
   const openRazorpay = (orderId: string, memberDetails: any) => {
     const options = {
@@ -23,12 +23,18 @@ export default function SplitMembershipLayout() {
         setSuccessData({
           first_name: memberDetails.first_name,
           membership_number: memberDetails.member_number || memberDetails.membership_number,
+          paymentStatus: 'paid'
         });
       },
       prefill: {
         name: memberDetails.first_name,
         email: memberDetails.email,
         contact: memberDetails.phone,
+      },
+      readonly: {
+        contact: true,
+        email: true,
+        name: true,
       },
       theme: {
         color: "#1e293b",
@@ -38,6 +44,7 @@ export default function SplitMembershipLayout() {
           setSuccessData({
             first_name: memberDetails.first_name,
             membership_number: memberDetails.member_number || memberDetails.membership_number,
+            paymentStatus: 'pending'
           });
         }
       }
@@ -52,6 +59,7 @@ export default function SplitMembershipLayout() {
       setSuccessData({
         first_name: memberDetails.first_name,
         membership_number: memberDetails.member_number || memberDetails.membership_number,
+        paymentStatus: 'pending'
       });
     }
   };
@@ -80,13 +88,13 @@ export default function SplitMembershipLayout() {
     setIsSubmitting(false);
 
     if (result.success) {
+      setSuccessData({
+        first_name: result.member.first_name,
+        membership_number: result.member.member_number || result.member.membership_number,
+        paymentStatus: 'pending'
+      });
       if (result.member.paymentOrderId) {
         openRazorpay(result.member.paymentOrderId, { ...result.member, email: data.email, phone: data.phone });
-      } else {
-        setSuccessData({
-          first_name: result.member.first_name,
-          membership_number: result.member.member_number || result.member.membership_number,
-        });
       }
     } else {
       setError(result.error || 'An unexpected error occurred');
@@ -168,10 +176,12 @@ export default function SplitMembershipLayout() {
           {successData ? (
             <div style={{ padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
               <h2 style={{ color: '#0f172a', fontSize: '2rem', marginBottom: '16px', fontWeight: 700 }}>
-                Welcome to NUSC!
+                {successData.paymentStatus === 'paid' ? 'Welcome to NUSC!' : 'Registration Pending Payment'}
               </h2>
               <p style={{ color: '#475569', marginBottom: '24px', fontSize: '1.1rem' }}>
-                Your registration was successful. Welcome to the club, {successData.first_name}!
+                {successData.paymentStatus === 'paid' 
+                  ? `Your registration was successful. Welcome to the club, ${successData.first_name}!` 
+                  : `Hello ${successData.first_name}, your registration is saved but pending payment of the ₹10 fee. Please complete the payment to activate your membership.`}
               </p>
               <div style={{ background: '#ffffff', padding: '20px', borderRadius: '8px', marginBottom: '24px', border: '1px solid #e2e8f0' }}>
                 <p style={{ color: '#64748b', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
@@ -182,9 +192,16 @@ export default function SplitMembershipLayout() {
                 </p>
               </div>
               <p style={{ color: '#475569', fontSize: '0.9rem' }}>
-                Keep this number handy. You will use it to access ticket benefits on Ahibi and merchandise discounts in our store.
+                {successData.paymentStatus === 'paid' 
+                  ? 'Keep this number handy. You will use it to access ticket benefits on Ahibi and merchandise discounts in our store.' 
+                  : 'Your membership number is reserved. Once your payment is successful, it will be activated for ticket benefits and merchandise discounts.'}
               </p>
-              <a href="/" className="btn btn-red" style={{ marginTop: '20px', display: 'inline-block' }}>Back to Home</a>
+              <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <a href="/" className="btn btn-outline" style={{ display: 'inline-block', padding: '12px 24px', borderRadius: '6px', border: '1px solid var(--navy-600)', color: 'var(--navy-600)', textDecoration: 'none', fontWeight: 600 }}>Back to Home</a>
+                {successData.paymentStatus === 'pending' && (
+                  <button onClick={() => window.location.reload()} style={{ display: 'inline-block', padding: '12px 24px', borderRadius: '6px', background: 'var(--navy-600)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}>Try Payment Again</button>
+                )}
+              </div>
             </div>
           ) : (
             <>

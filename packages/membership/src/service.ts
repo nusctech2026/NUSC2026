@@ -69,23 +69,27 @@ export async function registerMember(data: MembershipFormData) {
   }
 
   // Initiate ₹10 Razorpay Order
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
-  });
+  const useMock = process.env.RAZORPAY_MOCK === 'true';
 
   let paymentOrderId = null;
-  try {
-    const order = await razorpay.orders.create({
-      amount: 1000, // ₹10 in paise
-      currency: 'INR',
-      receipt: `reg_${authData.user.id}`,
-      notes: { userId: authData.user.id, type: 'registration_fee' }
+  if (useMock) {
+    paymentOrderId = 'mock_order_' + authData.user.id;
+  } else {
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key',
+      key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
     });
-    paymentOrderId = order.id;
-  } catch (error) {
-    // Keep going, handle payment retry on the frontend if needed
-    console.error('Failed to initiate Razorpay order:', error);
+    try {
+      const order = await razorpay.orders.create({
+        amount: 1000, // ₹10 in paise
+        currency: 'INR',
+        receipt: `reg_${authData.user.id}`,
+        notes: { userId: authData.user.id, type: 'registration_fee' },
+      });
+      paymentOrderId = order.id;
+    } catch (error) {
+      console.error('Failed to initiate Razorpay order:', error);
+    }
   }
 
   return { ...rpcData, paymentOrderId };

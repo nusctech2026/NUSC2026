@@ -37,6 +37,11 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${barlow.variable}`}
     >
+      <head>
+        <noscript>
+          <style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style>
+        </noscript>
+      </head>
       <body suppressHydrationWarning>
         {children}
       </body>

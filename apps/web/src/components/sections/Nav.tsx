@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { createClient as createBrowserClient } from '@nusc/db/src/client/browser';
 
 export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light' | 'dark', forceScrolled?: boolean }) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeLink, setActiveLink] = useState('');
@@ -29,12 +31,56 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
     // Drawer overflow toggle
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      const main = document.querySelector('main');
+      if (main) main.setAttribute('inert', 'true');
+      setTimeout(() => {
+        const firstLink = document.querySelector('#drawer a') as HTMLElement;
+        if (firstLink) firstLink.focus();
+      }, 50);
     } else {
       document.body.style.overflow = '';
+      const main = document.querySelector('main');
+      if (main) main.removeAttribute('inert');
     }
     
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (!isOpen) return;
+
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+        const burger = document.getElementById('burger');
+        if (burger) burger.focus();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const burger = document.getElementById('burger');
+        const drawer = document.getElementById('drawer');
+        if (!drawer || !burger) return;
+        const links = Array.from(drawer.querySelectorAll<HTMLElement>('a'));
+        if (links.length === 0) return;
+
+        const firstElement = links[0];
+        const lastElement = links[links.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            burger.focus();
+          } else if (document.activeElement === burger) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            burger.focus();
+          } else if (document.activeElement === burger) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
     };
     
     document.addEventListener('keydown', handleKeyDown);
@@ -43,6 +89,16 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const handlePopState = () => setIsOpen(false);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     // Nav scrolled state
@@ -93,7 +149,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
             <Link href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Journey</Link>
             <Link href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</Link>
             <Link href="/#pathway" className={activeLink === 'pathway' ? 'active' : ''}>Pathway</Link>
-            <Link href="/trials" className={typeof window !== 'undefined' && window.location.pathname === '/trials' ? 'active' : ''}>Trials</Link>
+            <Link href="/trials" className={pathname === '/trials' ? 'active' : ''}>Trials</Link>
             <Link href="/#community" className={activeLink === 'community' ? 'active' : ''}>Community</Link>
             <Link href="/#partners" className={activeLink === 'partners' ? 'active' : ''}>Partners</Link>
           </div>
@@ -107,7 +163,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
           <button 
             className={`burger ${isOpen ? 'open' : ''}`}
             id="burger" 
-            aria-label="Open menu" 
+            aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
             aria-controls="drawer"
             onClick={() => setIsOpen(!isOpen)}
@@ -117,8 +173,9 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
         </div>
       </nav>
 
-      <div className={`drawer ${isOpen ? 'open' : ''}`} id="drawer">
+      <div className={`drawer ${isOpen ? 'open' : ''}`} id="drawer" role="navigation" aria-label="Mobile">
         <div className="burst faint" aria-hidden="true"></div>
+        <Link href="/" onClick={closeDrawer}>Home<small>Back to frontpage</small></Link>
         <Link href="/#club" onClick={closeDrawer}>Club<small>Snapshot • Who We Are • Mission</small></Link>
         <Link href="/#journey" onClick={closeDrawer}>Journey<small>The rise, year by year</small></Link>
         <Link href="/#honours" onClick={closeDrawer}>Honours<small>Champions • Representing Nagaland</small></Link>
@@ -126,12 +183,12 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
         <Link href="/trials" onClick={closeDrawer}>Trials<small>U23 Registrations</small></Link>
         <Link href="/#community" onClick={closeDrawer}>Community<small>Peace Pays</small></Link>
         <Link href="/#partners" onClick={closeDrawer}>Partners<small>Support NUSC</small></Link>
+        <Link href="/careers" onClick={closeDrawer} aria-label="Careers">Careers<small>Join the team</small></Link>
         {isLoggedIn ? (
           <Link href="/dashboard" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Dashboard</Link>
         ) : (
           <Link href="/membership" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Membership</Link>
         )}
-
       </div>
     </>
   );

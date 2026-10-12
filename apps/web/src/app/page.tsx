@@ -17,6 +17,18 @@ import { Footer } from '@/components/sections/Footer';
 
 export default function Home() {
   useEffect(() => {
+    if (window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const redirects: Record<string, string> = {
+        'journey': '/club#journey',
+        'careers': '/careers',
+      };
+      if (redirects[hash]) {
+        window.location.replace(redirects[hash]);
+        return;
+      }
+    }
+    
     if ('IntersectionObserver' in window) {
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {

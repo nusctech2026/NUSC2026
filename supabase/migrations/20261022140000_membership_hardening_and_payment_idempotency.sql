@@ -3,9 +3,10 @@
 
 BEGIN;
 
--- 1. Ensure member_number_seq exists with appropriate start value and permissions
+-- 1. Ensure member_number_seq exists with appropriate start value and permissions (least privilege: owner & service_role only)
 CREATE SEQUENCE IF NOT EXISTS public.member_number_seq START WITH 2050;
-GRANT USAGE, SELECT ON SEQUENCE public.member_number_seq TO authenticated, service_role, anon, postgres;
+REVOKE ALL ON SEQUENCE public.member_number_seq FROM anon;
+GRANT USAGE, SELECT ON SEQUENCE public.member_number_seq TO service_role, postgres;
 
 -- Align sequence value above any existing membership number
 SELECT setval(

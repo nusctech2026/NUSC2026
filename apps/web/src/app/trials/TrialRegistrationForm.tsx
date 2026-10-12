@@ -9,16 +9,55 @@ export default function TrialRegistrationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
 
+  // Pre-Screening Eligibility Gate State (Option 1)
+  const [isIndigenous, setIsIndigenous] = useState<'yes' | 'no' | ''>('');
+  const [hasCertificate, setHasCertificate] = useState<'yes' | 'no' | ''>('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
+  const gateRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (error && errorRef.current) {
       errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [error]);
 
+  useEffect(() => {
+    if (gateError && gateRef.current) {
+      gateRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [gateError]);
+
+  const handleProceedGate = () => {
+    setGateError(null);
+    if (!isIndigenous || !hasCertificate) {
+      setGateError('Please answer both eligibility questions to proceed.');
+      return;
+    }
+    if (isIndigenous === 'no' || hasCertificate === 'no') {
+      return;
+    }
+    setIsUnlocked(true);
+  };
+
+  const handleResetGate = () => {
+    setIsIndigenous('');
+    setHasCertificate('');
+    setGateError(null);
+    setIsUnlocked(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+
+    // Gate security check
+    if (isIndigenous !== 'yes' || hasCertificate !== 'yes' || !isUnlocked) {
+      setError('You must confirm eligibility as an Indigenous Naga of Nagaland with a valid certificate to register.');
+      setIsSubmitting(false);
+      return;
+    }
 
     const formData = new FormData(e.currentTarget);
     const phone = formData.get('phone') as string;
@@ -27,12 +66,6 @@ export default function TrialRegistrationForm() {
       setIsSubmitting(false);
       return;
     }
-
-
-
-
-
-
 
     const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -50,7 +83,7 @@ export default function TrialRegistrationForm() {
 
     const certFile = formData.get('indigenousCertificate') as File;
     if (!certFile || certFile.size === 0) {
-      setError('Indigenous Certificate is required.');
+      setError('Government of Nagaland Indigenous Certificate is required.');
       setIsSubmitting(false);
       return;
     }
@@ -207,6 +240,9 @@ export default function TrialRegistrationForm() {
     );
   }
 
+  const isIneligible = isIndigenous === 'no' || hasCertificate === 'no';
+  const isBothEligible = isIndigenous === 'yes' && hasCertificate === 'yes';
+
   return (
     <>
       <style>{`
@@ -255,9 +291,42 @@ export default function TrialRegistrationForm() {
         .tooltip-container:hover .tooltip-content {
           opacity: 1;
         }
+        .gate-card {
+          padding: 28px 32px;
+        }
+        .gate-options-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .gate-option {
+          display: flex;
+          align-items: center;
+          justifyContent: center;
+          gap: 8px;
+          padding: 12px 14px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          user-select: none;
+          border: 1.5px solid var(--line-l);
+          background: #fafafa;
+        }
+        .gate-option:hover {
+          border-color: #94a3b8;
+          background: #f8fafc;
+        }
+        .gate-option.selected-yes {
+          border-color: #16a34a !important;
+          background: #f0fdf4 !important;
+        }
+        .gate-option.selected-no {
+          border-color: #f87171 !important;
+          background: #fef2f2 !important;
+        }
         @media (max-width: 600px) {
-          .form-container {
-            padding: 24px 16px;
+          .form-container, .gate-card {
+            padding: 20px 16px;
           }
           .form-row {
             flex-direction: column;
@@ -266,168 +335,443 @@ export default function TrialRegistrationForm() {
           .submit-btn {
             width: 100%;
           }
+          .gate-option {
+            padding: 12px 6px;
+          }
         }
       `}</style>
-      <form onSubmit={handleSubmit} className="form-container">
-        {error && (
-          <div ref={errorRef} style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '12px 16px', borderRadius: '4px', marginBottom: '24px', fontSize: '0.9rem' }}>
-            {error}
-          </div>
-        )}
 
-        {/* Name Row */}
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>Name</label>
-          <div className="form-row" style={{ marginBottom: 0 }}>
-            <div style={{ flex: 1 }}>
-              <input type="text" id="firstName" name="firstName" required placeholder="First Name" style={inputStyle} />
+      {/* STEP 1: PRE-SCREENING ELIGIBILITY CHECK */}
+      {!isUnlocked ? (
+        <div className="gate-card" ref={gateRef}>
+          <div style={{ marginBottom: '18px' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#e0f2fe',
+              color: '#0369a1',
+              border: '1px solid #bae6fd',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              letterSpacing: '0.02em',
+              marginBottom: '8px'
+            }}>
+              <span>⚽</span> Eligibility Check
+            </span>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--ink)', margin: '0 0 6px 0', letterSpacing: '-0.01em' }}>
+              Welcome to NUSC U-23 Trials
+            </h2>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0, lineHeight: 1.45 }}>
+              Trials are open to Indigenous Nagas of Nagaland with a valid Indigenous Certificate (IIC). Please confirm below to register.
+            </p>
+          </div>
+
+          {/* Question 1 */}
+          <div style={{ marginBottom: '18px' }}>
+            <p style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--ink)', marginBottom: '8px' }}>
+              1. Are you an Indigenous Naga belonging to Nagaland?
+            </p>
+            <div className="gate-options-grid">
+              <label className={`gate-option ${isIndigenous === 'yes' ? 'selected-yes' : ''}`}>
+                <input
+                  type="radio"
+                  name="isIndigenous"
+                  value="yes"
+                  checked={isIndigenous === 'yes'}
+                  onChange={() => { setIsIndigenous('yes'); setGateError(null); }}
+                  style={{ width: '16px', height: '16px', accentColor: '#16a34a', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.88rem', fontWeight: isIndigenous === 'yes' ? 600 : 500, color: 'var(--ink)' }}>
+                  Yes, I am
+                </span>
+              </label>
+
+              <label className={`gate-option ${isIndigenous === 'no' ? 'selected-no' : ''}`}>
+                <input
+                  type="radio"
+                  name="isIndigenous"
+                  value="no"
+                  checked={isIndigenous === 'no'}
+                  onChange={() => { setIsIndigenous('no'); setGateError(null); }}
+                  style={{ width: '16px', height: '16px', accentColor: '#dc2626', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.88rem', fontWeight: isIndigenous === 'no' ? 600 : 500, color: 'var(--ink)' }}>
+                  No, from outside
+                </span>
+              </label>
             </div>
-            <div style={{ flex: 1 }}>
-              <input type="text" id="lastName" name="lastName" required placeholder="Last Name" style={inputStyle} />
+          </div>
+
+          {/* Question 2 */}
+          <div style={{ marginBottom: '22px' }}>
+            <p style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--ink)', marginBottom: '8px' }}>
+              2. Do you hold a valid Indigenous Inhabitant Certificate (IIC) issued by the Government of Nagaland?
+            </p>
+            <div className="gate-options-grid">
+              <label className={`gate-option ${hasCertificate === 'yes' ? 'selected-yes' : ''}`}>
+                <input
+                  type="radio"
+                  name="hasCertificate"
+                  value="yes"
+                  checked={hasCertificate === 'yes'}
+                  onChange={() => { setHasCertificate('yes'); setGateError(null); }}
+                  style={{ width: '16px', height: '16px', accentColor: '#16a34a', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.88rem', fontWeight: hasCertificate === 'yes' ? 600 : 500, color: 'var(--ink)' }}>
+                  Yes, I hold one
+                </span>
+              </label>
+
+              <label className={`gate-option ${hasCertificate === 'no' ? 'selected-no' : ''}`}>
+                <input
+                  type="radio"
+                  name="hasCertificate"
+                  value="no"
+                  checked={hasCertificate === 'no'}
+                  onChange={() => { setHasCertificate('no'); setGateError(null); }}
+                  style={{ width: '16px', height: '16px', accentColor: '#dc2626', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.88rem', fontWeight: hasCertificate === 'no' ? 600 : 500, color: 'var(--ink)' }}>
+                  No, I do not
+                </span>
+              </label>
             </div>
           </div>
-        </div>
 
-        {/* Phone and Email Row */}
-        <div className="form-row">
-          <div style={{ flex: 1 }}>
-            <label htmlFor="phone" style={labelStyle}>Phone Number</label>
-            <input type="tel" id="phone" name="phone" required placeholder="(000) 000-0000" style={inputStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label htmlFor="email" style={labelStyle}>E-mail</label>
-            <input type="email" id="email" name="email" required placeholder="example@example.com" style={inputStyle} />
-          </div>
-        </div>
-
-        {/* DOB and Position Row */}
-        <div className="form-row">
-          <div style={{ flex: 1 }}>
-            <label htmlFor="dateOfBirth" style={labelStyle}>Date of Birth</label>
-            <input type="date" id="dateOfBirth" name="dateOfBirth" required style={inputStyle} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label htmlFor="playerPosition" style={labelStyle}>Player Position</label>
-            <select id="playerPosition" name="playerPosition" required style={inputStyle} defaultValue="">
-              <option value="" disabled>Select position</option>
-              <optgroup label="Goalkeeper">
-                <option value="Goalkeeper (GK)">Goalkeeper (GK)</option>
-              </optgroup>
-              <optgroup label="Defender">
-                <option value="Center Back (CB)">Center Back (CB)</option>
-                <option value="Right Back (RB)">Right Back (RB)</option>
-                <option value="Left Back (LB)">Left Back (LB)</option>
-                <option value="Right Wing Back (RWB)">Right Wing Back (RWB)</option>
-                <option value="Left Wing Back (LWB)">Left Wing Back (LWB)</option>
-              </optgroup>
-              <optgroup label="Midfielder">
-                <option value="Defensive Midfielder (CDM)">Defensive Midfielder (CDM)</option>
-                <option value="Central Midfielder (CM)">Central Midfielder (CM)</option>
-                <option value="Attacking Midfielder (CAM)">Attacking Midfielder (CAM)</option>
-                <option value="Right Midfielder (RM)">Right Midfielder (RM)</option>
-                <option value="Left Midfielder (LM)">Left Midfielder (LM)</option>
-              </optgroup>
-              <optgroup label="Forward">
-                <option value="Right Winger (RW)">Right Winger (RW)</option>
-                <option value="Left Winger (LW)">Left Winger (LW)</option>
-                <option value="Center Forward / Striker (ST)">Center Forward / Striker (ST)</option>
-              </optgroup>
-            </select>
-          </div>
-        </div>
-
-        {/* Address */}
-        <div style={{ marginBottom: '24px' }}>
-          <label htmlFor="address" style={labelStyle}>Residential Address</label>
-          <textarea id="address" name="address" required rows={3} placeholder="Street address, City, District (Must be within Nagaland)" style={{ ...inputStyle, resize: 'vertical' }}></textarea>
-        </div>
-
-        {/* CRS Number */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <label htmlFor="crsNumber" style={{ ...labelStyle, marginBottom: 0 }}>CRS Number</label>
-            <div className="tooltip-container">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)' }}>
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              <div className="tooltip-content">
-                Centralized Registration System (CRS) Number assigned to players by AIFF
+          {/* INELIGIBLE NOTICE */}
+          {isIneligible && (
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '24px 20px',
+              textAlign: 'center',
+              marginTop: '16px'
+            }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px'
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
+                Registration Restricted · Indigenous Nagas Only
+              </h3>
+              <p style={{ color: '#475569', fontSize: '0.92rem', lineHeight: 1.6, maxWidth: '540px', margin: '0 auto 12px' }}>
+                Thank you for your interest in Nagaland United SC! These U-23 trials are organized specifically to scout local <strong>Indigenous Naga talent from Nagaland</strong>.
+              </p>
+              <p style={{ color: '#64748b', fontSize: '0.86rem', maxWidth: '520px', margin: '0 auto 20px', lineHeight: 1.5 }}>
+                Because you indicated that you do not hold the required Nagaland Indigenous Certificate, you cannot register for this specific camp. We encourage you to follow NUSC on our official social media for announcements regarding upcoming open senior trials!
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/" style={{
+                  display: 'inline-block',
+                  background: 'var(--navy-600, #1a3f7a)',
+                  color: 'white',
+                  padding: '10px 24px',
+                  borderRadius: '4px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.88rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  Return Home
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleResetGate}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #cbd5e1',
+                    color: '#475569',
+                    padding: '10px 20px',
+                    borderRadius: '4px',
+                    fontWeight: 600,
+                    fontSize: '0.88rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Change Answers
+                </button>
               </div>
             </div>
-          </div>
-          <input
-            type="text"
-            id="crsNumber"
-            name="crsNumber"
-            required
-            maxLength={16}
-            pattern="^([a-zA-Z0-9]|-)*$"
-            title="Please enter a valid CRS number (letters, numbers, and hyphens only)."
-            placeholder="As provided during preliminary registration"
-            style={inputStyle}
-          />
-          <span style={{ ...helperStyle, marginTop: '8px' }}>Format: Alphanumeric and hyphens only. Max 16 characters.</span>
-        </div>
+          )}
 
-        {/* Documents */}
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ marginBottom: '24px' }}>
-            <label htmlFor="aadharCard" style={labelStyle}>Aadhar Card</label>
-            <div style={{
-              border: '1px solid var(--line-l)',
-              padding: '16px',
-              borderRadius: '4px',
-              background: '#fafafa'
-            }}>
-              <input type="file" id="aadharCard" name="aadharCard" required accept="image/*,.pdf" style={{ width: '100%' }} />
-              <span style={{ ...helperStyle, marginTop: '8px' }}>Please upload a clear scan of your Aadhar Card (JPG, PNG, PDF). Max size: 2MB.</span>
+          {/* GATE VALIDATION ERROR */}
+          {gateError && !isIneligible && (
+            <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '12px 16px', borderRadius: '4px', marginBottom: '20px', fontSize: '0.9rem' }}>
+              {gateError}
             </div>
-          </div>
+          )}
 
-          <div>
-            <label htmlFor="indigenousCertificate" style={labelStyle}>Indigenous Certificate</label>
-            <div style={{
-              border: '1px solid var(--line-l)',
-              padding: '16px',
-              borderRadius: '4px',
-              background: '#fafafa'
-            }}>
-              <input type="file" id="indigenousCertificate" name="indigenousCertificate" required accept="image/*,.pdf" style={{ width: '100%' }} />
-              <span style={{ ...helperStyle, marginTop: '8px' }}>Please upload a clear scan of your Indigenous Certificate (JPG, PNG, PDF). Max size: 2MB.</span>
+          {/* PROCEED BUTTON WHEN ELIGIBLE */}
+          {!isIneligible && (
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              {isBothEligible && (
+                <div style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  color: '#166534',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  marginBottom: '12px',
+                  fontSize: '0.86rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Eligible! Proceed to fill out the form.</span>
+                </div>
+              )}
+              <div>
+                <button
+                  type="button"
+                  onClick={handleProceedGate}
+                  className="submit-btn"
+                  style={{
+                    background: isBothEligible ? 'var(--navy-600, #1a3f7a)' : '#94a3b8',
+                    color: 'var(--white)',
+                    border: 'none',
+                    padding: '13px 36px',
+                    fontSize: '0.92rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    transition: 'all 0.2s',
+                    boxShadow: isBothEligible ? '0 4px 12px rgba(26, 63, 122, 0.25)' : 'none'
+                  }}
+                >
+                  Proceed to Registration Form &rarr;
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
+      ) : (
+        /* STEP 2: REGISTRATION FORM (UNLOCKED) */
+        <form onSubmit={handleSubmit} className="form-container">
+          {/* ELIGIBILITY CONFIRMED STATUS BANNER */}
+          <div style={{
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '6px',
+            padding: '12px 18px',
+            marginBottom: '26px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '1.1rem' }}>✓</span>
+              <span style={{ color: '#166534', fontSize: '0.92rem', fontWeight: 600 }}>
+                Eligible Candidate · Indigenous Naga of Nagaland
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsUnlocked(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#15803d',
+                textDecoration: 'underline',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                fontWeight: 600,
+                padding: 0
+              }}
+            >
+              Change
+            </button>
+          </div>
 
-        <div style={{ textAlign: 'center' }}>
           {error && (
-            <div style={{ color: '#991b1b', marginBottom: '16px', fontSize: '0.95rem', fontWeight: 600 }}>
+            <div ref={errorRef} style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '12px 16px', borderRadius: '4px', marginBottom: '24px', fontSize: '0.9rem' }}>
               {error}
             </div>
           )}
-          <button type="submit" disabled={isSubmitting} className="submit-btn" style={{
-            background: 'var(--red)',
-            color: 'var(--white)',
-            border: 'none',
-            padding: '16px 48px',
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: isSubmitting ? 'not-allowed' : 'pointer',
-            opacity: isSubmitting ? 0.7 : 1,
-            borderRadius: '4px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            transition: 'background 0.2s',
-            marginBottom: '24px'
-          }}>
-            {isSubmitting ? 'Submitting...' : 'Submit Application'}
-          </button>
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
-            For any inquiries or questions, please contact <strong>+91 70853 33972</strong>
-          </p>
-        </div>
-      </form>
+
+          {/* Name Row */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>Name</label>
+            <div className="form-row" style={{ marginBottom: 0 }}>
+              <div style={{ flex: 1 }}>
+                <input type="text" id="firstName" name="firstName" required placeholder="First Name" style={inputStyle} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <input type="text" id="lastName" name="lastName" required placeholder="Last Name" style={inputStyle} />
+              </div>
+            </div>
+          </div>
+
+          {/* Phone and Email Row */}
+          <div className="form-row">
+            <div style={{ flex: 1 }}>
+              <label htmlFor="phone" style={labelStyle}>Phone Number</label>
+              <input type="tel" id="phone" name="phone" required placeholder="(000) 000-0000" style={inputStyle} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label htmlFor="email" style={labelStyle}>E-mail</label>
+              <input type="email" id="email" name="email" required placeholder="example@example.com" style={inputStyle} />
+            </div>
+          </div>
+
+          {/* DOB and Position Row */}
+          <div className="form-row">
+            <div style={{ flex: 1 }}>
+              <label htmlFor="dateOfBirth" style={labelStyle}>Date of Birth</label>
+              <input type="date" id="dateOfBirth" name="dateOfBirth" required style={inputStyle} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label htmlFor="playerPosition" style={labelStyle}>Player Position</label>
+              <select id="playerPosition" name="playerPosition" required style={inputStyle} defaultValue="">
+                <option value="" disabled>Select position</option>
+                <optgroup label="Goalkeeper">
+                  <option value="Goalkeeper (GK)">Goalkeeper (GK)</option>
+                </optgroup>
+                <optgroup label="Defender">
+                  <option value="Center Back (CB)">Center Back (CB)</option>
+                  <option value="Right Back (RB)">Right Back (RB)</option>
+                  <option value="Left Back (LB)">Left Back (LB)</option>
+                  <option value="Right Wing Back (RWB)">Right Wing Back (RWB)</option>
+                  <option value="Left Wing Back (LWB)">Left Wing Back (LWB)</option>
+                </optgroup>
+                <optgroup label="Midfielder">
+                  <option value="Defensive Midfielder (CDM)">Defensive Midfielder (CDM)</option>
+                  <option value="Central Midfielder (CM)">Central Midfielder (CM)</option>
+                  <option value="Attacking Midfielder (CAM)">Attacking Midfielder (CAM)</option>
+                  <option value="Right Midfielder (RM)">Right Midfielder (RM)</option>
+                  <option value="Left Midfielder (LM)">Left Midfielder (LM)</option>
+                </optgroup>
+                <optgroup label="Forward">
+                  <option value="Right Winger (RW)">Right Winger (RW)</option>
+                  <option value="Left Winger (LW)">Left Winger (LW)</option>
+                  <option value="Center Forward / Striker (ST)">Center Forward / Striker (ST)</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          {/* Address */}
+          <div style={{ marginBottom: '24px' }}>
+            <label htmlFor="address" style={labelStyle}>Residential Address</label>
+            <textarea id="address" name="address" required rows={3} placeholder="Street address, Village/Town, District (Must be within Nagaland)" style={{ ...inputStyle, resize: 'vertical' }}></textarea>
+            <span style={{ ...helperStyle, marginTop: '6px' }}>Address must be a permanent or residential address located within Nagaland.</span>
+          </div>
+
+          {/* CRS Number */}
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <label htmlFor="crsNumber" style={{ ...labelStyle, marginBottom: 0 }}>CRS Number</label>
+              <div className="tooltip-container">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)' }}>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <div className="tooltip-content">
+                  Centralized Registration System (CRS) Number assigned to players by AIFF
+                </div>
+              </div>
+            </div>
+            <input
+              type="text"
+              id="crsNumber"
+              name="crsNumber"
+              required
+              maxLength={16}
+              pattern="^([a-zA-Z0-9]|-)*$"
+              title="Please enter a valid CRS number (letters, numbers, and hyphens only)."
+              placeholder="As provided during preliminary registration"
+              style={inputStyle}
+            />
+            <span style={{ ...helperStyle, marginTop: '8px' }}>Format: Alphanumeric and hyphens only. Max 16 characters.</span>
+          </div>
+
+          {/* Documents */}
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ marginBottom: '24px' }}>
+              <label htmlFor="aadharCard" style={labelStyle}>Aadhar Card</label>
+              <div style={{
+                border: '1px solid var(--line-l)',
+                padding: '16px',
+                borderRadius: '4px',
+                background: '#fafafa'
+              }}>
+                <input type="file" id="aadharCard" name="aadharCard" required accept="image/*,.pdf" style={{ width: '100%' }} />
+                <span style={{ ...helperStyle, marginTop: '8px' }}>Please upload a clear scan of your Aadhar Card (JPG, PNG, PDF). Max size: 2MB.</span>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="indigenousCertificate" style={labelStyle}>
+                Indigenous Certificate (IIC / Nagaland ST Certificate)
+              </label>
+              <div style={{
+                border: '1px solid var(--line-l)',
+                padding: '16px',
+                borderRadius: '4px',
+                background: '#fafafa'
+              }}>
+                <input type="file" id="indigenousCertificate" name="indigenousCertificate" required accept="image/*,.pdf" style={{ width: '100%' }} />
+                <span style={{ ...helperStyle, marginTop: '8px' }}>
+                  Upload a clear scan of your Indigenous Inhabitant Certificate (IIC) or ST Certificate issued by the Government of Nagaland (JPG, PNG, PDF, max 2MB). Certificates from other states will be rejected.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            {error && (
+              <div style={{ color: '#991b1b', marginBottom: '16px', fontSize: '0.95rem', fontWeight: 600 }}>
+                {error}
+              </div>
+            )}
+            <button type="submit" disabled={isSubmitting} className="submit-btn" style={{
+              background: 'var(--red)',
+              color: 'var(--white)',
+              border: 'none',
+              padding: '16px 48px',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              opacity: isSubmitting ? 0.7 : 1,
+              borderRadius: '4px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              transition: 'background 0.2s',
+              marginBottom: '24px'
+            }}>
+              {isSubmitting ? 'Submitting...' : 'Submit Application'}
+            </button>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
+              For any inquiries or questions, please contact <strong>+91 70853 33972</strong>
+            </p>
+          </div>
+        </form>
+      )}
     </>
   );
 }

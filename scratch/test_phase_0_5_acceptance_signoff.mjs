@@ -117,6 +117,19 @@ async function runAcceptanceVerification() {
   const fetchedOrder = await rzp.orders.fetch(realOrder.id);
   assert(fetchedOrder.id === realOrder.id && fetchedOrder.status === 'created', 'Verified order on official Razorpay server', fetchedOrder.id);
 
+  // 1f. Genuine Razorpay Test Mode Payment Capture verification
+  console.log('\n--- 1b. Authoritative Real Captured Payment on Razorpay Public Server ---');
+  const realCapturedPayment = await rzp.payments.fetch('pay_Tmu2tcu8YZnVXk');
+  assert(realCapturedPayment.id === 'pay_Tmu2tcu8YZnVXk', 'Fetched genuine captured payment from Razorpay API', realCapturedPayment.id);
+  assert(realCapturedPayment.status === 'captured', 'Authoritative Razorpay payment status is captured', realCapturedPayment.status);
+  assert(realCapturedPayment.amount === 1000, 'Authoritative payment amount is exactly 1000 paise (₹10.00)', realCapturedPayment.amount);
+  assert(realCapturedPayment.currency === 'INR', 'Authoritative payment currency is INR', realCapturedPayment.currency);
+
+  const realPaidOrder = await rzp.orders.fetch(realCapturedPayment.order_id);
+  assert(realPaidOrder.id === realCapturedPayment.order_id, 'Fetched associated Razorpay order', realPaidOrder.id);
+  assert(realPaidOrder.status === 'paid', 'Authoritative Razorpay order status is paid', realPaidOrder.status);
+  assert(realPaidOrder.amount_paid === 1000, 'Authoritative order amount_paid is 1000 paise (₹10.00)', realPaidOrder.amount_paid);
+
   // -------------------------------------------------------------
   // TEST 2: Payment Idempotency & Security Verification
   // -------------------------------------------------------------
@@ -271,7 +284,99 @@ async function runAcceptanceVerification() {
   const allSafe = concurrentResults.every(r => r.status === 'already_processed' || r.status === 'activated');
   assert(allSafe, 'Concurrent webhook deliveries handled safely without state corruption');
 
-  // 2h. Failed event arriving after successful payment MUST NOT downgrade active member
+  // 2h. Two distinct captured payments for the same registration (double payment scenario)
+  const secondPaymentId = `pay_second_distinct_${timestamp}`;
+  const secondPaymentPayload = JSON.stringify({
+    event: 'payment.captured',
+    payload: {
+      payment: {
+        entity: {
+          id: secondPaymentId,
+          order_id: realOrder.id,
+          amount: 1000,
+          currency: 'INR',
+          status: 'captured',
+          notes: { userId, type: 'registration_fee' }
+        }
+      }
+    }
+  });
+  const secondPaymentRes = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-razorpay-signature': signPayload(secondPaymentPayload) },
+    body: secondPaymentPayload
+  });
+  const secondPaymentJson = await secondPaymentRes.json();
+  assert(secondPaymentRes.status === 200 && secondPaymentJson.status === 'already_processed', 'Second distinct payment for already-paid registration returns already_processed (DB idempotency)');
+
+  const { data: memberAfterSecondPayment } = await adminClient
+    .from('members')
+    .select('registration_payment_id')
+    .eq('user_id', userId)
+    .single();
+  assert(memberAfterSecondPayment.registration_payment_id === paymentId, 'Original registration_payment_id preserved without overwriting by second payment', memberAfterSecondPayment.registration_payment_id);
+
+  // 2i. Cross-member activation prevention: Member A payment CANNOT activate Member B
+  const memberBEmail = `memberB.${timestamp}@example.com`;
+  const { data: uBAuth } = await adminClient.auth.admin.createUser({
+    email: memberBEmail,
+    password: 'SecurePassword123!',
+    email_confirm: true,
+  });
+  await adminClient.rpc('create_member_profile_and_record', {
+    p_user_id: uBAuth.user.id,
+    p_first_name: 'MemberB',
+    p_last_name: 'Victim',
+    p_phone: '9876500003',
+    p_address: 'Mokokchung',
+    p_dob: '1997-03-03',
+    p_plan_id: basePlan.id,
+    p_membership_type: 'standard'
+  });
+
+  // Verify Member B is pending
+  const { data: memberBBefore } = await adminClient
+    .from('members')
+    .select('status, registration_payment_status')
+    .eq('user_id', uBAuth.user.id)
+    .single();
+  assert(memberBBefore.status === 'pending_payment' && memberBBefore.registration_payment_status === 'pending', 'Member B initialized in pending_payment state');
+
+  // Attempting to send Member A valid payment to activate Member B
+  // If an attacker sends Member A payload with Member A signature, it only activates Member A, never Member B
+  // If an attacker tampers notes to Member B's userId, signature verification fails
+  const tamperedCrossPayload = JSON.stringify({
+    event: 'payment.captured',
+    payload: {
+      payment: {
+        entity: {
+          id: paymentId,
+          order_id: realOrder.id,
+          amount: 1000,
+          currency: 'INR',
+          status: 'captured',
+          notes: { userId: uBAuth.user.id, type: 'registration_fee' }
+        }
+      }
+    }
+  });
+  // Send with Member A's signature (signature forgery attempt)
+  const crossTamperRes = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-razorpay-signature': signPayload(validPayload) }, // old signature
+    body: tamperedCrossPayload
+  });
+  assert(crossTamperRes.status === 400, 'Cross-user payload tampering rejected due to cryptographic signature mismatch');
+
+  // Verify Member B is still pending
+  const { data: memberBAfterTamper } = await adminClient
+    .from('members')
+    .select('status, registration_payment_status')
+    .eq('user_id', uBAuth.user.id)
+    .single();
+  assert(memberBAfterTamper.status === 'pending_payment' && memberBAfterTamper.registration_payment_status === 'pending', 'Member B remains pending and unaffected by cross-user activation attempt');
+
+  // 2j. Failed event arriving after successful payment MUST NOT downgrade active member
   const failedPayload = JSON.stringify({
     event: 'payment.failed',
     payload: {

@@ -7,7 +7,7 @@ export const MemberProfiles: CollectionConfig = {
     group: 'Membership',
   },
   access: {
-    read: () => true,
+    read: ({ req: { user } }) => Boolean(user),
   },
   fields: [
     {

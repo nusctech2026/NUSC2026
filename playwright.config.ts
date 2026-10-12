@@ -6,23 +6,17 @@ export default defineConfig({
   workers: 1,
   timeout: 45_000,
   use: {
-    baseURL: "http://localhost:3102",
+    baseURL: "http://localhost:3000",
     browserName: "chromium",
     viewport: { width: 1366, height: 768 },
     trace: "retain-on-failure",
   },
   webServer: [
     {
-      command:
-        "npm run start -w @nusc/web -- -p 3102 -H localhost",
-      url: "http://localhost:3102",
-      reuseExistingServer: false,
-    },
-    {
-      command:
-        "npm run start -w @nusc/store -- -p 3103 -H localhost",
-      url: "http://localhost:3103",
-      reuseExistingServer: false,
+      command: "npm run dev -w @nusc/web",
+      url: "http://localhost:3000",
+      reuseExistingServer: true,
+      timeout: 120000,
     },
   ],
 });

@@ -2420,3 +2420,11 @@
 .nav.nav-light .burger span, 
 .nav.nav-light .burger::before, 
 .nav.nav-light .burger::after { background: #0f172a; }
+
+noscript .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+
+#journey, #club, #honours, #pathway, #community, #partners, section[id] {
+  scroll-margin-top: 100px;
+}
+
+.contact-email { word-break: break-all; display: block; overflow-wrap: break-word; }

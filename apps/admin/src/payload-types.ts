@@ -80,6 +80,7 @@ export interface Config {
     membership_plans: MembershipPlan;
     membership_benefits: MembershipBenefit;
     members: Member;
+    member_profiles: MemberProfile;
     benefit_redemptions: BenefitRedemption;
     user_roles: UserRole;
     media: Media;
@@ -104,6 +105,7 @@ export interface Config {
     membership_plans: MembershipPlansSelect<false> | MembershipPlansSelect<true>;
     membership_benefits: MembershipBenefitsSelect<false> | MembershipBenefitsSelect<true>;
     members: MembersSelect<false> | MembersSelect<true>;
+    member_profiles: MemberProfilesSelect<false> | MemberProfilesSelect<true>;
     benefit_redemptions: BenefitRedemptionsSelect<false> | BenefitRedemptionsSelect<true>;
     user_roles: UserRolesSelect<false> | UserRolesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -516,6 +518,27 @@ export interface Member {
   end_date?: string | null;
   lead_member?: (string | null) | Member;
   payment_id?: string | null;
+  membership_number?: string | null;
+  registration_payment_status?: ('pending' | 'paid') | null;
+  registration_payment_id?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "member_profiles".
+ */
+export interface MemberProfile {
+  id: string;
+  /**
+   * Supabase auth.user UUID
+   */
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  address?: string | null;
+  date_of_birth?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -656,6 +679,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'members';
         value: string | Member;
+      } | null)
+    | ({
+        relationTo: 'member_profiles';
+        value: string | MemberProfile;
       } | null)
     | ({
         relationTo: 'benefit_redemptions';
@@ -981,6 +1008,23 @@ export interface MembersSelect<T extends boolean = true> {
   end_date?: T;
   lead_member?: T;
   payment_id?: T;
+  membership_number?: T;
+  registration_payment_status?: T;
+  registration_payment_id?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "member_profiles_select".
+ */
+export interface MemberProfilesSelect<T extends boolean = true> {
+  user_id?: T;
+  first_name?: T;
+  last_name?: T;
+  phone?: T;
+  address?: T;
+  date_of_birth?: T;
   updatedAt?: T;
   createdAt?: T;
 }
