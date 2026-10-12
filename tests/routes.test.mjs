@@ -19,6 +19,7 @@ const webRoutes = [
   "/contact",
   "/trials",
   "/membership",
+  "/membership-interest",
   "/login",
 ];
 const documents = new Map();

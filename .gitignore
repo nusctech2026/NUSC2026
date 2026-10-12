@@ -9,3 +9,5 @@ artifacts/
 supabase/.temp/
 apps/admin/scratch/
 apps/admin/*.png
+scratch/
+*.png

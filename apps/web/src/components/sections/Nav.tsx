@@ -157,7 +157,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
           {isLoggedIn ? (
             <Link href="/dashboard" className="btn btn-red nav-cta">Dashboard</Link>
           ) : (
-            <Link href="/membership" className="btn btn-red nav-cta">Membership</Link>
+            <Link href="/membership-interest" className="btn btn-red nav-cta">Membership</Link>
           )}
 
           <button 
@@ -187,7 +187,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
         {isLoggedIn ? (
           <Link href="/dashboard" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Dashboard</Link>
         ) : (
-          <Link href="/membership" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Membership</Link>
+          <Link href="/membership-interest" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Membership</Link>
         )}
       </div>
     </>

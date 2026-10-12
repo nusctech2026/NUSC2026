@@ -82,9 +82,11 @@ export interface Config {
     members: Member;
     member_profiles: MemberProfile;
     benefit_redemptions: BenefitRedemption;
+    payment_reconciliations: PaymentReconciliation;
     user_roles: UserRole;
     media: Media;
     'trial-registrations': TrialRegistration;
+    'membership-interests': MembershipInterest;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -107,9 +109,11 @@ export interface Config {
     members: MembersSelect<false> | MembersSelect<true>;
     member_profiles: MemberProfilesSelect<false> | MemberProfilesSelect<true>;
     benefit_redemptions: BenefitRedemptionsSelect<false> | BenefitRedemptionsSelect<true>;
+    payment_reconciliations: PaymentReconciliationsSelect<false> | PaymentReconciliationsSelect<true>;
     user_roles: UserRolesSelect<false> | UserRolesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'trial-registrations': TrialRegistrationsSelect<false> | TrialRegistrationsSelect<true>;
+    'membership-interests': MembershipInterestsSelect<false> | MembershipInterestsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -557,6 +561,39 @@ export interface BenefitRedemption {
   createdAt: string;
 }
 /**
+ * Durable payment audit records for duplicate or orphaned charges requiring manual refund / review.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payment_reconciliations".
+ */
+export interface PaymentReconciliation {
+  id: string;
+  /**
+   * Associated Member UUID
+   */
+  member_id?: string | null;
+  order_id: string;
+  existing_payment_id: string;
+  duplicate_payment_id: string;
+  amount: number;
+  currency?: string | null;
+  reason: string;
+  status: string;
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "user_roles".
  */
@@ -602,6 +639,26 @@ export interface TrialRegistration {
   location?: string | null;
   address: string;
   eventDate?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership-interests".
+ */
+export interface MembershipInterest {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  cityDistrict: string;
+  interestedTier: string;
+  marketingConsent?: boolean | null;
+  termsAccepted?: boolean | null;
+  notes?: string | null;
+  status?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -690,6 +747,10 @@ export interface PayloadLockedDocument {
         value: string | BenefitRedemption;
       } | null)
     | ({
+        relationTo: 'payment_reconciliations';
+        value: string | PaymentReconciliation;
+      } | null)
+    | ({
         relationTo: 'user_roles';
         value: string | UserRole;
       } | null)
@@ -700,6 +761,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'trial-registrations';
         value: string | TrialRegistration;
+      } | null)
+    | ({
+        relationTo: 'membership-interests';
+        value: string | MembershipInterest;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -1044,6 +1109,25 @@ export interface BenefitRedemptionsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payment_reconciliations_select".
+ */
+export interface PaymentReconciliationsSelect<T extends boolean = true> {
+  member_id?: T;
+  order_id?: T;
+  existing_payment_id?: T;
+  duplicate_payment_id?: T;
+  amount?: T;
+  currency?: T;
+  reason?: T;
+  status?: T;
+  metadata?: T;
+  created_at?: T;
+  updated_at?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "user_roles_select".
  */
 export interface UserRolesSelect<T extends boolean = true> {
@@ -1085,6 +1169,25 @@ export interface TrialRegistrationsSelect<T extends boolean = true> {
   location?: T;
   address?: T;
   eventDate?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership-interests_select".
+ */
+export interface MembershipInterestsSelect<T extends boolean = true> {
+  firstName?: T;
+  lastName?: T;
+  email?: T;
+  phone?: T;
+  dateOfBirth?: T;
+  cityDistrict?: T;
+  interestedTier?: T;
+  marketingConsent?: T;
+  termsAccepted?: T;
+  notes?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
 }

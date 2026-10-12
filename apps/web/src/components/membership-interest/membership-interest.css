@@ -1,0 +1,569 @@
+/* NUSC Membership Interest Styles */
+
+.interest-split-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #ffffff;
+}
+
+/* Left Pane (Branding & Perks) */
+.interest-left-pane {
+  flex: 1;
+  background: linear-gradient(135deg, var(--navy-800, #0a192f) 0%, var(--navy-600, #132742) 60%, var(--navy-900, #060d17) 100%);
+  color: #ffffff;
+  padding: 60px 48px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.interest-hero-crest {
+  position: absolute;
+  right: -8vw;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(50vw, 680px);
+  aspect-ratio: 1 / 0.92;
+  background: var(--logo) center/contain no-repeat;
+  opacity: 0.08;
+  filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.4));
+  z-index: 1;
+  pointer-events: none;
+}
+
+.interest-brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: #ffffff;
+  z-index: 10;
+  margin-bottom: 48px;
+  transition: opacity 0.2s ease;
+}
+
+.interest-brand-link:hover {
+  opacity: 0.9;
+}
+
+.interest-benefits-container {
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 520px;
+  margin: 0 auto;
+  gap: 20px;
+}
+
+.interest-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: rgba(227, 31, 43, 0.15);
+  border: 1px solid rgba(227, 31, 43, 0.4);
+  color: #ff6b75;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: fit-content;
+}
+
+.interest-headline {
+  font-family: var(--font-barlow, 'Barlow Condensed', sans-serif);
+  font-size: 2.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.interest-headline span {
+  color: var(--gold, #d4af37);
+}
+
+.interest-subhead {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.interest-benefit-card {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px 20px;
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.interest-benefit-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateY(-2px);
+}
+
+.interest-benefit-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: var(--gold, #d4af37);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.interest-benefit-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 4px 0;
+}
+
+.interest-benefit-desc {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Tier Perks Cards */
+.interest-tier-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px 18px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.interest-tier-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateY(-2px);
+}
+
+.interest-tier-card.featured {
+  border-color: rgba(212, 175, 55, 0.45);
+  background: rgba(212, 175, 55, 0.07);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.interest-tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.interest-tier-name {
+  font-family: var(--font-barlow, 'Barlow Condensed', sans-serif);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.interest-tier-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.interest-tier-tag.general {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.interest-tier-tag.premium {
+  background: rgba(212, 175, 55, 0.25);
+  color: #fde047;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+}
+
+.interest-tier-tag.vip {
+  background: rgba(227, 31, 43, 0.25);
+  color: #fca5a5;
+  border: 1px solid rgba(227, 31, 43, 0.45);
+}
+
+.interest-tier-perks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.interest-tier-perk-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.35;
+}
+
+.interest-tier-perk-item svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Right Pane (Registration Form) */
+.interest-right-pane {
+  flex: 1;
+  background: #ffffff;
+  padding: 60px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.interest-form-inner {
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.interest-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 24px;
+  transition: color 0.15s ease;
+}
+
+.interest-back-btn:hover {
+  color: var(--navy-600, #132742);
+}
+
+.interest-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.interest-title-highlight {
+  color: var(--navy-600, #132742);
+}
+
+.interest-title-bar {
+  width: 48px;
+  height: 4px;
+  background: var(--red, #e31f2b);
+  border-radius: 2px;
+  margin-top: 14px;
+  margin-bottom: 12px;
+}
+
+.interest-desc {
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+/* Form inputs & grid */
+.interest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.interest-row {
+  display: flex;
+  gap: 16px;
+}
+
+.interest-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.interest-group label {
+  font-family: var(--font-inter, 'Inter', sans-serif);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.interest-group label .required-star {
+  color: var(--red, #e31f2b);
+  margin-left: 2px;
+}
+
+.interest-group input,
+.interest-group select,
+.interest-group textarea {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  padding: 12px 14px;
+  border-radius: 8px;
+  color: #0f172a;
+  font-family: var(--font-inter, 'Inter', sans-serif);
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.interest-group input:focus,
+.interest-group select:focus,
+.interest-group textarea:focus {
+  outline: none;
+  border-color: var(--navy-600, #132742);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(19, 39, 66, 0.12);
+}
+
+.interest-group input::placeholder,
+.interest-group textarea::placeholder {
+  color: #94a3b8;
+}
+
+.interest-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.interest-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--navy-600, #132742);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.interest-checkbox-label span {
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.interest-submit-btn {
+  background: var(--navy-600, #132742);
+  color: #ffffff;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 14px rgba(19, 39, 66, 0.25);
+  margin-top: 6px;
+}
+
+.interest-submit-btn:hover:not(:disabled) {
+  background: var(--navy-800, #0a192f);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(19, 39, 66, 0.35);
+}
+
+.interest-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Alert / Status boxes */
+.interest-error-box {
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  color: #991b1b;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.interest-success-card {
+  padding: 40px 32px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 16px;
+  text-align: center;
+}
+
+.interest-success-badge {
+  width: 64px;
+  height: 64px;
+  background: #22c55e;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+  box-shadow: 0 10px 25px rgba(34, 197, 94, 0.35);
+}
+
+.interest-success-title {
+  color: #14532d;
+  font-size: 1.85rem;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+}
+
+.interest-success-msg {
+  color: #166534;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.interest-summary-box {
+  background: #ffffff;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.interest-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  border-bottom: 1px dashed #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.interest-summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.interest-summary-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.interest-summary-val {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.interest-success-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.interest-btn-primary {
+  display: inline-block;
+  padding: 12px 24px;
+  background: var(--navy-600, #132742);
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: background 0.2s ease;
+}
+
+.interest-btn-primary:hover {
+  background: var(--navy-800, #0a192f);
+}
+
+.interest-btn-secondary {
+  display: inline-block;
+  padding: 12px 24px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.interest-btn-secondary:hover {
+  background: #f8fafc;
+}
+
+/* Responsiveness */
+@media (max-width: 960px) {
+  .interest-split-wrapper {
+    flex-direction: column;
+  }
+  
+  .interest-left-pane,
+  .interest-right-pane {
+    flex: none;
+    width: 100%;
+    padding: 40px 24px;
+  }
+  
+  .interest-headline {
+    font-size: 2.25rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .interest-row {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .interest-title {
+    font-size: 1.85rem;
+  }
+
+  .interest-left-pane,
+  .interest-right-pane {
+    padding: 32px 16px;
+  }
+}

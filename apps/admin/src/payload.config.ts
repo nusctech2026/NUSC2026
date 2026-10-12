@@ -25,6 +25,8 @@ import { Members } from './collections/membership/Members'
 import { MemberProfiles } from './collections/membership/MemberProfiles'
 import { BenefitRedemptions } from './collections/membership/BenefitRedemptions'
 import { TrialRegistrations } from './collections/TrialRegistrations'
+import { MembershipInterestRegistrations } from './collections/MembershipInterestRegistrations'
+import { PaymentReconciliations } from './collections/membership/PaymentReconciliations'
 import { UserRoles } from './collections/UserRoles'
 
 const filename = fileURLToPath(import.meta.url)
@@ -133,6 +135,7 @@ export default buildConfig({
       Members,
       MemberProfiles,
       BenefitRedemptions,
+      PaymentReconciliations,
       UserRoles
     ].map(collection => ({
       ...collection,
@@ -159,7 +162,8 @@ export default buildConfig({
       }
     })),
     Media,
-    TrialRegistrations
+    TrialRegistrations,
+    MembershipInterestRegistrations
   ] as any,
   globals: [
     ...[
@@ -202,6 +206,7 @@ export default buildConfig({
       connectionString: process.env.DATABASE_URL || '',
     },
     idType: 'uuid',
+    push: false,
   }),
   sharp,
   plugins: [

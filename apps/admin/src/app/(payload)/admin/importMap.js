@@ -24,6 +24,7 @@ import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0
 import { DownloadCertificate as DownloadCertificate_d362f213792f35fadc41fdd32f266de8 } from '../../../components/DownloadLinks'
 import { DownloadAadhar as DownloadAadhar_d362f213792f35fadc41fdd32f266de8 } from '../../../components/DownloadLinks'
 import { ExportButton as ExportButton_e9b1764876e4b0596b213a1cacb561c4 } from '../../../components/ExportButton'
+import { ExportInterestButton as ExportInterestButton_608a579a8522d2f153b3946906ab2717 } from '../../../components/ExportInterestButton'
 import { StoreNavLinks as StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { CatalogNavLinks as CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { SystemNavLinks as SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
@@ -76,6 +77,7 @@ export const importMap = {
   "./components/DownloadLinks#DownloadCertificate": DownloadCertificate_d362f213792f35fadc41fdd32f266de8,
   "./components/DownloadLinks#DownloadAadhar": DownloadAadhar_d362f213792f35fadc41fdd32f266de8,
   "./components/ExportButton#ExportButton": ExportButton_e9b1764876e4b0596b213a1cacb561c4,
+  "./components/ExportInterestButton#ExportInterestButton": ExportInterestButton_608a579a8522d2f153b3946906ab2717,
   "./components/nav/StoreNavLinks#StoreNavLinks": StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#CatalogNavLinks": CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#SystemNavLinks": SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
