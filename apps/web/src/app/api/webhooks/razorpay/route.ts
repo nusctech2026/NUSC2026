@@ -143,27 +143,48 @@ export async function POST(req: Request) {
                 .single();
 
             if (insertError) {
-                // Handle concurrent race condition: if unique violation, retrieve the winning record
+                // Handle concurrent race condition: check specifically for uniqueness conflict
                 if (insertError.code === '23505' || insertError.message?.includes('uq_payment_reconciliations_payment_reason')) {
-                    const { data: raceRecon } = await adminSupabase
+                    const { data: raceRecon, error: raceFetchError } = await adminSupabase
                         .from('payment_reconciliations')
-                        .select('id, status, refund_id')
+                        .select('id, status, refund_id, duplicate_payment_id, reason')
                         .eq('duplicate_payment_id', paymentId)
                         .eq('reason', 'unmapped_order_charge')
                         .maybeSingle();
 
-                    if (raceRecon) {
-                        reconId = raceRecon.id;
-                        reconStatus = raceRecon.status;
+                    if (raceFetchError) {
+                        console.error('[UNMAPPED_CHARGE_RACE_FETCH_ERROR] Failed to query winning record:', raceFetchError);
+                        return new Response('Database error verifying concurrent reconciliation record', { status: 500 });
                     }
+
+                    // Verify that the record exists and strictly matches the expected reconciliation identity
+                    if (!raceRecon || !raceRecon.id || raceRecon.duplicate_payment_id !== paymentId || raceRecon.reason !== 'unmapped_order_charge') {
+                        console.error('[UNMAPPED_CHARGE_UNVERIFIED_CONFLICT] Uniqueness conflict occurred but record could not be verified:', {
+                            paymentId,
+                            insertError,
+                            raceRecon
+                        });
+                        return new Response('Unverified reconciliation conflict', { status: 500 });
+                    }
+
+                    reconId = raceRecon.id;
+                    reconStatus = raceRecon.status;
                 } else {
-                    console.error('[UNMAPPED_CHARGE_RECONCILIATION_ERROR]', insertError);
-                    // Return HTTP 500 so Razorpay retries until durability is guaranteed
+                    console.error('[UNMAPPED_CHARGE_RECONCILIATION_ERROR] Insertion failed with non-conflict error:', insertError);
                     return new Response('Failed to persist reconciliation audit record', { status: 500 });
                 }
-            } else if (insertedRecon) {
+            } else if (insertedRecon && insertedRecon.id) {
                 reconId = insertedRecon.id;
                 reconStatus = insertedRecon.status;
+            } else {
+                console.error('[UNMAPPED_CHARGE_INVALID_INSERT] Insert succeeded without valid record ID');
+                return new Response('Failed to obtain reconciliation ID', { status: 500 });
+            }
+
+            // Guard against null reconciliation ID to ensure no false acknowledgment
+            if (!reconId) {
+                console.error('[UNMAPPED_CHARGE_ASSERTION_FAILED] Missing reconciliation ID before 200 response');
+                return new Response('Reconciliation verification failed', { status: 500 });
             }
 
             // Return HTTP 200: Razorpay acknowledges delivery and ceases retry storm
@@ -272,27 +293,48 @@ export async function POST(req: Request) {
                     .single();
 
                 if (reconError) {
-                    // Handle concurrent race condition
+                    // Handle concurrent race condition: check specifically for uniqueness conflict
                     if (reconError.code === '23505' || reconError.message?.includes('uq_payment_reconciliations_payment_reason')) {
-                        const { data: raceRecon } = await adminSupabase
+                        const { data: raceRecon, error: raceFetchError } = await adminSupabase
                             .from('payment_reconciliations')
-                            .select('id, status, refund_id')
+                            .select('id, status, refund_id, duplicate_payment_id, reason')
                             .eq('duplicate_payment_id', paymentId)
                             .eq('reason', 'duplicate_financial_charge')
                             .maybeSingle();
 
-                        if (raceRecon) {
-                            reconId = raceRecon.id;
-                            reconStatus = raceRecon.status;
+                        if (raceFetchError) {
+                            console.error('[DUPLICATE_CHARGE_RACE_FETCH_ERROR] Failed to query winning record:', raceFetchError);
+                            return new Response('Database error verifying concurrent reconciliation record', { status: 500 });
                         }
+
+                        // Verify that the record exists and strictly matches the expected reconciliation identity
+                        if (!raceRecon || !raceRecon.id || raceRecon.duplicate_payment_id !== paymentId || raceRecon.reason !== 'duplicate_financial_charge') {
+                            console.error('[DUPLICATE_CHARGE_UNVERIFIED_CONFLICT] Uniqueness conflict occurred but record could not be verified:', {
+                                paymentId,
+                                reconError,
+                                raceRecon
+                            });
+                            return new Response('Unverified reconciliation conflict', { status: 500 });
+                        }
+
+                        reconId = raceRecon.id;
+                        reconStatus = raceRecon.status;
                     } else {
-                        console.error('[RECONCILIATION PERSISTENCE FAILED]', reconError);
-                        // Return HTTP 500 so Razorpay retries until durability is guaranteed
+                        console.error('[RECONCILIATION PERSISTENCE FAILED] Insertion failed with non-conflict error:', reconError);
                         return new Response('Failed to persist reconciliation audit record', { status: 500 });
                     }
-                } else if (reconRecord) {
+                } else if (reconRecord && reconRecord.id) {
                     reconId = reconRecord.id;
                     reconStatus = reconRecord.status;
+                } else {
+                    console.error('[DUPLICATE_CHARGE_INVALID_INSERT] Insert succeeded without valid record ID');
+                    return new Response('Failed to obtain reconciliation ID', { status: 500 });
+                }
+
+                // Guard against null reconciliation ID to ensure no false acknowledgment
+                if (!reconId) {
+                    console.error('[DUPLICATE_CHARGE_ASSERTION_FAILED] Missing reconciliation ID before 200 response');
+                    return new Response('Reconciliation verification failed', { status: 500 });
                 }
 
                 return new Response(JSON.stringify({ 
