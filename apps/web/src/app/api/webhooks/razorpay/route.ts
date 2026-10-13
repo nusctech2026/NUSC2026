@@ -90,9 +90,41 @@ export async function POST(req: Request) {
         if (memberFetchError || !member) {
             console.error('Order not found or not associated with any member:', orderId, memberFetchError);
 
-            // Record unmapped order payment for durable operations reconciliation and manual refund
-            try {
-                await adminSupabase.from('payment_reconciliations').insert({
+            // 1. Check if reconciliation record already exists for this payment and reason
+            const { data: existingRecon, error: existingFetchError } = await adminSupabase
+                .from('payment_reconciliations')
+                .select('id, status, refund_id, refund_processed_at')
+                .eq('duplicate_payment_id', paymentId)
+                .eq('reason', 'unmapped_order_charge')
+                .maybeSingle();
+
+            if (existingFetchError) {
+                console.error('[UNMAPPED_CHARGE_FETCH_ERROR]', existingFetchError);
+                return new Response('Database error querying reconciliation record', { status: 500 });
+            }
+
+            if (existingRecon) {
+                // Record is already durably persisted.
+                // Do NOT reset status if already 'in_progress', 'refunded', etc.
+                return new Response(JSON.stringify({ 
+                    status: 'already_reconciled', 
+                    reconciliation_id: existingRecon.id,
+                    reconciliation_status: existingRecon.status,
+                    refund_id: existingRecon.refund_id || null,
+                    reason: 'unmapped_order_charge'
+                }), { 
+                    status: 200, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
+            }
+
+            // 2. Persist new reconciliation record with conflict safety
+            let reconId: string | null = null;
+            let reconStatus = 'requires_manual_refund';
+
+            const { data: insertedRecon, error: insertError } = await adminSupabase
+                .from('payment_reconciliations')
+                .insert({
                     order_id: orderId,
                     existing_payment_id: 'none',
                     duplicate_payment_id: paymentId,
@@ -106,12 +138,46 @@ export async function POST(req: Request) {
                         error: 'Order not found in members table (likely rolled back registration)',
                         detected_at: new Date().toISOString(),
                     }
-                });
-            } catch (e) {
-                console.error('[UNMAPPED_CHARGE_RECONCILIATION_ERROR]', e);
+                })
+                .select('id, status')
+                .single();
+
+            if (insertError) {
+                // Handle concurrent race condition: if unique violation, retrieve the winning record
+                if (insertError.code === '23505' || insertError.message?.includes('uq_payment_reconciliations_payment_reason')) {
+                    const { data: raceRecon } = await adminSupabase
+                        .from('payment_reconciliations')
+                        .select('id, status, refund_id')
+                        .eq('duplicate_payment_id', paymentId)
+                        .eq('reason', 'unmapped_order_charge')
+                        .maybeSingle();
+
+                    if (raceRecon) {
+                        reconId = raceRecon.id;
+                        reconStatus = raceRecon.status;
+                    }
+                } else {
+                    console.error('[UNMAPPED_CHARGE_RECONCILIATION_ERROR]', insertError);
+                    // Return HTTP 500 so Razorpay retries until durability is guaranteed
+                    return new Response('Failed to persist reconciliation audit record', { status: 500 });
+                }
+            } else if (insertedRecon) {
+                reconId = insertedRecon.id;
+                reconStatus = insertedRecon.status;
             }
 
-            return new Response('Order not found or not associated with any member', { status: 404 });
+            // Return HTTP 200: Razorpay acknowledges delivery and ceases retry storm
+            return new Response(JSON.stringify({ 
+                status: 'reconciliation_quarantined', 
+                reconciliation_id: reconId,
+                reconciliation_status: reconStatus,
+                reason: 'unmapped_order_charge',
+                payment_id: paymentId,
+                order_id: orderId 
+            }), { 
+                status: 200, 
+                headers: { 'Content-Type': 'application/json' } 
+            });
         }
 
         // 3g. Verify member ownership: payment notes userId must strictly match the registered member for this order
@@ -149,36 +215,84 @@ export async function POST(req: Request) {
                 // Distinct second captured payment for the same registration (duplicate financial charge)
                 console.warn(`[RECONCILIATION NEEDED] Duplicate financial charge detected for member ${member.id}: existing ${member.registration_payment_id}, duplicate ${paymentId}`);
 
-                // Persist durable, actionable reconciliation record for operations/finance review
-                let reconId: string | null = null;
-                try {
-                    const { data: reconRecord, error: reconError } = await adminSupabase
-                        .from('payment_reconciliations')
-                        .insert({
-                            member_id: member.id,
-                            order_id: orderId,
-                            existing_payment_id: member.registration_payment_id,
-                            duplicate_payment_id: paymentId,
-                            amount: amount,
-                            currency: currency,
-                            reason: 'duplicate_financial_charge',
-                            status: 'requires_manual_refund',
-                            metadata: {
-                                userId: userId,
-                                event: event.event,
-                                detected_at: new Date().toISOString(),
-                            }
-                        })
-                        .select('id')
-                        .single();
+                // 1. Check if reconciliation record already exists
+                const { data: existingRecon, error: existingFetchError } = await adminSupabase
+                    .from('payment_reconciliations')
+                    .select('id, status, refund_id, refund_processed_at')
+                    .eq('duplicate_payment_id', paymentId)
+                    .eq('reason', 'duplicate_financial_charge')
+                    .maybeSingle();
 
-                    if (reconError) {
+                if (existingFetchError) {
+                    console.error('[DUPLICATE_CHARGE_FETCH_ERROR]', existingFetchError);
+                    return new Response('Database error querying reconciliation record', { status: 500 });
+                }
+
+                if (existingRecon) {
+                    // Record is already durably persisted.
+                    // Do NOT reset status if already 'in_progress', 'refunded', etc.
+                    return new Response(JSON.stringify({ 
+                        status: 'already_processed', 
+                        member_id: member.id,
+                        reason: 'duplicate_financial_charge',
+                        existing_payment_id: member.registration_payment_id,
+                        duplicate_payment_id: paymentId,
+                        reconciliation_id: existingRecon.id,
+                        reconciliation_status: existingRecon.status,
+                        refund_id: existingRecon.refund_id || null,
+                        reconciliation_logged: true
+                    }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                }
+
+                // 2. Persist new reconciliation record with conflict safety
+                let reconId: string | null = null;
+                let reconStatus = 'requires_manual_refund';
+
+                const { data: reconRecord, error: reconError } = await adminSupabase
+                    .from('payment_reconciliations')
+                    .insert({
+                        member_id: member.id,
+                        order_id: orderId,
+                        existing_payment_id: member.registration_payment_id,
+                        duplicate_payment_id: paymentId,
+                        amount: amount,
+                        currency: currency,
+                        reason: 'duplicate_financial_charge',
+                        status: 'requires_manual_refund',
+                        metadata: {
+                            userId: userId,
+                            event: event.event,
+                            detected_at: new Date().toISOString(),
+                        }
+                    })
+                    .select('id, status')
+                    .single();
+
+                if (reconError) {
+                    // Handle concurrent race condition
+                    if (reconError.code === '23505' || reconError.message?.includes('uq_payment_reconciliations_payment_reason')) {
+                        const { data: raceRecon } = await adminSupabase
+                            .from('payment_reconciliations')
+                            .select('id, status, refund_id')
+                            .eq('duplicate_payment_id', paymentId)
+                            .eq('reason', 'duplicate_financial_charge')
+                            .maybeSingle();
+
+                        if (raceRecon) {
+                            reconId = raceRecon.id;
+                            reconStatus = raceRecon.status;
+                        }
+                    } else {
                         console.error('[RECONCILIATION PERSISTENCE FAILED]', reconError);
-                    } else if (reconRecord) {
-                        reconId = reconRecord.id;
+                        // Return HTTP 500 so Razorpay retries until durability is guaranteed
+                        return new Response('Failed to persist reconciliation audit record', { status: 500 });
                     }
-                } catch (e) {
-                    console.error('[RECONCILIATION PERSISTENCE EXCEPTION]', e);
+                } else if (reconRecord) {
+                    reconId = reconRecord.id;
+                    reconStatus = reconRecord.status;
                 }
 
                 return new Response(JSON.stringify({ 
@@ -188,6 +302,7 @@ export async function POST(req: Request) {
                     existing_payment_id: member.registration_payment_id,
                     duplicate_payment_id: paymentId,
                     reconciliation_id: reconId,
+                    reconciliation_status: reconStatus,
                     reconciliation_logged: true
                 }), {
                     status: 200,

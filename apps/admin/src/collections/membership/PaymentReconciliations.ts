@@ -5,7 +5,7 @@ export const PaymentReconciliations: CollectionConfig = {
   admin: {
     useAsTitle: 'order_id',
     group: 'Membership',
-    defaultColumns: ['order_id', 'duplicate_payment_id', 'amount', 'reason', 'status', 'created_at'],
+    defaultColumns: ['order_id', 'duplicate_payment_id', 'amount', 'reason', 'status', 'refund_id', 'created_at'],
     description: 'Durable payment audit records for duplicate or orphaned charges requiring manual refund / review.',
   },
   access: {
@@ -55,6 +55,20 @@ export const PaymentReconciliations: CollectionConfig = {
       type: 'text',
       required: true,
       defaultValue: 'requires_manual_refund',
+    },
+    {
+      name: 'refund_id',
+      type: 'text',
+      admin: {
+        description: 'Razorpay Refund ID (e.g. rfh_xxx) once processed',
+      },
+    },
+    {
+      name: 'refund_processed_at',
+      type: 'date',
+      admin: {
+        description: 'Timestamp when refund was executed in Razorpay',
+      },
     },
     {
       name: 'metadata',

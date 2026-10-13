@@ -579,6 +579,14 @@ export interface PaymentReconciliation {
   currency?: string | null;
   reason: string;
   status: string;
+  /**
+   * Razorpay Refund ID (e.g. rfh_xxx) once processed
+   */
+  refund_id?: string | null;
+  /**
+   * Timestamp when refund was executed in Razorpay
+   */
+  refund_processed_at?: string | null;
   metadata?:
     | {
         [k: string]: unknown;
@@ -1120,6 +1128,8 @@ export interface PaymentReconciliationsSelect<T extends boolean = true> {
   currency?: T;
   reason?: T;
   status?: T;
+  refund_id?: T;
+  refund_processed_at?: T;
   metadata?: T;
   created_at?: T;
   updated_at?: T;
