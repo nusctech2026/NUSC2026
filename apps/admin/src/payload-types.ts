@@ -87,6 +87,7 @@ export interface Config {
     media: Media;
     'trial-registrations': TrialRegistration;
     'membership-interests': MembershipInterest;
+    'press-accreditations': PressAccreditation;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -114,6 +115,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     'trial-registrations': TrialRegistrationsSelect<false> | TrialRegistrationsSelect<true>;
     'membership-interests': MembershipInterestsSelect<false> | MembershipInterestsSelect<true>;
+    'press-accreditations': PressAccreditationsSelect<false> | PressAccreditationsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -672,6 +674,81 @@ export interface MembershipInterest {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "press-accreditations".
+ */
+export interface PressAccreditation {
+  id: string;
+  /**
+   * Official Unique Media Pass Identifier
+   */
+  accreditationId: string;
+  status?: ('pending' | 'under_review' | 'approved' | 'rejected') | null;
+  validity?: string | null;
+  authorisedBy?: string | null;
+  fullName: string;
+  email: string;
+  phone: string;
+  mediaWebsiteUrl?: string | null;
+  residentialAddress: string;
+  mediaOrgName: string;
+  mediaOrgType: string;
+  mediaOrgTypeOther?: string | null;
+  designationRole: string;
+  designationRoleOther?: string | null;
+  accreditationType: 'season' | 'single_match';
+  singleMatchDetails?: string | null;
+  /**
+   * Requested access zones (e.g. media_seating, pitch_side, press_conference, mixed_zone)
+   */
+  accessRequired?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Official stadium access zones authorised for this pass holder
+   */
+  approvedAccessAreas?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Cameras, lenses, laptops, audio recorders, tripods
+   */
+  equipmentCarried?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  equipmentOther?: string | null;
+  photoFilename?: string | null;
+  photoUrl?: string | null;
+  govtIdFilename?: string | null;
+  govtIdUrl?: string | null;
+  mediaIdLetterFilename?: string | null;
+  mediaIdLetterUrl?: string | null;
+  applicantSignatureName: string;
+  declarationDate?: string | null;
+  termsAccepted?: boolean | null;
+  consentGiven?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -773,6 +850,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'membership-interests';
         value: string | MembershipInterest;
+      } | null)
+    | ({
+        relationTo: 'press-accreditations';
+        value: string | PressAccreditation;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -1198,6 +1279,44 @@ export interface MembershipInterestsSelect<T extends boolean = true> {
   termsAccepted?: T;
   notes?: T;
   status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "press-accreditations_select".
+ */
+export interface PressAccreditationsSelect<T extends boolean = true> {
+  accreditationId?: T;
+  status?: T;
+  validity?: T;
+  authorisedBy?: T;
+  fullName?: T;
+  email?: T;
+  phone?: T;
+  mediaWebsiteUrl?: T;
+  residentialAddress?: T;
+  mediaOrgName?: T;
+  mediaOrgType?: T;
+  mediaOrgTypeOther?: T;
+  designationRole?: T;
+  designationRoleOther?: T;
+  accreditationType?: T;
+  singleMatchDetails?: T;
+  accessRequired?: T;
+  approvedAccessAreas?: T;
+  equipmentCarried?: T;
+  equipmentOther?: T;
+  photoFilename?: T;
+  photoUrl?: T;
+  govtIdFilename?: T;
+  govtIdUrl?: T;
+  mediaIdLetterFilename?: T;
+  mediaIdLetterUrl?: T;
+  applicantSignatureName?: T;
+  declarationDate?: T;
+  termsAccepted?: T;
+  consentGiven?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -52,4 +52,6 @@ export const legacyLinks: Record<string, string> = {
   "#cancellation": "/cancellation-policy",
   "#refund": "/refund-policy",
   "#shipping": "/shipping-and-delivery-policy",
+  "#press": "/press-accreditation",
+  "#media": "/press-accreditation",
 };

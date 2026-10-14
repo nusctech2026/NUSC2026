@@ -28,6 +28,7 @@ import { TrialRegistrations } from './collections/TrialRegistrations'
 import { MembershipInterestRegistrations } from './collections/MembershipInterestRegistrations'
 import { PaymentReconciliations } from './collections/membership/PaymentReconciliations'
 import { UserRoles } from './collections/UserRoles'
+import { PressAccreditations } from './collections/PressAccreditations'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -163,7 +164,8 @@ export default buildConfig({
     })),
     Media,
     TrialRegistrations,
-    MembershipInterestRegistrations
+    MembershipInterestRegistrations,
+    PressAccreditations
   ] as any,
   globals: [
     ...[

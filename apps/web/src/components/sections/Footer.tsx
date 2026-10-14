@@ -38,6 +38,7 @@ export function Footer() {
           <Link href="/cancellation-policy">Cancellation Policy</Link>
           <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/shipping-and-delivery-policy">Shipping &amp; Delivery Policy</Link>
+          <Link href="/press-accreditation">Press Accreditation</Link>
         </div>
         <div className="f-col">
           <h4>Contact &amp; Support</h4>
@@ -80,6 +81,8 @@ export function Footer() {
           <Link href="/refund-policy">Refund Policy</Link>
           <span>·</span>
           <Link href="/shipping-and-delivery-policy">Shipping &amp; Delivery</Link>
+          <span>·</span>
+          <Link href="/press-accreditation">Press Accreditation</Link>
         </div>
         <span>Rise Together · Unity • Progress • Excellence</span>
       </div>

@@ -83,6 +83,12 @@ export const pages = {
     description:
       "How we deliver digital membership credentials and dispatch physical merchandise across India.",
   },
+  press: {
+    title: "Press & Media Accreditation.",
+    label: "Press Accreditation",
+    description:
+      "Official press and media accreditation registration for Nagaland United Sports Club home matches at Chümoukedima Football Stadium.",
+  },
 } as const;
 
 export const homePreviews = [
