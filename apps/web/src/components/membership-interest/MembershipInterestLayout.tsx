@@ -488,7 +488,7 @@ export default function MembershipInterestLayout() {
                   <label className="interest-checkbox-label">
                     <input type="checkbox" name="termsAccepted" required defaultChecked />
                     <span>
-                      I agree with the <Link href="/club" style={{ color: 'var(--navy-600, #132742)', fontWeight: 600 }}>Terms and Conditions</Link> and Privacy Policy of NUSC. <span className="required-star">*</span>
+                      I agree with the <Link href="/terms" style={{ color: 'var(--navy-600, #132742)', fontWeight: 600 }}>Terms and Conditions</Link> and <Link href="/privacy-policy" style={{ color: 'var(--navy-600, #132742)', fontWeight: 600 }}>Privacy Policy</Link> of NUSC. <span className="required-star">*</span>
                     </span>
                   </label>
 

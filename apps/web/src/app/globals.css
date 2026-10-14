@@ -2428,3 +2428,62 @@ noscript .reveal { opacity: 1 !important; transform: none !important; transition
 }
 
 .contact-email { word-break: break-all; display: block; overflow-wrap: break-word; }
+
+/* ---------- Page Header & Breadcrumbs ---------- */
+.page-header {
+  position: relative;
+  overflow: hidden;
+  padding: 130px 0 clamp(44px, 5vw, 72px);
+  background: linear-gradient(140deg, var(--navy-800), var(--navy-950));
+  color: #fff;
+}
+
+.page-header .burst::before {
+  top: 24%;
+  left: 85%;
+  opacity: 0.25;
+}
+
+.page-header-in {
+  position: relative;
+  z-index: 1;
+}
+
+.breadcrumbs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 24px;
+  color: #a9bbd6;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.breadcrumbs a {
+  color: #a9bbd6;
+  transition: color 0.2s;
+}
+
+.breadcrumbs a:hover {
+  color: #fff;
+}
+
+.breadcrumbs span[aria-current] {
+  color: #fff;
+}
+
+.page-header h1 {
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  font-weight: 900;
+  line-height: 0.95;
+}
+
+.page-header p {
+  color: #c3d0e4;
+  max-width: 680px;
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+  margin: 18px 0 0;
+  line-height: 1.6;
+}

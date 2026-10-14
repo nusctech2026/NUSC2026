@@ -41,6 +41,48 @@ export const pages = {
     description:
       "Player trials, academy enquiries, partnerships, media or community programmes. Start a conversation with NUSC.",
   },
+  about: {
+    title: "About Us.",
+    label: "About Us",
+    description:
+      "Nagaland United Sports Club (NUSC) is a community football club based in Nagaland, India, founded under the motto Rise Together.",
+  },
+  pricing: {
+    title: "Pricing.",
+    label: "Pricing",
+    description:
+      "Official seasonal membership pricing, merchandise ranges, and event registrations for Nagaland United Sports Club.",
+  },
+  terms: {
+    title: "Terms & Conditions.",
+    label: "Terms & Conditions",
+    description:
+      "These Terms & Conditions govern your use of the Website and any memberships, merchandise, or services purchased through it.",
+  },
+  privacy: {
+    title: "Privacy Policy.",
+    label: "Privacy Policy",
+    description:
+      "How Nagaland United Sports Club collects, protects, and handles your personal data in accordance with applicable Indian law.",
+  },
+  cancellation: {
+    title: "Cancellation Policy.",
+    label: "Cancellation Policy",
+    description:
+      "Official cancellation rules and conditions for memberships, merchandise orders, and event registrations.",
+  },
+  refund: {
+    title: "Refund Policy.",
+    label: "Refund Policy",
+    description:
+      "Official refund policy, qualifying scenarios, payment gateway timelines, and submission procedures.",
+  },
+  shipping: {
+    title: "Shipping & Delivery Policy.",
+    label: "Shipping & Delivery Policy",
+    description:
+      "How we deliver digital membership credentials and dispatch physical merchandise across India.",
+  },
 } as const;
 
 export const homePreviews = [

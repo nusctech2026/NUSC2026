@@ -15,16 +15,19 @@ export default function ContactPage() {
           
           <h2>Customer Support</h2>
           <p>
-            <strong>Email:</strong> support@nusctech.com<br />
-            <strong>Phone:</strong> +1 (555) 123-4567<br />
-            <strong>Hours:</strong> Monday - Friday, 9:00 AM to 5:00 PM (EST)
+            <strong>Email:</strong> <a href="mailto:connect@nagalandunited.com">connect@nagalandunited.com</a><br />
+            <strong>Phone / WhatsApp:</strong> <a href="tel:+918837459822">+91 8837459822</a><br />
+            <strong>Hours:</strong> Monday – Saturday, 10:00 AM to 5:00 PM (IST)
           </p>
           
-          <h2>Mailing Address</h2>
+          <h2>Mailing &amp; Registered Address</h2>
           <p>
-            NUSC Technology<br />
-            123 Innovation Drive<br />
-            Tech City, TC 90210
+            Nagaland United Sports Club (NUSC)<br />
+            Opposite Cricket Stadium<br />
+            Chumukedima Main Road<br />
+            Sovima Village 6th Mile<br />
+            PIN: 797103, Nagaland, India<br />
+            Reg. No. HOME/SRC-7926
           </p>
 
           <h2>Frequently Asked Questions</h2>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { submitMembership } from '@/app/membership/actions';
 import { MembershipFormData } from '@nusc/membership';
 import Script from 'next/script';
@@ -268,7 +269,7 @@ export default function SplitMembershipLayout() {
                 <div className="split-mem-checkboxes" style={{ marginTop: '20px' }}>
                   <label className="split-mem-checkbox">
                     <input type="checkbox" name="termsAccepted" required />
-                    <span>I agree with all <a href="#" style={{ color: 'var(--navy-600)', textDecoration: 'none', fontWeight: 500 }}>Terms and Conditions</a> and <a href="#" style={{ color: 'var(--navy-600)', textDecoration: 'none', fontWeight: 500 }}>Privacy Policies</a> of NUSC.</span>
+                    <span>I agree with all <Link href="/terms" style={{ color: 'var(--navy-600)', textDecoration: 'none', fontWeight: 500 }}>Terms and Conditions</Link> and <Link href="/privacy-policy" style={{ color: 'var(--navy-600)', textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</Link> of NUSC.</span>
                   </label>
                   <label className="split-mem-checkbox" style={{ marginTop: '12px' }}>
                     <input type="checkbox" name="marketingConsent" />

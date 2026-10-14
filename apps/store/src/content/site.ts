@@ -2,9 +2,10 @@ export const club = {
   name: "Nagaland United Sports Club",
   shortName: "NUSC",
   motto: "Rise Together",
-  email: "nagalandunitedsportsclub@gmail.com",
+  email: "connect@nagalandunited.com",
+  phone: "+91 8837459822",
   instagram: "https://instagram.com/nagalandunited",
-  address: "Razhaphe Basa, Chümoukedima District, Nagaland, India",
+  address: "Opposite Cricket Stadium, Chumukedima Main Road, Sovima Village 6th Mile, PIN: 797103, Nagaland, India",
   registration: "HOME/SRC-7926",
 };
 

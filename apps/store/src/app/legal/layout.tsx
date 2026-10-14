@@ -9,7 +9,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
 
   const links = [
     { name: "Privacy Policy", href: "/legal/privacy-policy" },
-    { name: "Terms of Service", href: "/legal/terms" },
+    { name: "Terms & Conditions", href: "/legal/terms" },
     { name: "Returns & Refunds", href: "/legal/returns" },
     { name: "Shipping Policy", href: "/legal/shipping" },
   ];

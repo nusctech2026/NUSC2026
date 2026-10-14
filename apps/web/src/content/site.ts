@@ -2,10 +2,14 @@ export const club = {
   name: "Nagaland United Sports Club",
   shortName: "NUSC",
   motto: "Rise Together",
-  email: "nagalandunitedsportsclub@gmail.com",
+  email: "connect@nagalandunited.com",
+  phone: "+91 8837459822",
   instagram: "https://instagram.com/nagalandunited",
-  address: "Razhaphe Basa, Chümoukedima District, Nagaland, India",
+  address: "Opposite Cricket Stadium, Chumukedima Main Road, Sovima Village 6th Mile, PIN: 797103, Nagaland, India",
   registration: "HOME/SRC-7926",
+  entityType: "Society registered with the Government of Nagaland (Reg. No. HOME/SRC-7926)",
+  supportHours: "Monday–Saturday, 10:00 AM – 5:00 PM IST (excluding public holidays)",
+  grievanceOfficer: "Lhouvi",
 };
 
 export const storeUrl =
@@ -41,4 +45,11 @@ export const legacyLinks: Record<string, string> = {
   "#partners": "/partners",
   "#careers": "/careers",
   "#contact": "/contact",
+  "#about": "/about",
+  "#pricing": "/pricing",
+  "#terms": "/terms",
+  "#privacy": "/privacy-policy",
+  "#cancellation": "/cancellation-policy",
+  "#refund": "/refund-policy",
+  "#shipping": "/shipping-and-delivery-policy",
 };

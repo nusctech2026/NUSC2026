@@ -19,22 +19,34 @@ export function Footer() {
         </div>
         <div className="f-col">
           <h4>Explore</h4>
+          <Link href="/about">About Us</Link>
           <Link href="/#club">Club</Link>
           <Link href="/#journey">Journey</Link>
           <Link href="/#honours">Honours</Link>
           <Link href="/#pathway">Pathway</Link>
           <Link href="/#community">Community</Link>
           <Link href="/#partners">Partners</Link>
+          <Link href="/pricing">Pricing</Link>
         </div>
         <div className="f-col">
-          <h4>Contact</h4>
+          <h4>Legal &amp; Policies</h4>
+          <Link href="/about">About Us</Link>
+          <Link href="/contact">Contact Us</Link>
+          <Link href="/pricing">Pricing</Link>
+          <Link href="/terms">Terms &amp; Conditions</Link>
+          <Link href="/privacy-policy">Privacy Policy</Link>
+          <Link href="/cancellation-policy">Cancellation Policy</Link>
+          <Link href="/refund-policy">Refund Policy</Link>
+          <Link href="/shipping-and-delivery-policy">Shipping &amp; Delivery Policy</Link>
+        </div>
+        <div className="f-col">
+          <h4>Contact &amp; Support</h4>
           <a href="mailto:connect@nagalandunited.com">connect@nagalandunited.com</a>
-          <p>Razhaphe Basa, Chümoukedima District, Nagaland, India</p>
+          <p>Phone / WhatsApp: <a href="tel:+918837459822" style={{ color: 'inherit' }}>+91 8837459822</a></p>
+          <p>Support: Mon–Sat 10 AM–5 PM IST</p>
+          <p>Opposite Cricket Stadium, Chumukedima Main Road, Sovima Village 6th Mile, PIN: 797103, Nagaland, India</p>
           <p>Reg. No. HOME/SRC-7926</p>
-        </div>
-        <div className="f-col">
-          <h4>Follow</h4>
-          <div className="socials">
+          <div className="socials" style={{ marginTop: '12px' }}>
             <a href="https://instagram.com/nagalandunited" target="_blank" rel="noopener" aria-label="Instagram">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -52,6 +64,23 @@ export function Footer() {
       </div>
       <div className="legal">
         <span>© 2026 Nagaland United Sports Club. All Rights Reserved.</span>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Link href="/about">About Us</Link>
+          <span>·</span>
+          <Link href="/contact">Contact Us</Link>
+          <span>·</span>
+          <Link href="/pricing">Pricing</Link>
+          <span>·</span>
+          <Link href="/terms">Terms &amp; Conditions</Link>
+          <span>·</span>
+          <Link href="/privacy-policy">Privacy Policy</Link>
+          <span>·</span>
+          <Link href="/cancellation-policy">Cancellation Policy</Link>
+          <span>·</span>
+          <Link href="/refund-policy">Refund Policy</Link>
+          <span>·</span>
+          <Link href="/shipping-and-delivery-policy">Shipping &amp; Delivery</Link>
+        </div>
         <span>Rise Together · Unity • Progress • Excellence</span>
       </div>
     </div>

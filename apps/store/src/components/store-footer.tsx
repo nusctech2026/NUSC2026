@@ -70,6 +70,7 @@ export function StoreFooter() {
               <Link href="/size-guide">Size Guide</Link>
               <Link href="/legal/shipping">Delivery Info</Link>
               <Link href="/legal/returns">Returns & Refunds</Link>
+              <Link href="/legal/terms">Terms & Conditions</Link>
               <Link href="/account/orders">Track My Order</Link>
               <Link href="/faqs">FAQs</Link>
               <Link href="/contact">Contact Us</Link>
@@ -117,9 +118,9 @@ export function StoreFooter() {
           </div>
           <div className="sf-legal-links">
             <Link href="/legal/privacy-policy">Privacy Policy</Link>
-            <Link href="/legal/terms">Terms of Use</Link>
-            <Link href="#">Cookie Settings</Link>
-            <Link href="#">Accessibility</Link>
+            <Link href="/legal/terms">Terms & Conditions</Link>
+            <Link href="/legal/returns">Returns & Refunds</Link>
+            <Link href="/legal/shipping">Shipping Policy</Link>
           </div>
         </div>
       </div>

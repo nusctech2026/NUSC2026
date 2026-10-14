@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { submitMembership } from '@/app/membership/actions';
 import { MembershipFormData } from '@nusc/membership';
 import './membership.css'; // We'll create this for scoped CSS
@@ -125,11 +126,11 @@ export default function MembershipForm() {
           <div className="mem-form-checkboxes">
             <label className="mem-checkbox-label">
               <input type="checkbox" name="termsAccepted" required />
-              <span>I agree to the Membership Terms & Conditions *</span>
+              <span>I agree to the <Link href="/terms" target="_blank" style={{ color: 'var(--navy-600)', fontWeight: 600 }}>Membership Terms &amp; Conditions</Link> *</span>
             </label>
             <label className="mem-checkbox-label">
               <input type="checkbox" name="privacyAccepted" required />
-              <span>I agree to the Privacy Policy *</span>
+              <span>I agree to the <Link href="/privacy-policy" target="_blank" style={{ color: 'var(--navy-600)', fontWeight: 600 }}>Privacy Policy</Link> *</span>
             </label>
             <label className="mem-checkbox-label">
               <input type="checkbox" name="marketingConsent" />
