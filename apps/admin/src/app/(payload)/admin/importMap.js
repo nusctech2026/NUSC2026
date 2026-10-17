@@ -30,9 +30,11 @@ import { PressApprovedAccessField as PressApprovedAccessField_a8af911fc42faac455
 import { PressEquipmentField as PressEquipmentField_a8af911fc42faac4550221c4f9d950ef } from '../../../components/PressAccessFields'
 import { PressDocumentPreview as PressDocumentPreview_551a063b1200686c65911c44fd0172cb } from '../../../components/PressDocumentPreview'
 import { ExportPressAccreditationButton as ExportPressAccreditationButton_0b5597270744f098c4151517fa4388f0 } from '../../../components/ExportPressAccreditationButton'
+import { CampaignNavLinks as CampaignNavLinks_d397a8ad20c991485eaf143d1400acba } from '../../../components/nav/CampaignNavLinks'
 import { StoreNavLinks as StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { CatalogNavLinks as CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
 import { SystemNavLinks as SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df } from '../../../components/nav/StoreNavLinks'
+import { CampaignDashboardRedirect as CampaignDashboardRedirect_2f3f7e3be5d8489cd106dbf71972279a } from '../../../components/nav/CampaignDashboardRedirect'
 import { TabSessionProvider as TabSessionProvider_35f1d9022e3049b2cfc03e8c0f1ece06 } from '../../../components/providers/TabSessionProvider'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 import { CustomLogin as CustomLogin_06a9c4b912dc02730afb7cefbca6de7f } from '../../../components/CustomLogin'
@@ -52,6 +54,13 @@ import { AuditLogsView as AuditLogsView_1e135550e8d58890f9e6edaf0ca17839 } from 
 import { SystemHealthView as SystemHealthView_67129ae469662dd63b9171a3a1388128 } from '../../../components/views/SystemHealthView'
 import { StaffView as StaffView_a246aea608f36f22c66df3ee27e99c92 } from '../../../components/views/StaffView'
 import { IntegrationsView as IntegrationsView_0eef5824b569d34efbd78812b87cb72c } from '../../../components/views/IntegrationsView'
+import { CampaignDashboardView as CampaignDashboardView_c27e341cdc7da7ee20aa205dc2147e43 } from '../../../components/views/campaign/CampaignDashboardView'
+import { CampaignApplicationsView as CampaignApplicationsView_3fb2462f8bbe0a063024bb350ead25b9 } from '../../../components/views/campaign/CampaignApplicationsView'
+import { CampaignApprovedView as CampaignApprovedView_29b88a0af02e10cf3510d8ce53cb4c9d } from '../../../components/views/campaign/CampaignApprovedView'
+import { CampaignIdsView as CampaignIdsView_aff054c1281a768dc56557fb1132015d } from '../../../components/views/campaign/CampaignIdsView'
+import { CampaignScannerView as CampaignScannerView_f283fee58df187d19b97572c1506087d } from '../../../components/views/campaign/CampaignScannerView'
+import { CampaignAttendanceView as CampaignAttendanceView_3bdcb2c6550670a4938f37fe9ce72a01 } from '../../../components/views/campaign/CampaignAttendanceView'
+import { CampaignMatchesView as CampaignMatchesView_1bca320051b594bc4e3be2800bd5ec59 } from '../../../components/views/campaign/CampaignMatchesView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -88,9 +97,11 @@ export const importMap = {
   "./components/PressAccessFields#PressEquipmentField": PressEquipmentField_a8af911fc42faac4550221c4f9d950ef,
   "./components/PressDocumentPreview#PressDocumentPreview": PressDocumentPreview_551a063b1200686c65911c44fd0172cb,
   "./components/ExportPressAccreditationButton#ExportPressAccreditationButton": ExportPressAccreditationButton_0b5597270744f098c4151517fa4388f0,
+  "./components/nav/CampaignNavLinks#CampaignNavLinks": CampaignNavLinks_d397a8ad20c991485eaf143d1400acba,
   "./components/nav/StoreNavLinks#StoreNavLinks": StoreNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#CatalogNavLinks": CatalogNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
   "./components/nav/StoreNavLinks#SystemNavLinks": SystemNavLinks_1307fdb9a2b73f2ddfa131fc5bb9e1df,
+  "./components/nav/CampaignDashboardRedirect#CampaignDashboardRedirect": CampaignDashboardRedirect_2f3f7e3be5d8489cd106dbf71972279a,
   "./components/providers/TabSessionProvider#TabSessionProvider": TabSessionProvider_35f1d9022e3049b2cfc03e8c0f1ece06,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
   "./components/CustomLogin#CustomLogin": CustomLogin_06a9c4b912dc02730afb7cefbca6de7f,
@@ -110,5 +121,12 @@ export const importMap = {
   "./components/views/SystemHealthView#SystemHealthView": SystemHealthView_67129ae469662dd63b9171a3a1388128,
   "./components/views/StaffView#StaffView": StaffView_a246aea608f36f22c66df3ee27e99c92,
   "./components/views/IntegrationsView#IntegrationsView": IntegrationsView_0eef5824b569d34efbd78812b87cb72c,
+  "./components/views/campaign/CampaignDashboardView#CampaignDashboardView": CampaignDashboardView_c27e341cdc7da7ee20aa205dc2147e43,
+  "./components/views/campaign/CampaignApplicationsView#CampaignApplicationsView": CampaignApplicationsView_3fb2462f8bbe0a063024bb350ead25b9,
+  "./components/views/campaign/CampaignApprovedView#CampaignApprovedView": CampaignApprovedView_29b88a0af02e10cf3510d8ce53cb4c9d,
+  "./components/views/campaign/CampaignIdsView#CampaignIdsView": CampaignIdsView_aff054c1281a768dc56557fb1132015d,
+  "./components/views/campaign/CampaignScannerView#CampaignScannerView": CampaignScannerView_f283fee58df187d19b97572c1506087d,
+  "./components/views/campaign/CampaignAttendanceView#CampaignAttendanceView": CampaignAttendanceView_3bdcb2c6550670a4938f37fe9ce72a01,
+  "./components/views/campaign/CampaignMatchesView#CampaignMatchesView": CampaignMatchesView_1bca320051b594bc4e3be2800bd5ec59,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

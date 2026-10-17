@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export const CustomLogin: React.FC = () => {
@@ -9,7 +10,6 @@ export const CustomLogin: React.FC = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -21,7 +21,7 @@ export const CustomLogin: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, portal: 'staff' }),
       })
 
       const data = await res.json()
@@ -31,9 +31,9 @@ export const CustomLogin: React.FC = () => {
       }
 
       sessionStorage.setItem('tab_session', 'active')
-      window.location.href = '/admin'
-    } catch (err: any) {
-      setError(err.message)
+      router.replace('/admin')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
       setLoading(false)
     }
@@ -68,6 +68,9 @@ export const CustomLogin: React.FC = () => {
           {loading ? 'Logging in...' : 'Log In'}
         </button>
       </form>
+      <p style={{ textAlign: 'center', marginTop: 18, color: '#555' }}>
+        Campaign staff? <Link href="/campaign-login">Use campaign sign-in</Link>
+      </p>
     </div>
   )
 }

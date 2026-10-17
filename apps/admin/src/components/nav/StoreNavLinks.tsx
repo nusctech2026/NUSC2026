@@ -2,11 +2,19 @@
 import React from 'react'
 import Link from 'next/link'
 import { NavGroup, useAuth } from '@payloadcms/ui'
+import { isCampaignOnlyStaff } from '../../auth/staffRoles'
+
+type RoleBearingUser = { roles?: string[]; display_roles?: { role: string }[] } | null
+
+function hasRestrictedCampaignOrTrialsAccess(user: unknown): boolean {
+  const roleUser = user as RoleBearingUser
+  const userRoles = roleUser?.roles ?? roleUser?.display_roles?.map(item => item.role) ?? []
+  return isCampaignOnlyStaff(user) || (userRoles.includes('trials_manager') && !userRoles.includes('super_admin'))
+}
 
 export const StoreNavLinks: React.FC = () => {
   const { user } = useAuth()
-  const userRoles = Array.isArray((user as any)?.roles) ? (user as any).roles : ((user as any)?.display_roles?.map((r: any) => typeof r === 'string' ? r : r?.role) || [])
-  if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return null;
+  if (hasRestrictedCampaignOrTrialsAccess(user)) return null;
 
   return (
     <NavGroup label="Store Operations">
@@ -23,8 +31,7 @@ export const StoreNavLinks: React.FC = () => {
 
 export const CatalogNavLinks: React.FC = () => {
   const { user } = useAuth()
-  const userRoles = Array.isArray((user as any)?.roles) ? (user as any).roles : ((user as any)?.display_roles?.map((r: any) => typeof r === 'string' ? r : r?.role) || [])
-  if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return null;
+  if (hasRestrictedCampaignOrTrialsAccess(user)) return null;
 
   return (
     <NavGroup label="Store Catalog">
@@ -42,8 +49,7 @@ export const CatalogNavLinks: React.FC = () => {
 
 export const SystemNavLinks: React.FC = () => {
   const { user } = useAuth()
-  const userRoles = Array.isArray((user as any)?.roles) ? (user as any).roles : ((user as any)?.display_roles?.map((r: any) => typeof r === 'string' ? r : r?.role) || [])
-  if (userRoles.includes('trials_manager') && !userRoles.includes('super_admin')) return null;
+  if (hasRestrictedCampaignOrTrialsAccess(user)) return null;
 
   return (
     <NavGroup label="System">
