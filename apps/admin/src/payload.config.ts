@@ -27,6 +27,7 @@ import { MemberProfiles } from './collections/membership/MemberProfiles'
 import { BenefitRedemptions } from './collections/membership/BenefitRedemptions'
 import { TrialRegistrations } from './collections/TrialRegistrations'
 import { MembershipInterestRegistrations } from './collections/MembershipInterestRegistrations'
+import { JerseyInterestRegistrations } from './collections/JerseyInterestRegistrations'
 import { PaymentReconciliations } from './collections/membership/PaymentReconciliations'
 import { UserRoles } from './collections/UserRoles'
 import { PressAccreditations } from './collections/PressAccreditations'
@@ -203,6 +204,7 @@ export default buildConfig({
     Media,
     TrialRegistrations,
     MembershipInterestRegistrations,
+    JerseyInterestRegistrations,
     PressAccreditations
   ].map(restrictCampaignCollection) as any,
   globals: [
