@@ -3,67 +3,16 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { submitMembership } from '@/app/membership/actions';
-import { MembershipFormData } from '@nusc/membership';
-import Script from 'next/script';
+import type { MembershipFormData } from '@nusc/membership';
+import { useRouter } from 'next/navigation';
+import PaymentButton from './PaymentButton';
 import './membership.css';
 
 export default function SplitMembershipLayout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successData, setSuccessData] = useState<{ first_name: string; membership_number: string; paymentStatus: 'pending' | 'paid' } | null>(null);
-
-  const openRazorpay = (orderId: string, memberDetails: any) => {
-    const options = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'dummy_key',
-      amount: "1000",
-      currency: "INR",
-      name: "NUSC",
-      description: "One-time Registration Fee",
-      order_id: orderId,
-      handler: function (response: any) {
-        setSuccessData({
-          first_name: memberDetails.first_name,
-          membership_number: memberDetails.member_number || memberDetails.membership_number,
-          paymentStatus: 'paid'
-        });
-      },
-      prefill: {
-        name: memberDetails.first_name,
-        email: memberDetails.email,
-        contact: memberDetails.phone,
-      },
-      readonly: {
-        contact: true,
-        email: true,
-        name: true,
-      },
-      theme: {
-        color: "#1e293b",
-      },
-      modal: {
-        ondismiss: function () {
-          setSuccessData({
-            first_name: memberDetails.first_name,
-            membership_number: memberDetails.member_number || memberDetails.membership_number,
-            paymentStatus: 'pending'
-          });
-        }
-      }
-    };
-    
-    // @ts-ignore
-    if (typeof window !== 'undefined' && window.Razorpay) {
-      // @ts-ignore
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } else {
-      setSuccessData({
-        first_name: memberDetails.first_name,
-        membership_number: memberDetails.member_number || memberDetails.membership_number,
-        paymentStatus: 'pending'
-      });
-    }
-  };
+  const router = useRouter();
+  const [successData, setSuccessData] = useState<{ first_name: string; membership_number: string; signedIn: boolean } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -84,27 +33,21 @@ export default function SplitMembershipLayout() {
       marketingConsent: formData.get('marketingConsent') === 'on',
     };
 
-    const result = await submitMembership(data);
-
-    setIsSubmitting(false);
-
-    if (result.success) {
-      setSuccessData({
-        first_name: result.member.first_name,
-        membership_number: result.member.member_number || result.member.membership_number,
-        paymentStatus: 'pending'
-      });
-      if (result.member.paymentOrderId) {
-        openRazorpay(result.member.paymentOrderId, { ...result.member, email: data.email, phone: data.phone });
+    try {
+      const result = await submitMembership(data);
+      if (result.success) {
+        setSuccessData({ first_name: result.member.first_name, membership_number: result.member.member_number, signedIn: result.signedIn });
+      } else {
+        setError(result.error || 'An unexpected error occurred');
       }
-    } else {
-      setError(result.error || 'An unexpected error occurred');
-    }
+    } catch {
+      setError('Connection interrupted. If your account was created, sign in to resume payment; otherwise try again.');
+    } finally { setIsSubmitting(false); }
   };
 
   return (
     <div className="split-layout-wrapper">
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
       {/* LEFT SIDE - BENEFITS */}
       <div className="split-left-pane">
         {/* Background decorative elements */}
@@ -175,34 +118,13 @@ export default function SplitMembershipLayout() {
         <div style={{ maxWidth: '500px', margin: '0 auto', width: '100%' }}>
           
           {successData ? (
-            <div style={{ padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-              <h2 style={{ color: '#0f172a', fontSize: '2rem', marginBottom: '16px', fontWeight: 700 }}>
-                {successData.paymentStatus === 'paid' ? 'Welcome to NUSC!' : 'Registration Pending Payment'}
-              </h2>
-              <p style={{ color: '#475569', marginBottom: '24px', fontSize: '1.1rem' }}>
-                {successData.paymentStatus === 'paid' 
-                  ? `Your registration was successful. Welcome to the club, ${successData.first_name}!` 
-                  : `Hello ${successData.first_name}, your registration is saved but pending payment of the ₹10 fee. Please complete the payment to activate your membership.`}
-              </p>
-              <div style={{ background: '#ffffff', padding: '20px', borderRadius: '8px', marginBottom: '24px', border: '1px solid #e2e8f0' }}>
-                <p style={{ color: '#64748b', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-                  Your Membership Number
-                </p>
-                <p style={{ color: 'var(--red)', fontSize: '2rem', fontWeight: 'bold' }}>
-                  {successData.membership_number}
-                </p>
-              </div>
-              <p style={{ color: '#475569', fontSize: '0.9rem' }}>
-                {successData.paymentStatus === 'paid' 
-                  ? 'Keep this number handy. You will use it to access ticket benefits on Ahibi and merchandise discounts in our store.' 
-                  : 'Your membership number is reserved. Once your payment is successful, it will be activated for ticket benefits and merchandise discounts.'}
-              </p>
-              <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                <a href="/" className="btn btn-outline" style={{ display: 'inline-block', padding: '12px 24px', borderRadius: '6px', border: '1px solid var(--navy-600)', color: 'var(--navy-600)', textDecoration: 'none', fontWeight: 600 }}>Back to Home</a>
-                {successData.paymentStatus === 'pending' && (
-                  <button onClick={() => window.location.reload()} style={{ display: 'inline-block', padding: '12px 24px', borderRadius: '6px', background: 'var(--navy-600)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}>Try Payment Again</button>
-                )}
-              </div>
+            <div style={{ padding: '32px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Registration Pending Payment</h2>
+              <p>Hello {successData.first_name}, your account is ready. Complete the ₹10 membership fee to finish registration, then choose your annual tier in your dashboard.</p>
+              <p style={{ margin: '24px 0' }}>Your membership number: <strong>{successData.membership_number}</strong></p>
+              {successData.signedIn ? <PaymentButton autoStart onConfirmed={() => router.push('/dashboard')}>Pay ₹10 membership fee</PaymentButton>
+                : <Link href="/login">Sign in to complete payment</Link>}
+              <p style={{ marginTop: 20 }}><Link href="/dashboard">Go to your dashboard</Link></p>
             </div>
           ) : (
             <>
@@ -216,7 +138,7 @@ export default function SplitMembershipLayout() {
                 </a>
 
                 <h1 style={{ fontSize: '2.5rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
-                  Sign up as<br />
+                  Join for ₹10<br />
                   <span style={{ color: 'var(--navy-600)' }}>NUSC Member</span>
                 </h1>
                 <div style={{ width: '40px', height: '4px', background: '#e2e8f0', marginTop: '16px', borderRadius: '2px' }}></div>

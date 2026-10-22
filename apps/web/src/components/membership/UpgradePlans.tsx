@@ -1,9 +1,11 @@
 import React from 'react';
+import PaymentButton from './PaymentButton';
 import { MembershipPlan } from '@/app/dashboard/service';
 
 interface UpgradePlansProps {
   availableUpgrades: MembershipPlan[];
   hasMembership: boolean;
+  canPurchase: boolean;
 }
 
 const CheckIcon = () => (
@@ -49,14 +51,15 @@ const VipCheckIcon = () => (
 const VIP_FEATURES = [
   { title: 'Exclusive VIP Box', desc: 'Exclusive use of the allocated VIP box for the 10 home matches', gold: true },
   { title: 'Hospitality', desc: 'Hospitality and entry arrangements attached to that box', gold: true },
-  { title: 'Group Memberships', desc: 'Seven named digital memberships and seven welcome items', gold: true },
-  { title: 'Premium Benefits', desc: 'All eligible Premium content and merchandise benefits for the named members', gold: false },
+  { title: 'Group Memberships', desc: 'Seven named digital membership cards, seven scarves and a box welcome pack', gold: true },
+  { title: 'Premium Benefits', desc: 'All eligible Premium content and merchandise benefits for the named members, plus occasional early viewing', gold: false },
   { title: 'Maximum Discount', desc: '15% discount on eligible official merchandise purchases by the lead member', gold: true },
   { title: 'First Access', desc: 'First access to merchandise launches and separately ticketed club events', gold: true },
   { title: 'Event Invitations', desc: 'Invitations for up to seven to selected club gatherings, subject to capacity', gold: false },
   { title: 'Private Experience', desc: 'One proposed private club experience during the season, such as a guided training-ground visit or meet-and-greet, subject to scheduling, player welfare and club approval', gold: true },
   { title: 'Public Acknowledgment', desc: 'Option to acknowledge the lead member or organisation in a members’ thank-you feature, with their consent', gold: false },
   { title: 'Box Renewal Priority', desc: 'First option to renew the same box for the following season', gold: false },
+  { title: 'Partner Offers', desc: 'Enhanced partner offers where available', gold: false },
 ];
 
 const PREMIUM_FEATURES = [
@@ -70,9 +73,21 @@ const PREMIUM_FEATURES = [
   { title: 'Priority Booking', desc: 'Priority booking window for separately ticketed NUSC events', gold: false },
   { title: 'Player Experiences', desc: 'Opportunity to enter draws for approved player meet-and-greets or training visits', gold: false },
   { title: 'Supporters’ Wall', desc: 'Premium member recognition on an optional digital supporters’ wall', gold: false },
+  { title: 'Partner Offers', desc: 'Enhanced partner offers where available', gold: false },
 ];
 
-export default function UpgradePlans({ availableUpgrades, hasMembership }: UpgradePlansProps) {
+export function TierBenefits({ slug }: { slug: string }) {
+  const features = slug === 'rise-vip-box' ? VIP_FEATURES : slug === 'rise-premium' ? PREMIUM_FEATURES : slug === 'rise-general' ? GENERAL_FEATURES : [];
+  if (!features.length) return null;
+  return <section style={{ marginTop: 32 }} aria-labelledby="active-benefits-title">
+    <h2 id="active-benefits-title" style={{ fontSize: '1.5rem', marginBottom: 16 }}>Your membership benefits</h2>
+    <ul style={{ paddingLeft: 20, display: 'grid', gap: 12 }}>
+      {features.map(feature => <li key={feature.title}><strong>{feature.title}:</strong> {feature.desc}</li>)}
+    </ul>
+  </section>;
+}
+
+export default function UpgradePlans({ availableUpgrades, hasMembership, canPurchase }: UpgradePlansProps) {
   if (availableUpgrades.length === 0) {
     return (
       <div style={{ marginTop: '40px' }}>
@@ -88,14 +103,14 @@ export default function UpgradePlans({ availableUpgrades, hasMembership }: Upgra
           Select Your Matchday Tier
         </p>
         <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px', lineHeight: 1.2 }}>
-          2026/27 SEASON MEMBERSHIP PACKS
+          ANNUAL MEMBERSHIP PACKS
         </h2>
         <p style={{ color: '#64748b', maxWidth: '600px', margin: '0 auto', fontSize: '0.95rem', lineHeight: 1.5 }}>
-          Passionate support backed by tangible matchday privileges. Annual subscription renewable each pre-season.
+          Passionate support backed by tangible matchday privileges. Valid for one year from activation. The ₹10 registration fee is separate. Tier purchases are charged at the full listed price.
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', alignItems: 'stretch' }}>
         {availableUpgrades.map(plan => {
           const isVip = plan.name.toLowerCase().includes('vip');
           const isPremium = !isVip && plan.name.toLowerCase().includes('premium');
@@ -157,17 +172,17 @@ export default function UpgradePlans({ availableUpgrades, hasMembership }: Upgra
 
                 <p style={{ color: isVip ? '#a3a3a3' : '#64748b', fontSize: '0.85rem', lineHeight: 1.4, marginBottom: '16px', minHeight: '38px' }}>
                   {isVip
-                    ? "A season-long shared experience for a family, group of supporters or business. The membership covers one box admitting up to seven guests at each of the 10 home matches."
+                    ? "A year-long shared experience for a family, group of supporters or business. The membership covers one box admitting up to seven guests at each of the 10 home matches."
                     : (isPremium
                       ? "For a supporter who wants better seats and a closer connection."
-                      : "The accessible way to belong to the club for the whole season.")}
+                      : "The accessible way to belong to the club for the whole year.")}
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: isVip ? '1px solid #262626' : '1px solid #e2e8f0', borderBottom: isVip ? '1px solid #262626' : '1px solid #e2e8f0', padding: '16px 0', marginBottom: '16px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                      <span style={{ fontSize: '2rem', fontWeight: 800, color: isVip ? '#fbbf24' : '#1e3a8a', lineHeight: 1 }}>₹{(plan.price / 100).toLocaleString()}</span>
-                      <span style={{ color: isVip ? '#a3a3a3' : '#64748b', fontWeight: 600, fontSize: '0.8rem' }}>/ season</span>
+                      <span style={{ fontSize: '2rem', fontWeight: 800, color: isVip ? '#fbbf24' : '#1e3a8a', lineHeight: 1 }}>₹{(plan.price / 100).toLocaleString('en-IN')}</span>
+                      <span style={{ color: isVip ? '#a3a3a3' : '#64748b', fontWeight: 600, fontSize: '0.8rem' }}>/ year</span>
                     </div>
                     <div style={{ fontSize: '0.65rem', fontWeight: 800, color: isVip ? '#fbbf24' : '#1e3a8a', letterSpacing: '0.05em', marginTop: '6px' }}>
                       {isVip ? "10 MATCH EXEC SUITE + VIP PRIVILEGES" : (isPremium ? "10 MATCH PREMIUM + VIP PRIVILEGES" : "FULL SEASON 10 MATCH ACCESS")}
@@ -175,9 +190,9 @@ export default function UpgradePlans({ availableUpgrades, hasMembership }: Upgra
                   </div>
                   <div style={{ textAlign: 'right', fontWeight: 700, color: isVip ? '#d4d4d8' : '#475569', fontSize: '0.75rem' }}>
                     {isVip || isPremium ? (
-                      <>AT <span style={{color: isVip ? '#fbbf24' : 'inherit'}}>₹{((plan.price / 100) / 10).toLocaleString()} / Match</span></>
+                      <>AT <span style={{color: isVip ? '#fbbf24' : 'inherit'}}>₹{((plan.price / 100) / 10).toLocaleString('en-IN')} / Match</span></>
                     ) : (
-                      <span style={{ color: '#2563eb' }}>₹{((plan.price / 100) / 10).toLocaleString()} / MATCH</span>
+                      <span style={{ color: '#2563eb' }}>₹{((plan.price / 100) / 10).toLocaleString('en-IN')} / MATCH</span>
                     )}
                   </div>
                 </div>
@@ -221,29 +236,18 @@ export default function UpgradePlans({ availableUpgrades, hasMembership }: Upgra
 
               {/* Footer action */}
               <div style={{ padding: '20px', marginTop: '16px' }}>
-                <button style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: isVip ? 'linear-gradient(90deg, #b45309, #d97706)' : (isPremium ? '#1d4ed8' : '#0a0a0a'),
-                  color: '#fff',
-                  fontSize: '1rem',
-                  fontWeight: 800,
-                  border: 'none',
-                  cursor: plan.is_purchasable_online ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  alignItems: 'center',
-                  marginBottom: '8px',
-                  boxShadow: isVip ? '0 4px 14px 0 rgba(180, 83, 9, 0.39)' : 'none',
-                  borderRadius: '4px'
-                }} disabled={!plan.is_purchasable_online}>
-                  <span>{hasMembership ? 'UPGRADE ' : 'JOIN '} {plan.name.toUpperCase()}</span>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
-                </button>
-                <div style={{ textAlign: 'center', fontSize: '0.6rem', fontWeight: 700, color: isVip ? '#a3a3a3' : '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  {isVip || isPremium ? "PHYSICAL BOX DELIVERY  •  PRIORITY SEATING" : "IMMEDIATE DIGITAL PASS ISSUE"}
-                </div>
+                {!plan.is_purchasable_online ? <button
+                  type="button"
+                  className="membership-pay-button"
+                  disabled
+                  aria-label={`${plan.name} membership coming soon`}
+                >Coming soon</button> : isVip ? <div>
+                  <p style={{ color: '#d4d4d8', fontSize: '.9rem', lineHeight: 1.5 }}>Pay offline; the club will activate your VIP Box after confirming receipt.</p>
+                  <p style={{ marginTop: 12 }}><a href="tel:+918837402472" style={{ color: '#fbbf24' }}>Kaki · 8837402472</a></p>
+                  <p><a href="tel:+917005727288" style={{ color: '#fbbf24' }}>Ahibi · 7005727288</a></p>
+                </div> : <PaymentButton planId={plan.id} disabled={!canPurchase || !plan.is_purchasable_online}>
+                  {hasMembership ? 'Upgrade to ' : 'Activate '}{plan.name}
+                </PaymentButton>}
               </div>
             </div>
           );

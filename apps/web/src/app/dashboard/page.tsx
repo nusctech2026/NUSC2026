@@ -2,7 +2,12 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getDashboardData } from './service';
-import UpgradePlans from '@/components/membership/UpgradePlans';
+import PaymentButton from '@/components/membership/PaymentButton';
+import CancelCheckoutButton from '@/components/membership/CancelCheckoutButton';
+import CheckPaymentButton from '@/components/membership/CheckPaymentButton';
+import UpgradePlans, { TierBenefits } from '@/components/membership/UpgradePlans';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Dashboard Overview | NUSC Membership',
@@ -19,13 +24,12 @@ export default async function DashboardPage() {
     return <div>Error loading dashboard data.</div>;
   }
 
-  const { profile, membership, availablePlans } = dashboardData;
-
-  const currentPlanPrice = membership ? membership.plan.price : 0;
-  
-  // Filter plans to show only those that are upgrades (price > current plan price)
-  // and exclude the base ₹1 tier (price 100) since that is collected at signup
-  const availableUpgrades = availablePlans.filter(p => p.price > currentPlanPrice && p.price > 100);
+  const { profile, membership, availablePlans, pendingPayment } = dashboardData;
+  const registered = membership?.registration_payment_status === 'paid';
+  const tierActive = registered && membership.status === 'active'
+    && (!membership.end_date || new Date(membership.end_date) > new Date());
+  const currentPlanPrice = tierActive ? membership.plan.price : 0;
+  const availableUpgrades = availablePlans.filter(p => p.price > currentPlanPrice);
 
   return (
     <div>
@@ -33,9 +37,22 @@ export default async function DashboardPage() {
         Welcome back, {profile.first_name || profile.email}!
       </h1>
       <p style={{ color: '#64748b', marginBottom: '40px' }}>
-        Manage your NUSC digital membership and discover upgrades.
+        Manage your membership and choose your annual Rise tier.
       </p>
 
+      {!membership && <p><Link href="/membership">Register as a member</Link> to get started.</p>}
+      {membership && !registered && <div className="registration-payment-notice">
+        <h2>Complete your ₹10 membership fee</h2>
+        <p>Your account is saved. Pay the registration fee to activate a Rise tier. Tier fees are separate.</p>
+        <PaymentButton>Pay ₹10 membership fee</PaymentButton>
+        {pendingPayment?.purpose === 'registration' && <CheckPaymentButton />}
+      </div>}
+      {pendingPayment?.purpose === 'tier' && <div className="registration-payment-notice">
+        <p>You have an unfinished tier payment. Resume it to continue.</p>
+        <PaymentButton planId={pendingPayment.plan_id}>Resume tier payment</PaymentButton>
+        <CheckPaymentButton />
+        <CancelCheckoutButton />
+      </div>}
       {/* Membership Card */}
       {membership ? (
         <div style={{ 
@@ -55,7 +72,7 @@ export default async function DashboardPage() {
                 Membership Tier
               </p>
               <p className="member-card-number" style={{ fontFamily: '"Barlow Condensed", sans-serif', fontWeight: 800, lineHeight: 1 }}>
-                {membership.plan.name}
+                {registered ? membership.plan.name : 'Registration pending'}
               </p>
             </div>
           </div>
@@ -67,12 +84,12 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.7, marginBottom: '4px' }}>Status</p>
-              <p style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'capitalize' }}>{membership.status}</p>
+              <p style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'capitalize' }}>{!registered ? 'Pending registration payment' : membership.status === 'cancelled' ? 'Cancelled' : !tierActive ? 'Expired' : membership.plan.slug === 'registration' ? 'Registered · choose a tier below' : 'Active'}</p>
             </div>
             <div>
-              <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.7, marginBottom: '4px' }}>Valid Since</p>
+              <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.7, marginBottom: '4px' }}>Member Number</p>
               <p style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'capitalize' }}>
-                {new Date(membership.start_date).toLocaleDateString()}
+                {membership.membership_number}
               </p>
             </div>
           </div>
@@ -84,23 +101,15 @@ export default async function DashboardPage() {
         </div>
       )}
       
+      {membership?.end_date && <p style={{ marginTop: 16 }}>Membership valid until {new Date(membership.end_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}.</p>}
+      {tierActive && membership && <TierBenefits slug={membership.plan.slug} />}
       {/* Upgrades Section */}
       <UpgradePlans 
         availableUpgrades={availableUpgrades} 
-        hasMembership={!!membership} 
+        hasMembership={!!tierActive && membership?.plan.slug !== 'registration'}
+        canPurchase={!!registered && membership?.status !== 'cancelled' && !pendingPayment}
       />
 
-      <div className="store-banner" style={{ marginTop: '40px', padding: '24px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-        <div className="store-banner-content">
-          <h3 className="store-banner-title" style={{ fontWeight: 600, fontSize: '1.25rem', marginBottom: '8px' }}>Shop the Store</h3>
-          <p className="store-banner-desc" style={{ color: '#64748b', marginBottom: '16px' }}>
-            Active members get automatic discounts on official NUSC merchandise!
-          </p>
-        </div>
-        <Link href="http://localhost:3001" style={{ display: 'inline-block', padding: '10px 20px', background: '#0f172a', color: '#fff', borderRadius: '6px', fontWeight: 500, textDecoration: 'none' }}>
-          Go to Store
-        </Link>
-      </div>
     </div>
   );
 }

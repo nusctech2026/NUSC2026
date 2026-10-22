@@ -1,70 +1,57 @@
-import { createServerClient } from '@nusc/db';
+import { createServerClient, createAdminClient } from '@nusc/db';
 
 export interface MembershipPlan {
-  id: string;
-  name: string;
-  slug: string;
-  price: number;
-  billing_cycle: string;
-  description: string;
-  is_purchasable_online: boolean;
-  is_active: boolean;
+  id: string; name: string; slug: string; price: number; billing_cycle: string;
+  description: string; is_purchasable_online: boolean; is_active: boolean;
 }
-
 export interface Member {
-  id: string;
-  status: string;
-  start_date: string;
-  end_date: string;
-  plan: MembershipPlan;
+  id: string; user_id: string; plan_id: string; lead_member_id: string | null;
+  status: string; start_date: string; end_date: string | null;
+  registration_payment_status: string; membership_number: string; plan: MembershipPlan;
 }
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-}
-
+export interface UserProfile { id: string; email: string; first_name: string; last_name: string }
 export interface DashboardData {
-  profile: UserProfile;
-  membership: Member | null;
-  availablePlans: MembershipPlan[];
+  profile: UserProfile; membership: Member | null; availablePlans: MembershipPlan[];
+  pendingPayment: { plan_id: string; purpose: string } | null;
+  entitlements: Record<string, unknown>;
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error('Unauthorized');
+  if (!user) throw new Error('Unauthorized');
+  const [memberResult, plansResult, profileResult, pendingResult] = await Promise.all([
+    supabase.from('members').select('*, plan:membership_plans(*)').eq('user_id', user.id).maybeSingle(),
+    supabase.from('membership_plans').select('*').eq('is_active', true)
+      .in('slug', ['rise-general', 'rise-premium', 'rise-vip-box']).order('price', { ascending: true }),
+    supabase.from('member_profiles').select('first_name,last_name').eq('user_id', user.id).maybeSingle(),
+    supabase.from('membership_payment_orders').select('plan_id,purpose').eq('user_id', user.id).in('status', ['creating','pending']).maybeSingle(),
+  ]);
+  if (memberResult.error || plansResult.error || profileResult.error || pendingResult.error) throw new Error('Unable to load membership');
+  // Inactive plans are hidden by public plan RLS, but existing members retain their
+  // purchased plan details. The plan ID comes exclusively from this user's RLS-scoped member row.
+  if (memberResult.data && !memberResult.data.plan) {
+    const { data: historicalPlan, error } = await createAdminClient().from('membership_plans')
+      .select('id,name,slug,price,billing_cycle,description,is_purchasable_online,is_active')
+      .eq('id', memberResult.data.plan_id).single();
+    if (error || !historicalPlan) throw new Error('Unable to load membership plan');
+    memberResult.data.plan = historicalPlan;
   }
-
-  const profile: UserProfile = {
-    id: user.id,
-    email: user.email || '',
-    first_name: user.user_metadata?.first_name || '',
-    last_name: user.user_metadata?.last_name || '',
-  };
-
-  // Fetch the user's active membership along with the plan details
-  const { data: membershipData } = await supabase
-    .from('members')
-    .select('*, plan:membership_plans(*)')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .maybeSingle();
-
-  // Fetch all active membership plans to show upgrades
-  const { data: plans } = await supabase
-    .from('membership_plans')
-    .select('*')
-    .eq('is_active', true)
-    .order('price', { ascending: true });
-
+  let entitlements: Record<string, unknown> = {};
+  if (memberResult.data?.plan_id) {
+    const { data: benefit, error } = await supabase.from('membership_benefits')
+      .select('metadata').eq('plan_id', memberResult.data.plan_id)
+      .eq('category', 'annual_entitlements').eq('is_active', true)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error('Unable to load membership entitlements');
+    entitlements = (benefit?.metadata && typeof benefit.metadata === 'object' && !Array.isArray(benefit.metadata))
+      ? benefit.metadata as Record<string, unknown> : {};
+  }
   return {
-    profile,
-    membership: membershipData as Member | null,
-    availablePlans: (plans || []) as MembershipPlan[],
+    profile: { id: user.id, email: user.email || '', first_name: profileResult.data?.first_name || '', last_name: profileResult.data?.last_name || '' },
+    membership: memberResult.data as Member | null,
+    availablePlans: (plansResult.data || []) as MembershipPlan[],
+    pendingPayment: pendingResult.data,
+    entitlements,
   };
 }

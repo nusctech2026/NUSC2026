@@ -1,6 +1,6 @@
 import { createAdminClient } from '@nusc/db';
 import { membershipSchema, MembershipFormData } from './schemas';
-import Razorpay from 'razorpay';
+import { assertMembershipCheckoutEnabled, paymentGateway } from './payments';
 
 async function rollbackRegistration(
   adminSupabase: ReturnType<typeof createAdminClient>,
@@ -58,6 +58,10 @@ export async function registerMember(data: MembershipFormData) {
 
   const memberData = parsedData.data;
 
+  // Fail before creating an account when payments are not configured.
+  assertMembershipCheckoutEnabled();
+  paymentGateway();
+
   // Initialize DB Client
   const adminSupabase = createAdminClient();
 
@@ -70,6 +74,7 @@ export async function registerMember(data: MembershipFormData) {
     email: normalizedEmail,
     password: memberData.password,
     email_confirm: true,
+    user_metadata: { first_name: memberData.firstName.trim(), last_name: memberData.lastName.trim() },
   });
 
   if (authError) {
@@ -114,57 +119,5 @@ export async function registerMember(data: MembershipFormData) {
     throw new Error(`Failed to create member record: ${rpcError.message}`);
   }
 
-  // Initiate ₹10 Razorpay Order
-  const useMock = process.env.NODE_ENV !== 'production' && process.env.RAZORPAY_MOCK === 'true';
-
-  let paymentOrderId = null;
-  if (useMock) {
-    paymentOrderId = 'mock_order_' + authData.user.id;
-    const { error: updateError } = await adminSupabase
-      .from('members')
-      .update({ registration_order_id: paymentOrderId })
-      .eq('user_id', authData.user.id);
-
-    if (updateError) {
-      console.error('Failed to persist mock registration_order_id:', updateError);
-      await rollbackRegistration(adminSupabase, authData.user.id, `mock order persistence failed: ${updateError.message}`);
-      throw new Error(`Failed to persist payment order: ${updateError.message}`);
-    }
-  } else {
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key',
-      key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
-    });
-    try {
-      const order = await razorpay.orders.create({
-        amount: 1000, // ₹10 in paise
-        currency: 'INR',
-        receipt: `reg_${authData.user.id}`,
-        notes: { userId: authData.user.id, type: 'registration_fee' },
-      });
-      paymentOrderId = order.id;
-
-      // Persist order ID to members record for authoritative order-to-member binding
-      const { error: updateError } = await adminSupabase
-        .from('members')
-        .update({ registration_order_id: order.id })
-        .eq('user_id', authData.user.id);
-
-      if (updateError) {
-        throw new Error(`Failed to persist payment order: ${updateError.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to initiate Razorpay order or persist registration_order_id:', error);
-      await rollbackRegistration(adminSupabase, authData.user.id, `order creation/persistence failure: ${(error as Error).message}`);
-      throw new Error(`Failed to initiate payment: ${(error as Error).message}`);
-    }
-  }
-
-  if (!paymentOrderId) {
-    await rollbackRegistration(adminSupabase, authData.user.id, 'paymentOrderId is missing');
-    throw new Error('Failed to obtain payment order ID');
-  }
-
-  return { ...rpcData, paymentOrderId };
+  return { first_name: memberData.firstName.trim(), member_number: rpcData.member_number as string };
 }
-

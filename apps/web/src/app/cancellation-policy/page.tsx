@@ -24,7 +24,7 @@ export default function CancellationPolicyPage() {
             <div className="terms-container">
               <div className="terms-meta-bar">
                 <div className="terms-meta-date">
-                  <span>●</span> Last updated: 14 October 2026
+                  <span>●</span> Last updated: 15 October 2026
                 </div>
                 <div className="terms-meta-tag">Order &amp; Membership Rules</div>
               </div>
@@ -43,8 +43,9 @@ export default function CancellationPolicyPage() {
                 <h2>Memberships</h2>
                 <ul>
                   <li>
-                    Memberships are sold per season and are activated immediately on payment. As a general rule, <strong>memberships cannot be cancelled once purchased</strong> and are non-refundable (see Refund Policy).
+                    Paid Rise tiers are valid for one year from activation. General and Premium activate after verified online payment; VIP Box activates after the club confirms offline payment. As a general rule, <strong>memberships cannot be cancelled once purchased</strong> and are non-refundable (see Refund Policy).
                   </li>
+                  <li>An unfinished online tier checkout can be cancelled from your dashboard to choose another tier, provided payment is not processing or captured. This does not cancel or refund a purchased membership. If a payment arrives after checkout cancellation, contact the club for review before paying again.</li>
                   <li>
                     You may contact us within <strong>24 hours</strong> of a membership purchase if you believe it was made in error; we will review such requests case by case before any benefits are used.
                   </li>
