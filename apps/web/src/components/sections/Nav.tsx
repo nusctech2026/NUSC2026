@@ -150,6 +150,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
             <Link href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</Link>
             <Link href="/#pathway" className={activeLink === 'pathway' ? 'active' : ''}>Pathway</Link>
             <Link href="/trials" className={pathname === '/trials' ? 'active' : ''}>Trials</Link>
+            <Link href="/jersey-interest" className={pathname === '/jersey-interest' ? 'active' : ''}>Jerseys</Link>
             <Link href="/#community" className={activeLink === 'community' ? 'active' : ''}>Community</Link>
             <Link href="/#partners" className={activeLink === 'partners' ? 'active' : ''}>Partners</Link>
           </div>
@@ -181,6 +182,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
         <Link href="/#honours" onClick={closeDrawer}>Honours<small>Champions • Representing Nagaland</small></Link>
         <Link href="/#pathway" onClick={closeDrawer}>Pathway<small>Players • Inspire Institute</small></Link>
         <Link href="/trials" onClick={closeDrawer}>Trials<small>U23 Registrations</small></Link>
+        <Link href="/jersey-interest" onClick={closeDrawer}>Jerseys<small>Explore Jerseys</small></Link>
         <Link href="/#community" onClick={closeDrawer}>Community<small>Peace Pays</small></Link>
         <Link href="/#partners" onClick={closeDrawer}>Partners<small>Support NUSC</small></Link>
         <Link href="/careers" onClick={closeDrawer} aria-label="Careers">Careers<small>Join the team</small></Link>

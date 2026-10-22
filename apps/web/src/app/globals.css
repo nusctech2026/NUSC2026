@@ -2403,10 +2403,13 @@
         transition: none
       }
     }/* Light Theme Nav */
+.nav.nav-light,
 .nav.nav-light.scrolled {
   background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
+.nav.nav-light::after,
 .nav.nav-light.scrolled::after {
   border-color: rgba(0, 0, 0, 0.05);
 }
