@@ -88,7 +88,8 @@ export async function registerMember(data: MembershipFormData) {
   const { data: basePlan, error: planError } = await adminSupabase
     .from('membership_plans')
     .select('id')
-    .ilike('slug', 'Base-membership%')
+    .eq('slug', 'registration')
+    .eq('is_active', true)
     .single();
 
   if (planError || !basePlan) {
