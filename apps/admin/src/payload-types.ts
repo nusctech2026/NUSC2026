@@ -87,6 +87,7 @@ export interface Config {
     media: Media;
     'trial-registrations': TrialRegistration;
     'membership-interests': MembershipInterest;
+    'jersey-interest-registrations': JerseyInterestRegistration;
     'press-accreditations': PressAccreditation;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -115,6 +116,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     'trial-registrations': TrialRegistrationsSelect<false> | TrialRegistrationsSelect<true>;
     'membership-interests': MembershipInterestsSelect<false> | MembershipInterestsSelect<true>;
+    'jersey-interest-registrations': JerseyInterestRegistrationsSelect<false> | JerseyInterestRegistrationsSelect<true>;
     'press-accreditations': PressAccreditationsSelect<false> | PressAccreditationsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -187,7 +189,6 @@ export interface WebsiteMedia {
   id: string;
   alt: string;
   caption?: string | null;
-  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -619,7 +620,6 @@ export interface UserRole {
 export interface Media {
   id: string;
   alt: string;
-  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -669,6 +669,27 @@ export interface MembershipInterest {
   termsAccepted?: boolean | null;
   notes?: string | null;
   status?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Expressions of interest only. No jersey, price, or order is confirmed yet.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "jersey-interest-registrations".
+ */
+export interface JerseyInterestRegistration {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  /**
+   * This is only an estimate. The final jersey size chart is not available yet.
+   */
+  usualSize?: string | null;
+  quantity: number;
+  contactConsent: boolean;
+  interestStatus?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -852,6 +873,10 @@ export interface PayloadLockedDocument {
         value: string | MembershipInterest;
       } | null)
     | ({
+        relationTo: 'jersey-interest-registrations';
+        value: string | JerseyInterestRegistration;
+      } | null)
+    | ({
         relationTo: 'press-accreditations';
         value: string | PressAccreditation;
       } | null);
@@ -920,7 +945,6 @@ export interface AdminsSelect<T extends boolean = true> {
 export interface WebsiteMediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
-  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1231,7 +1255,6 @@ export interface UserRolesSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
-  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1279,6 +1302,21 @@ export interface MembershipInterestsSelect<T extends boolean = true> {
   termsAccepted?: T;
   notes?: T;
   status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "jersey-interest-registrations_select".
+ */
+export interface JerseyInterestRegistrationsSelect<T extends boolean = true> {
+  fullName?: T;
+  email?: T;
+  phone?: T;
+  usualSize?: T;
+  quantity?: T;
+  contactConsent?: T;
+  interestStatus?: T;
   updatedAt?: T;
   createdAt?: T;
 }

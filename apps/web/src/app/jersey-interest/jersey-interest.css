@@ -1,0 +1,134 @@
+.jersey-interest-page {
+  --jersey-navy: #101e35;
+  --jersey-red: #d82132;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.88fr);
+  min-height: 100vh;
+  background: #f6f7f9;
+  color: #152033;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.jersey-interest-intro {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  padding: clamp(28px, 5vw, 76px);
+  background:
+    linear-gradient(100deg, rgb(10 22 41 / 82%) 0%, rgb(10 22 41 / 66%) 52%, rgb(10 22 41 / 76%) 100%),
+    url('/images/jersey.png') center 72% / cover no-repeat;
+  color: white;
+}
+
+.jersey-interest-intro::after {
+  position: absolute;
+  right: -12rem;
+  bottom: -15rem;
+  width: 42rem;
+  height: 42rem;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4rem rgb(255 255 255 / 2%), 0 0 0 9rem rgb(255 255 255 / 2%);
+  content: '';
+  pointer-events: none;
+}
+
+.jersey-interest-brand {
+  z-index: 1;
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.jersey-interest-brand strong { color: #e7c56a; }
+.jersey-interest-crest { display: block; flex: 0 0 56px; width: 56px; height: 56px; background: var(--logo) center/contain no-repeat; filter: drop-shadow(0 4px 10px rgb(0 0 0 / 35%)); }
+
+.jersey-interest-copy { z-index: 1; width: min(620px, 100%); margin: auto; padding: 64px 0; }
+.jersey-interest-eyebrow, .jersey-interest-form-kicker { color: #e7c56a; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; }
+.jersey-interest-copy h1 { max-width: 600px; margin: 14px 0 18px; font-size: clamp(42px, 5.4vw, 72px); font-weight: 800; letter-spacing: -0.05em; line-height: 0.98; }
+.jersey-interest-copy > p:not(.jersey-interest-eyebrow) { max-width: 550px; color: rgb(255 255 255 / 75%); font-size: 16px; line-height: 1.7; }
+
+.jersey-interest-notice { display: flex; gap: 13px; margin-top: 32px; padding: 18px; border-left: 3px solid #e7c56a; background: rgb(255 255 255 / 6%); }
+.jersey-interest-notice-icon { display: grid; flex: 0 0 22px; width: 22px; height: 22px; place-items: center; border: 1px solid #e7c56a; border-radius: 50%; color: #e7c56a; font-family: Georgia, serif; font-size: 14px; font-weight: 700; }
+.jersey-interest-notice p { margin: 0; color: rgb(255 255 255 / 78%); font-size: 13px; line-height: 1.6; }
+.jersey-interest-notice strong { color: #fff; }
+
+.jersey-interest-points { display: grid; gap: 15px; margin: 34px 0 0; padding: 0; list-style: none; color: rgb(255 255 255 / 83%); font-size: 14px; }
+.jersey-interest-points li { display: flex; align-items: center; gap: 14px; }
+.jersey-interest-points span { color: #e7c56a; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+.jersey-interest-footer { z-index: 1; color: rgb(255 255 255 / 38%); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; }
+
+.jersey-interest-panel { display: grid; min-height: 100vh; place-items: center; padding: clamp(28px, 5vw, 76px); background: #fff; }
+.jersey-interest-panel-inner { width: min(490px, 100%); }
+.jersey-interest-panel h2 { margin: 11px 0 8px; color: #172238; font-size: clamp(30px, 3vw, 40px); letter-spacing: -0.04em; }
+.jersey-interest-form-intro { margin: 0 0 30px; color: #667085; font-size: 14px; line-height: 1.6; }
+
+.jersey-interest-form { display: grid; gap: 20px; }
+.jersey-interest-row { display: grid; grid-template-columns: 1fr 135px; gap: 14px; }
+.jersey-interest-field { display: grid; align-content: start; gap: 8px; }
+.jersey-interest-field label { color: #27354a; font-size: 13px; font-weight: 700; }
+.jersey-interest-field label > span:first-child { color: var(--jersey-red); }
+.jersey-interest-field .jersey-interest-optional { margin-left: 6px; color: #8993a3; font-size: 11px; font-weight: 400; }
+.jersey-interest-field input, .jersey-interest-field select { width: 100%; min-height: 47px; padding: 0 13px; border: 1px solid #d9dee7; border-radius: 4px; background: #fff; color: #152033; font: inherit; font-size: 14px; }
+.jersey-interest-field input:focus, .jersey-interest-field select:focus { outline: 3px solid rgb(216 33 50 / 17%); border-color: var(--jersey-red); }
+.jersey-interest-field small { color: #7b8491; font-size: 11px; line-height: 1.45; }
+.jersey-interest-consent { display: flex; align-items: flex-start; gap: 10px; color: #5d6879; font-size: 12px; line-height: 1.55; }
+.jersey-interest-consent input { flex: 0 0 16px; width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--jersey-red); }
+.jersey-interest-submit { min-height: 50px; border: 0; border-radius: 4px; background: var(--jersey-red); color: white; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.jersey-interest-submit:hover:not(:disabled) { background: #b91b2a; }
+.jersey-interest-submit:focus-visible { outline: 3px solid #172238; outline-offset: 3px; }
+.jersey-interest-submit:disabled { cursor: wait; opacity: 0.68; }
+.jersey-interest-privacy { margin: -8px 0 0; color: #828c99; font-size: 11px; line-height: 1.5; text-align: center; }
+.jersey-interest-error { margin: 0; padding: 11px 13px; border: 1px solid #f2b8bd; background: #fff5f5; color: #a51e2a; font-size: 13px; }
+.jersey-interest-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.jersey-interest-success { padding: 28px; border: 1px solid #c9e5d2; background: #f2fbf4; text-align: center; }
+.jersey-interest-success-mark { display: grid; width: 42px; height: 42px; margin: 0 auto 14px; place-items: center; border-radius: 50%; background: #176c3a; color: white; font-size: 22px; }
+.jersey-interest-success h2 { margin: 0 0 8px; color: #17462c; font-size: 24px; }
+.jersey-interest-success p { margin: 0; color: #456754; font-size: 14px; line-height: 1.65; }
+.jersey-interest-back { display: inline-block; margin-top: 28px; color: #536176; font-size: 13px; text-decoration: none; }
+.jersey-interest-back:hover { color: var(--jersey-red); text-decoration: underline; }
+
+@media (max-width: 850px) {
+  .jersey-interest-page { grid-template-columns: 1fr; }
+  .jersey-interest-intro { min-height: auto; padding: 28px 24px 38px; }
+  .jersey-interest-copy { padding: 54px 0 40px; }
+  .jersey-interest-footer { display: none; }
+  .jersey-interest-panel { min-height: auto; padding: 46px 24px 56px; }
+}
+
+@media (max-width: 600px) {
+  .jersey-interest-intro { padding: 20px 20px 24px; }
+  .jersey-interest-brand { gap: 10px; font-size: 10px; }
+  .jersey-interest-crest { flex-basis: 48px; width: 48px; height: 48px; }
+  .jersey-interest-copy { padding: 34px 0 22px; }
+  .jersey-interest-eyebrow { margin: 0; font-size: 10px; }
+  .jersey-interest-copy h1 { margin: 10px 0 12px; font-size: clamp(38px, 10vw, 44px); line-height: 1; }
+  .jersey-interest-copy > p:not(.jersey-interest-eyebrow) { margin: 0; font-size: 15px; line-height: 1.55; }
+  .jersey-interest-notice { gap: 10px; margin-top: 20px; padding: 14px; }
+  .jersey-interest-notice p { font-size: 12px; line-height: 1.55; }
+  .jersey-interest-points { gap: 11px; margin-top: 22px; font-size: 13px; }
+  .jersey-interest-panel { padding: 36px 20px 44px; }
+  .jersey-interest-panel h2 { font-size: 32px; }
+  .jersey-interest-form-intro { margin-bottom: 24px; }
+  .jersey-interest-form { gap: 18px; }
+  .jersey-interest-field input, .jersey-interest-field select { min-height: 50px; }
+  .jersey-interest-consent { min-height: 44px; align-items: center; }
+  .jersey-interest-consent input { flex-basis: 20px; width: 20px; height: 20px; }
+  .jersey-interest-submit { min-height: 54px; }
+  .jersey-interest-back { min-height: 44px; padding-top: 14px; }
+}
+
+@media (max-width: 370px) {
+  .jersey-interest-intro { padding-right: 16px; padding-left: 16px; }
+  .jersey-interest-panel { padding-right: 16px; padding-left: 16px; }
+  .jersey-interest-copy h1 { font-size: 38px; }
+  .jersey-interest-row { grid-template-columns: 1fr; gap: 18px; }
+}
