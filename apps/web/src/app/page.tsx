@@ -1,71 +1,21 @@
-"use client";
-
-import React, { useEffect } from 'react';
+import { HomeEffects } from '@/components/home-effects';
 import { Nav } from '@/components/sections/Nav';
 import { Hero } from '@/components/sections/Hero';
-import { Snapshot } from '@/components/sections/Snapshot';
 import { Club } from '@/components/sections/Club';
 import { Journey } from '@/components/sections/Journey';
 import { Honours } from '@/components/sections/Honours';
-import { Pathway } from '@/components/sections/Pathway';
-import { Players } from '@/components/sections/Players';
-import { Community } from '@/components/sections/Community';
-import { Partners } from '@/components/sections/Partners';
-import { Vision } from '@/components/sections/Vision';
-import { Careers } from '@/components/sections/Careers';
 import { Footer } from '@/components/sections/Footer';
 
 export default function Home() {
-  useEffect(() => {
-    if (window.location.hash) {
-      const hash = window.location.hash.substring(1);
-      const redirects: Record<string, string> = {
-        'journey': '/club#journey',
-        'careers': '/careers',
-      };
-      if (redirects[hash]) {
-        window.location.replace(redirects[hash]);
-        return;
-      }
-    }
-    
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('in');
-            observer.unobserve(entry.target);
-          }
-        });
-      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-      
-      document.querySelectorAll('.reveal').forEach((el) => {
-        observer.observe(el);
-      });
-      
-      return () => observer.disconnect();
-    } else {
-      document.querySelectorAll('.reveal').forEach((el) => {
-        el.classList.add('in');
-      });
-    }
-  }, []);
-
   return (
     <>
+      <HomeEffects />
       <Nav />
       <main>
         <Hero />
-        <Snapshot />
         <Club />
         <Journey />
         <Honours />
-        <Pathway />
-        <Players />
-        <Community />
-        <Vision />
-        <Partners />
-        <Careers />
       </main>
       <Footer />
     </>
