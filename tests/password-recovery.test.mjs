@@ -51,6 +51,30 @@ test('login page links to forgot-password', async () => {
   assert.match(source, /href="\/forgot-password"[\s\S]*?Forgot password\?/);
 });
 
+test('recovery callback bypasses shared middleware session refresh', async () => {
+  let sessionRefreshes = 0;
+  const { middleware } = await load('apps/web/src/middleware.ts', {
+    'next/server': { NextResponse: { next: options => ({ kind: 'pass-through', options }) } },
+    '@nusc/db/src/client/middleware': { updateSession: async request => {
+      sessionRefreshes++;
+      return { kind: 'session-updated', request };
+    } },
+  });
+  const recoveryRequest = { nextUrl: { pathname: '/auth/recovery' } };
+  assert.deepEqual(await middleware(recoveryRequest), {
+    kind: 'pass-through',
+    options: { request: recoveryRequest },
+  });
+  assert.equal(sessionRefreshes, 0);
+
+  const loginRequest = { nextUrl: { pathname: '/login' } };
+  assert.deepEqual(await middleware(loginRequest), {
+    kind: 'session-updated',
+    request: loginRequest,
+  });
+  assert.equal(sessionRefreshes, 1);
+});
+
 test('reset request normalizes email, uses configured callback, and hides account/rate-limit outcomes', async () => {
   await withEnv({ NEXT_PUBLIC_SITE_URL: 'https://members.example.test/untrusted/path', NODE_ENV: 'test' }, async () => {
     const helper = await load('apps/web/src/app/forgot-password/recovery-url.ts');
@@ -115,28 +139,49 @@ test('recovery origin permits configured HTTPS and local development only', asyn
 test('recovery callback exchanges the code and redirects to configured origin, not incoming Host or next', async () => {
   await withEnv({ NODE_ENV: 'test', NEXT_PUBLIC_SITE_URL: 'https://members.example.test' }, async () => {
     const exchanges = [];
-    let shouldFail = false;
+    const warnings = [];
+    let exchangeError = null;
+    const originalWarn = console.warn;
+    console.warn = (...args) => warnings.push(args);
     const helper = await load('apps/web/src/app/forgot-password/recovery-url.ts');
     const { GET } = await load('apps/web/src/app/auth/recovery/route.ts', {
       '@nusc/db': { createServerClient: async () => ({ auth: {
         exchangeCodeForSession: async (code, options) => {
           exchanges.push([code, options]);
-          return { error: shouldFail ? new Error('expired') : null };
+          return { error: exchangeError };
         },
       } }) },
       'next/server': { NextResponse: nextResponseStub() },
       '../../forgot-password/recovery-url': helper,
     });
-    const success = await GET(new Request('https://attacker.example.test/auth/recovery?code=single-use&sb_flow_id=flow-1&next=https://evil.test'));
-    assert.equal(success.url, 'https://members.example.test/reset-password');
-    assert.deepEqual(exchanges, [['single-use', { flowId: 'flow-1' }]]);
-    assert.equal(success.options.headers['Cache-Control'], 'no-store');
-    shouldFail = true;
-    const expired = await GET(new Request('https://attacker.example.test/auth/recovery?code=expired'));
-    assert.equal(expired.url, 'https://members.example.test/reset-password?error=expired');
-    const missing = await GET(new Request('https://attacker.example.test/auth/recovery'));
-    assert.equal(missing.url, expired.url);
-    assert.equal(exchanges.length, 2);
+    try {
+      const success = await GET(new Request('https://attacker.example.test/auth/recovery?code=single-use&sb_flow_id=flow-1&next=https://evil.test'));
+      assert.equal(success.url, 'https://members.example.test/reset-password');
+      assert.deepEqual(exchanges, [['single-use', { flowId: 'flow-1' }]]);
+      assert.equal(success.options.headers['Cache-Control'], 'no-store');
+
+      exchangeError = { code: 'pkce_code_verifier_not_found', status: 400, message: 'private detail' };
+      const expired = await GET(new Request('https://attacker.example.test/auth/recovery?code=expired'));
+      assert.equal(expired.url, 'https://members.example.test/reset-password?error=expired');
+      assert.deepEqual(warnings[0], ['[auth.recovery] code exchange failed', {
+        errorCode: 'pkce_code_verifier_not_found', status: 400, hasFlowId: false,
+      }]);
+
+      exchangeError = { code: 'sensitive-token-like-value', status: 400, message: 'private detail' };
+      await GET(new Request('https://attacker.example.test/auth/recovery?code=another'));
+      assert.deepEqual(warnings[1], ['[auth.recovery] code exchange failed', {
+        errorCode: 'other', status: 400, hasFlowId: false,
+      }]);
+
+      const missing = await GET(new Request('https://attacker.example.test/auth/recovery?error=access_denied&error_code=otp_expired'));
+      assert.equal(missing.url, expired.url);
+      assert.deepEqual(warnings[2], ['[auth.recovery] callback missing code', {
+        errorCode: 'otp_expired', hasProviderError: true, hasFlowId: false,
+      }]);
+      assert.equal(exchanges.length, 3);
+    } finally {
+      console.warn = originalWarn;
+    }
   });
 });
 

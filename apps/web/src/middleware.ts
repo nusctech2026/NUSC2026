@@ -1,7 +1,13 @@
-import { type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@nusc/db/src/client/middleware';
 
 export async function middleware(request: NextRequest) {
+  // The recovery callback establishes a new session from its PKCE code. Avoid
+  // refreshing a possibly stale prior session before that exchange runs.
+  if (request.nextUrl.pathname === '/auth/recovery') {
+    return NextResponse.next({ request });
+  }
+
   return await updateSession(request);
 }
 
