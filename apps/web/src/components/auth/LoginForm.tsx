@@ -47,6 +47,9 @@ export default function LoginForm() {
           <div className="split-mem-group">
             <label htmlFor="password">Password</label>
             <input type="password" id="password" name="password" required placeholder="Enter your password" />
+            <Link href="/forgot-password" style={{ alignSelf: 'flex-end', color: 'var(--navy-600)', fontWeight: 600, fontSize: '0.9rem' }}>
+              Forgot password?
+            </Link>
           </div>
 
           <button type="submit" disabled={isSubmitting} style={{ 
