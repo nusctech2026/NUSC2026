@@ -2,9 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@nusc/db/src/client/middleware';
 
 export async function middleware(request: NextRequest) {
-  // The recovery callback establishes a new session from its PKCE code. Avoid
-  // refreshing a possibly stale prior session before that exchange runs.
-  if (request.nextUrl.pathname === '/auth/recovery') {
+  // The callback exchanges its PKCE code, and the reset page verifies the
+  // resulting session itself. Avoid a redundant shared auth request before
+  // either recovery handler runs.
+  if (
+    request.nextUrl.pathname === '/auth/recovery' ||
+    request.nextUrl.pathname === '/reset-password'
+  ) {
     return NextResponse.next({ request });
   }
 

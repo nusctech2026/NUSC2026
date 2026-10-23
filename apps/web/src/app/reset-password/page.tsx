@@ -9,8 +9,12 @@ export default async function ResetPasswordPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  let user = null;
+  if (!error) {
+    const supabase = await createServerClient();
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  }
 
   return (
     <main className="member-recovery-page">

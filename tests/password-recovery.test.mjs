@@ -68,7 +68,7 @@ test('login page links to forgot-password', async () => {
   assert.match(source, /href="\/forgot-password"[\s\S]*?Forgot password\?/);
 });
 
-test('recovery callback bypasses shared middleware session refresh', async () => {
+test('recovery callback and reset page avoid redundant middleware auth checks only on exact recovery paths', async () => {
   let sessionRefreshes = 0;
   const { middleware } = await load('apps/web/src/middleware.ts', {
     'next/server': { NextResponse: { next: options => ({ kind: 'pass-through', options }) } },
@@ -77,19 +77,36 @@ test('recovery callback bypasses shared middleware session refresh', async () =>
       return { kind: 'session-updated', request };
     } },
   });
-  const recoveryRequest = { nextUrl: { pathname: '/auth/recovery' } };
-  assert.deepEqual(await middleware(recoveryRequest), {
-    kind: 'pass-through',
-    options: { request: recoveryRequest },
-  });
-  assert.equal(sessionRefreshes, 0);
+  for (const pathname of ['/auth/recovery', '/reset-password']) {
+    const request = { nextUrl: { pathname } };
+    assert.deepEqual(await middleware(request), {
+      kind: 'pass-through',
+      options: { request },
+    });
+    assert.equal(sessionRefreshes, 0);
+  }
 
-  const loginRequest = { nextUrl: { pathname: '/login' } };
-  assert.deepEqual(await middleware(loginRequest), {
-    kind: 'session-updated',
-    request: loginRequest,
+  for (const pathname of ['/reset-password-extra', '/login', '/dashboard']) {
+    const request = { nextUrl: { pathname } };
+    assert.deepEqual(await middleware(request), {
+      kind: 'session-updated',
+      request,
+    });
+    assert.equal(sessionRefreshes, pathname === '/reset-password-extra' ? 1 : pathname === '/login' ? 2 : 3);
+  }
+});
+
+test('reset page provides a lightweight status while the recovery session is verified', async () => {
+  const { default: RecoveryLoading } = await loadTsx('apps/web/src/app/reset-password/loading.tsx', {
+    'next/link': function Link() {},
+    '@/components/membership/membership.css': {},
+    '../forgot-password/recovery.css': {},
   });
-  assert.equal(sessionRefreshes, 1);
+  const loading = RecoveryLoading();
+  assert.equal(loading.type, 'main');
+  assert.equal(loading.props['aria-busy'], 'true');
+  assert.equal(loading.props.children.props.children[0].props.children, 'Verifying reset link');
+  assert.equal(loading.props.children.props.children[1].props.children, 'Preparing your password reset form…');
 });
 
 test('reset request normalizes email, uses configured callback, and hides account/rate-limit outcomes', async () => {
@@ -252,9 +269,10 @@ test('password update requires an authenticated reset session, validates input, 
 
 test('reset page keeps the client form mounted when sign-out removes the recovery session', async () => {
   let user = { id: 'synthetic-member' };
+  let userChecks = 0;
   function ResetPasswordForm() {}
   const { default: ResetPasswordPage } = await loadTsx('apps/web/src/app/reset-password/page.tsx', {
-    '@nusc/db': { createServerClient: async () => ({ auth: { getUser: async () => ({ data: { user } }) } }) },
+    '@nusc/db': { createServerClient: async () => ({ auth: { getUser: async () => { userChecks++; return { data: { user } }; } } }) },
     'next/link': function Link() {},
     './ResetPasswordForm': ResetPasswordForm,
     '@/components/membership/membership.css': {},
@@ -273,6 +291,23 @@ test('reset page keeps the client form mounted when sign-out removes the recover
   assert.equal(afterSignOut.type, ResetPasswordForm);
   assert.equal(beforeSignOut.props.unavailable, false);
   assert.equal(afterSignOut.props.unavailable, true);
+  assert.equal(userChecks, 2);
+});
+
+test('expired reset link renders unavailable without an unnecessary auth request', async () => {
+  let clientCreations = 0;
+  function ResetPasswordForm() {}
+  const { default: ResetPasswordPage } = await loadTsx('apps/web/src/app/reset-password/page.tsx', {
+    '@nusc/db': { createServerClient: async () => { clientCreations++; throw new Error('must not be called'); } },
+    './ResetPasswordForm': ResetPasswordForm,
+    '@/components/membership/membership.css': {},
+    '../forgot-password/recovery.css': {},
+  });
+  const page = await ResetPasswordPage({ searchParams: Promise.resolve({ error: 'expired' }) });
+  const form = page.props.children.props.children;
+  assert.equal(form.type, ResetPasswordForm);
+  assert.equal(form.props.unavailable, true);
+  assert.equal(clientCreations, 0);
 });
 
 test('reset form shows the specified login success screen only after a successful update result', async () => {
