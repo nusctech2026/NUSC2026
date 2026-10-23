@@ -18,6 +18,23 @@ async function load(relativePath, mocks = {}) {
   return loaded.exports;
 }
 
+async function loadTsx(relativePath, mocks = {}) {
+  const source = await readFile(new URL(`../${relativePath}`, import.meta.url), 'utf8');
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
+      esModuleInterop: true,
+    },
+  });
+  const loaded = { exports: {} };
+  new Function('require', 'module', 'exports', outputText)(
+    name => name in mocks ? mocks[name] : require(name), loaded, loaded.exports,
+  );
+  return loaded.exports;
+}
+
 function form(fields) {
   const data = new FormData();
   for (const [key, value] of Object.entries(fields)) data.set(key, value);
@@ -231,4 +248,38 @@ test('password update requires an authenticated reset session, validates input, 
   signOutError = new Error('cookie error');
   assert.match((await updatePassword(submitted)).error, /sign-out failed/);
   assert.deepEqual(calls, [['update', { password: 'strong-password-1' }], ['signout']]);
+});
+
+test('reset page keeps the client form mounted when sign-out removes the recovery session', async () => {
+  let user = { id: 'synthetic-member' };
+  function ResetPasswordForm() {}
+  const { default: ResetPasswordPage } = await loadTsx('apps/web/src/app/reset-password/page.tsx', {
+    '@nusc/db': { createServerClient: async () => ({ auth: { getUser: async () => ({ data: { user } }) } }) },
+    'next/link': function Link() {},
+    './ResetPasswordForm': ResetPasswordForm,
+    '@/components/membership/membership.css': {},
+    '../forgot-password/recovery.css': {},
+  });
+  const renderForm = async () => {
+    const page = await ResetPasswordPage({ searchParams: Promise.resolve({}) });
+    return page.props.children.props.children;
+  };
+
+  const beforeSignOut = await renderForm();
+  user = null;
+  const afterSignOut = await renderForm();
+
+  assert.equal(beforeSignOut.type, ResetPasswordForm);
+  assert.equal(afterSignOut.type, ResetPasswordForm);
+  assert.equal(beforeSignOut.props.unavailable, false);
+  assert.equal(afterSignOut.props.unavailable, true);
+});
+
+test('reset form shows the specified login success screen only after a successful update result', async () => {
+  const source = await readFile(new URL('../apps/web/src/app/reset-password/ResetPasswordForm.tsx', import.meta.url), 'utf8');
+  assert.match(source, /if \(result\.success\) setDone\(true\)/);
+  assert.match(source, /done \? \([\s\S]*?<h1>Password Reset Successful!<\/h1>/);
+  assert.match(source, /Your password has been updated successfully\. You can now log in to your RISE Membership account using your new password\./);
+  assert.match(source, /<Link href="\/login">Back to Membership Login<\/Link>/);
+  assert.match(source, /unavailable \? \([\s\S]*?Your reset link is invalid or has expired\./);
 });

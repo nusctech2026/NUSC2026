@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { updatePassword } from './actions';
 
-export default function ResetPasswordForm() {
+export default function ResetPasswordForm({ unavailable }: { unavailable: boolean }) {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [pending, setPending] = useState(false);
@@ -26,11 +26,23 @@ export default function ResetPasswordForm() {
 
   return (
     <>
-      <h1>Choose a new password</h1>
       {done ? (
-        <p role="status">Your password has been updated. <Link href="/login">Log in with your new password</Link>.</p>
+        <>
+          <h1>Password Reset Successful!</h1>
+          <p className="member-recovery-status" role="status">
+            Your password has been updated successfully. You can now log in to your RISE Membership account using your new password.
+          </p>
+          <p><Link href="/login">Back to Membership Login</Link></p>
+        </>
+      ) : unavailable ? (
+        <>
+          <h1>Reset link unavailable</h1>
+          <p role="alert">Your reset link is invalid or has expired.</p>
+          <p><Link href="/forgot-password">Request a new reset link</Link></p>
+        </>
       ) : (
         <>
+          <h1>Choose a new password</h1>
           <p>Enter and confirm your new password.</p>
           {error && <p className="member-recovery-error" role="alert">{error}</p>}
           <form onSubmit={submit} className="split-mem-form">
