@@ -332,7 +332,14 @@ export async function getAhibiSeasonPassStatus(
       throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
     }
   } else if (payload.tickets !== undefined) {
-    tickets = parseTickets(payload.tickets, { partial: isReplacement });
+    // Holds that have expired or been released have no issued ticket records.
+    // Keep the ten-ticket requirement for normal issued passes and the partial
+    // count checks for completed General-to-Premium replacements below.
+    if (Array.isArray(payload.tickets) && payload.tickets.length === 0 && reservation.status !== 'issued') {
+      tickets = [];
+    } else {
+      tickets = parseTickets(payload.tickets, { partial: isReplacement });
+    }
   }
   if (reservation.status === 'issued' && (tickets.length === 0 || (!isReplacement && tickets.length !== 10))) {
     throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');

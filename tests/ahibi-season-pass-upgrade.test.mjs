@@ -114,6 +114,28 @@ test('Premium reservation status accepts partial tickets only with a replacement
   }); } finally { module.restoreFetch(); }
 });
 
+test('expired Premium reservation status accepts an empty ticket list without a replacement summary', async () => {
+  const module = await loadWithFetch(async () => jsonResponse(200, {
+    success: true,
+    reservation: {
+      reservationId,
+      partnerOrderId,
+      passId: 'premium-season',
+      status: 'expired',
+      expiresAt: '2026-10-27T12:00:00.000Z',
+      zone: null,
+    },
+    tickets: [],
+  }));
+  try { await withPartnerEnv(async () => {
+    const status = await module.getAhibiSeasonPassStatus(reservationId, {
+      partnerOrderId, passId: 'premium-season', zone: null,
+    });
+    assert.equal(status.reservation.status, 'expired');
+    assert.deepEqual(status.tickets, []);
+  }); } finally { module.restoreFetch(); }
+});
+
 test('normal confirm still requires all ten tickets', async () => {
   const module = await loadWithFetch(async () => jsonResponse(200, {
     success: true,
