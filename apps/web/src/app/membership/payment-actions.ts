@@ -20,9 +20,14 @@ const safeMessages = new Set([
   'Rise tier checkout is temporarily unavailable.',
   'Rise live smoke test is unavailable.',
   'Rise live smoke test has already been used.',
+  'Rise smoke upgrade checkout is unavailable.',
+  'Rise smoke upgrade has already been used.',
 ]);
 function paymentError(error: unknown, fallback = 'Unable to confirm payment. Please refresh your dashboard shortly or try again.') {
   const message = error instanceof Error ? error.message : '';
+  if (error instanceof AhibiSeasonPassError && error.code === 'AHIBI_NO_REMAINING_MATCHES') {
+    return 'There are no unplayed home matches left in your General pass to upgrade.';
+  }
   if (message === 'AHIBI_SOLD_OUT' || message === 'AHIBI_HTTP_409'
     || (error instanceof AhibiSeasonPassError && error.status === 409)) {
     return 'Ahibi could not reserve all ten tickets for this pass and zone. No membership payment was started; choose another zone or try again later.';

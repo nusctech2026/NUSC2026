@@ -84,7 +84,7 @@ export default function PaymentButton({ planId = null, children, autoStart = fal
             if (!verified.success) throw new Error(verified.error);
             if (verified.status === 'paid' || verified.status === 'already_processed') {
               setMessage(verified.ticketStatus === 'issued'
-                ? 'Payment confirmed. Your ten Ahibi tickets are ready in Match Tickets.'
+                ? 'Payment confirmed. Your Ahibi tickets are ready in Match Tickets.'
                 : verified.ticketStatus === 'refund_required'
                   ? 'Payment confirmed, but ticket allocation needs review. Please contact the club before paying again.'
                   : verified.ticketStatus === 'pending'

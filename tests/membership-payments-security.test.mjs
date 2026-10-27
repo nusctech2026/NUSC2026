@@ -25,7 +25,7 @@ const validCallback = {
   razorpay_order_id: 'order_owned', razorpay_payment_id: 'pay_captured',
   razorpay_signature: createHmac('sha256', secret).update('order_owned|pay_captured').digest('hex'),
 };
-async function payments({ user = { id: userId }, order = { razorpay_order_id: 'order_owned' }, selectedPlan = { slug: 'rise-general', is_active: true, is_purchasable_online: true }, captured, dbError = null, planError = null, lookupError = null, fetchedPayments = [], gatewayError = null, reservedOrder = null, reservedOrders = null, externalOrder = null, creationError = null, bindError = null } = {}) {
+async function payments({ user = { id: userId }, order = { razorpay_order_id: 'order_owned' }, selectedPlan = { slug: 'rise-general', is_active: true, is_purchasable_online: true }, memberRecord = null, currentPlan = null, captured, dbError = null, planError = null, lookupError = null, fetchedPayments = [], gatewayError = null, reservedOrder = null, reservedOrders = null, externalOrder = null, creationError = null, bindError = null } = {}) {
   const calls = [];
   let lastReservedOrder = reservedOrder;
   let reservedOrderIndex = 0;
@@ -64,7 +64,8 @@ async function payments({ user = { id: userId }, order = { razorpay_order_id: 'o
   const api = await load('packages/membership/src/payments.ts', {
     '@nusc/db': { createServerClient: async () => session, createAdminClient: () => ({ rpc: async (name, args) => {
       calls.push(['rpc', name, args]);
-      const isBegin = name === 'begin_membership_payment' || name === 'begin_membership_smoke_test_payment';
+      const isBegin = name === 'begin_membership_payment' || name === 'begin_membership_smoke_test_payment'
+        || name === 'begin_membership_smoke_test_upgrade_payment';
       if (isBegin) {
         lastReservedOrder = reservedOrders?.[reservedOrderIndex++] ?? reservedOrder;
         return { data: lastReservedOrder, error: dbError };
@@ -72,7 +73,12 @@ async function payments({ user = { id: userId }, order = { razorpay_order_id: 'o
       return { data: { status: name === 'cancel_membership_payment' ? 'cancelled' : 'paid' }, error: dbError };
     }, from: (table) => {
       if (table === 'membership_plans') {
-        const chain = { select: () => chain, eq: (key, value) => { calls.push(['planFilter', key, value]); return chain; }, maybeSingle: async () => ({ data: selectedPlan, error: planError }) };
+        let planId;
+        const chain = { select: () => chain, eq: (key, value) => { calls.push(['planFilter', key, value]); if (key === 'id') planId = value; return chain; }, maybeSingle: async () => ({ data: memberRecord && planId === memberRecord.plan_id ? currentPlan : selectedPlan, error: planError }) };
+        return chain;
+      }
+      if (table === 'members') {
+        const chain = { select: () => chain, eq: (key, value) => { calls.push(['memberFilter', key, value]); return chain; }, maybeSingle: async () => ({ data: memberRecord, error: dbError }) };
         return chain;
       }
       const chain = {
@@ -213,6 +219,78 @@ test('smoke gate blocks other authenticated users and fails closed after expiry'
       await assert.rejects(() => invalid.api.createMembershipCheckout(generalPlanId, 'G-2'), /temporarily unavailable/);
       assert.equal(invalid.calls.some(call => call[0] === 'rpc' || call[0] === 'createOrder'), false);
     });
+  }
+});
+
+test('the separately allowlisted smoke upgrade requests exactly the database-gated ₹2 order', async () => {
+  const order = smokeOrder({ amount: 200, is_smoke_test: false, is_smoke_test_upgrade: true });
+  const fixture = await payments({ reservedOrder: order,
+    selectedPlan: { slug: 'rise-premium', is_active: true, is_purchasable_online: true } });
+  const previous = [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET];
+  process.env.RAZORPAY_KEY_ID = 'synthetic-key'; process.env.RAZORPAY_KEY_SECRET = secret;
+  const env = {
+    ...riseSmokeEnvironment,
+    NUSC_RISE_LIVE_SMOKE_UPGRADE_ENABLED: 'true',
+    NUSC_RISE_LIVE_SMOKE_UPGRADE_USER_ID: userId,
+    NUSC_RISE_LIVE_SMOKE_UPGRADE_EXPIRES_AT: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  };
+  try {
+    await withEnvironment(env, async () => {
+      const checkout = await Reflect.apply(fixture.api.createMembershipCheckout, undefined,
+        [premiumPlanId, null, { amount: 1 }]);
+      assert.equal(checkout.amount, 200);
+      assert.deepEqual(fixture.calls.find(call => call[0] === 'rpc'), [
+        'rpc', 'begin_membership_smoke_test_upgrade_payment', { p_user_id: userId, p_plan_id: premiumPlanId },
+      ]);
+      assert.equal(fixture.calls.find(call => call[0] === 'createOrder')[1].amount, 200);
+      assert.equal(JSON.stringify(fixture.calls.find(call => call[0] === 'rpc')).includes('amount'), false);
+    });
+  } finally {
+    if (previous[0] === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = previous[0];
+    if (previous[1] === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = previous[1];
+  }
+});
+
+test('smoke upgrade gate rejects invalid expiry before creating an order', async () => {
+  const fixture = await payments({ selectedPlan: { slug: 'rise-premium', is_active: true, is_purchasable_online: true } });
+  await withEnvironment({
+    NUSC_RISE_LIVE_SMOKE_TEST_ENABLED: 'false',
+    NUSC_RISE_LIVE_SMOKE_UPGRADE_ENABLED: 'true',
+    NUSC_RISE_LIVE_SMOKE_UPGRADE_USER_ID: userId,
+    NUSC_RISE_LIVE_SMOKE_UPGRADE_EXPIRES_AT: '2000-01-01T00:00:00Z',
+  }, async () => {
+    await assert.rejects(() => fixture.api.createMembershipCheckout(premiumPlanId), /smoke upgrade checkout is unavailable/i);
+    assert.equal(fixture.calls.some(call => call[0] === 'rpc' || call[0] === 'createOrder'), false);
+  });
+});
+
+test('an active General member can start the database-priced Premium upgrade and reserves ticket replacement', async () => {
+  const order = smokeOrder({
+    amount: 908600, is_smoke_test: false, newly_created: true,
+    upgrade_from_plan_id: generalPlanId, upgrade_credit_source_order_id: 'general-paid-order',
+    upgrade_credit_amount: 389400,
+  });
+  const fixture = await payments({
+    reservedOrder: order,
+    selectedPlan: { slug: 'rise-premium', is_active: true, is_purchasable_online: true },
+    memberRecord: { plan_id: generalPlanId, status: 'active', end_date: new Date(Date.now() + 86400000).toISOString() },
+    currentPlan: { slug: 'rise-general' },
+  });
+  const previous = [process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET];
+  process.env.RAZORPAY_KEY_ID = 'synthetic-key'; process.env.RAZORPAY_KEY_SECRET = secret;
+  try {
+    await withEnvironment({ NUSC_RISE_LIVE_SMOKE_TEST_ENABLED: 'false', NUSC_RISE_LIVE_SMOKE_UPGRADE_ENABLED: 'false' }, async () => {
+      const checkout = await fixture.api.createMembershipCheckout(premiumPlanId);
+      assert.equal(checkout.amount, 908600);
+      assert.deepEqual(fixture.calls.find(call => call[0] === 'rpc'), [
+        'rpc', 'begin_membership_payment', { p_user_id: userId, p_plan_id: premiumPlanId },
+      ]);
+      assert.equal(fixture.calls.find(call => call[0] === 'createOrder')[1].amount, 908600);
+      assert.ok(fixture.calls.some(call => call[0] === 'reserveAhibiPassForOrder' && call[1] === order.id));
+    });
+  } finally {
+    if (previous[0] === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = previous[0];
+    if (previous[1] === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = previous[1];
   }
 });
 

@@ -7,7 +7,7 @@ export interface AhibiSeasonPassReservation {
   reservationId: string;
   partnerOrderId: string;
   passId: AhibiSeasonPassId;
-  status: 'held' | 'issuing' | 'issued' | 'released' | 'expired';
+  status: 'held' | 'issuing' | 'issued' | 'replaced' | 'released' | 'expired';
   expiresAt: string;
   zone: AhibiSeasonPassZone | null;
 }
@@ -112,7 +112,7 @@ function parseReservation(value: unknown): AhibiSeasonPassReservation {
   const id = requiredString(row.reservationId, 100);
   const status = row.status;
   if (!/^nsp_[a-f0-9]{40}$/.test(id)
-      || !['held', 'issuing', 'issued', 'released', 'expired'].includes(String(status))) {
+      || !['held', 'issuing', 'issued', 'replaced', 'released', 'expired'].includes(String(status))) {
     throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
   }
   const expiresAt = requiredString(row.expiresAt, 80);
@@ -158,11 +158,13 @@ function parseTicket(value: unknown): AhibiSeasonPassTicket {
   };
 }
 
-function parseTickets(value: unknown): AhibiSeasonPassTicket[] {
-  if (!Array.isArray(value) || value.length !== 10) throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
+function parseTickets(value: unknown, options: { partial?: boolean } = {}): AhibiSeasonPassTicket[] {
+  if (!Array.isArray(value) || (options.partial ? value.length < 1 || value.length > 10 : value.length !== 10)) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
+  }
   const tickets = value.map(parseTicket);
-  if (new Set(tickets.map(ticket => ticket.eventId)).size !== 10
-      || new Set(tickets.map(ticket => ticket.ticketId)).size !== 10) {
+  if (new Set(tickets.map(ticket => ticket.eventId)).size !== tickets.length
+      || new Set(tickets.map(ticket => ticket.ticketId)).size !== tickets.length) {
     throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
   }
   return tickets;
@@ -272,6 +274,43 @@ export async function confirmAhibiSeasonPass(
   return { reservationId, partnerOrderId, paymentId, status: 'issued', tickets };
 }
 
+export async function replaceAhibiGeneralPass(input: {
+  premiumReservationId: string;
+  oldReservationId: string;
+  paymentId: string;
+  partnerOrderId: string;
+  expectedEventIds: string[];
+}): Promise<AhibiSeasonPassTicket[]> {
+  if (!/^nsp_[a-f0-9]{40}$/.test(input.premiumReservationId)
+      || !/^nsp_[a-f0-9]{40}$/.test(input.oldReservationId)
+      || input.premiumReservationId === input.oldReservationId
+      || !/^pay_[A-Za-z0-9]+$/.test(input.paymentId)
+      || !/^nusc-order-[a-f0-9-]{36}$/i.test(input.partnerOrderId)
+      || input.expectedEventIds.length !== 10 || new Set(input.expectedEventIds).size !== 10) {
+    throw new AhibiSeasonPassError(400, 'AHIBI_REQUEST_INVALID');
+  }
+
+  const path = `/api/nusc-partner/v1/reservations/${input.premiumReservationId}/replace-general`;
+  const payload = await request('POST', path, {
+    oldReservationId: input.oldReservationId,
+    paymentId: input.paymentId,
+  });
+  const tickets = parseTickets(payload.tickets, { partial: true });
+  const replacementSummary = object(payload.replacement);
+  const retainedUsedTicketCount = payload.retainedUsedTicketCount ?? replacementSummary.retainedUsedTicketCount;
+  if (!Number.isInteger(retainedUsedTicketCount) || Number(retainedUsedTicketCount) < 0
+      || Number(retainedUsedTicketCount) + tickets.length !== 10) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
+  }
+  const expectedEvents = new Set(input.expectedEventIds);
+  if (tickets.some(ticket => ticket.status !== 'confirmed' || ticket.ticketType !== 'Premium Pass'
+      || ticket.zone !== null || !expectedEvents.has(ticket.eventId)
+      || !ticket.ticketAccessPath.startsWith(`/api/nusc-partner/v1/reservations/${input.premiumReservationId}/tickets/`))) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
+  }
+  return tickets;
+}
+
 export async function getAhibiSeasonPassStatus(
   reservationId: string,
   expected: { partnerOrderId: string; passId: AhibiSeasonPassId; zone: AhibiSeasonPassZone | null },
@@ -281,8 +320,28 @@ export async function getAhibiSeasonPassStatus(
   const reservation = parseReservation(payload.reservation);
   validateReservationSelection(reservation, expected);
   if (reservation.reservationId !== reservationId) throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
-  const tickets = payload.tickets === undefined ? [] : parseTickets(payload.tickets);
-  if (reservation.status === 'issued' && tickets.length !== 10) throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
+  const replacement = object(payload.replacement);
+  const isReplacement = Object.keys(replacement).length > 0;
+  if ((isReplacement && expected.passId !== 'premium-season')
+      || (reservation.status === 'replaced' && expected.passId !== 'general-season')) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
+  }
+  let tickets: AhibiSeasonPassTicket[] = [];
+  if (reservation.status === 'replaced') {
+    if (!Array.isArray(payload.tickets) || payload.tickets.length !== 0) {
+      throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
+    }
+  } else if (payload.tickets !== undefined) {
+    tickets = parseTickets(payload.tickets, { partial: isReplacement });
+  }
+  if (reservation.status === 'issued' && (tickets.length === 0 || (!isReplacement && tickets.length !== 10))) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
+  }
+  if (isReplacement && (!Number.isInteger(replacement.retainedUsedTicketCount)
+      || Number(replacement.retainedUsedTicketCount) < 0 || Number(replacement.retainedUsedTicketCount) > 10
+      || Number(replacement.retainedUsedTicketCount) + tickets.length !== 10)) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_INVALID');
+  }
   if (tickets.length && tickets.some(ticket => ticket.ticketType !== (expected.passId === 'general-season' ? 'General Pass' : 'Premium Pass')
       || ticket.zone !== expected.zone)) throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
   return { reservation, tickets };

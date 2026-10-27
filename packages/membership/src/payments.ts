@@ -13,7 +13,11 @@ export function assertMembershipCheckoutEnabled() {
 const RISE_SMOKE_GATE_ENABLED = 'NUSC_RISE_LIVE_SMOKE_TEST_ENABLED';
 const RISE_SMOKE_TESTER_ID = 'NUSC_RISE_LIVE_SMOKE_TEST_USER_ID';
 const RISE_SMOKE_EXPIRES_AT = 'NUSC_RISE_LIVE_SMOKE_TEST_EXPIRES_AT';
+const RISE_SMOKE_UPGRADE_ENABLED = 'NUSC_RISE_LIVE_SMOKE_UPGRADE_ENABLED';
+const RISE_SMOKE_UPGRADE_USER_ID = 'NUSC_RISE_LIVE_SMOKE_UPGRADE_USER_ID';
+const RISE_SMOKE_UPGRADE_EXPIRES_AT = 'NUSC_RISE_LIVE_SMOKE_UPGRADE_EXPIRES_AT';
 const RISE_SMOKE_GATE_CLOSED = 'Rise tier checkout is temporarily unavailable.';
+const RISE_SMOKE_UPGRADE_CLOSED = 'Rise smoke upgrade checkout is unavailable.';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const MAX_SMOKE_TEST_WINDOW_MS = 48 * 60 * 60 * 1000;
@@ -37,6 +41,24 @@ function isRiseLiveSmokeTester(userId: string): boolean {
     throw new Error(RISE_SMOKE_GATE_CLOSED);
   }
   return true;
+}
+
+function isRiseLiveSmokeUpgradeTester(userId: string): boolean {
+  const enabled = process.env[RISE_SMOKE_UPGRADE_ENABLED];
+  if (enabled === undefined || enabled === 'false') return false;
+  if (enabled !== 'true') throw new Error(RISE_SMOKE_UPGRADE_CLOSED);
+
+  const testerId = process.env[RISE_SMOKE_UPGRADE_USER_ID];
+  const expiresAt = process.env[RISE_SMOKE_UPGRADE_EXPIRES_AT];
+  if (!testerId || !UUID_PATTERN.test(testerId) || !expiresAt || !UTC_TIMESTAMP_PATTERN.test(expiresAt)) {
+    throw new Error(RISE_SMOKE_UPGRADE_CLOSED);
+  }
+  const expiry = Date.parse(expiresAt);
+  const now = Date.now();
+  if (!Number.isFinite(expiry) || expiry <= now || expiry - now > MAX_SMOKE_TEST_WINDOW_MS) {
+    throw new Error(RISE_SMOKE_UPGRADE_CLOSED);
+  }
+  return UUID_PATTERN.test(userId) && userId.toLowerCase() === testerId.toLowerCase();
 }
 
 export function paymentGateway() {
@@ -88,19 +110,30 @@ export async function createMembershipCheckout(planId: string | null = null, zon
     }
   }
   const isSmokeTest = passId !== null && isRiseLiveSmokeTester(user.id);
+  const isSmokeTestUpgrade = passId === 'premium-season' && isRiseLiveSmokeUpgradeTester(user.id);
   const { keyId, client } = paymentGateway();
   const { data: order, error } = await db.rpc(
-    isSmokeTest ? 'begin_membership_smoke_test_payment' : 'begin_membership_payment',
+    isSmokeTestUpgrade ? 'begin_membership_smoke_test_upgrade_payment'
+      : isSmokeTest ? 'begin_membership_smoke_test_payment' : 'begin_membership_payment',
     { p_user_id: user.id, p_plan_id: planId },
   );
   if (error) {
+    if (isSmokeTestUpgrade) {
+      if (error.message.includes('already been used')) throw new Error('Rise smoke upgrade has already been used.');
+      if (error.message.includes('existing pending payment')) throw new Error('Complete the existing pending payment first');
+      throw new Error(RISE_SMOKE_UPGRADE_CLOSED);
+    }
     if (!isSmokeTest) throw new Error(error.message);
     if (error.message.includes('already been used')) throw new Error('Rise live smoke test has already been used.');
     if (error.message.includes('existing pending payment')) throw new Error('Complete the existing pending payment first');
     throw new Error('Rise live smoke test is unavailable.');
   }
   if (!order) throw new Error('Unable to prepare payment.');
-  if (isSmokeTest && (order.is_smoke_test !== true || order.purpose !== 'tier' || Number(order.amount) !== 100)) {
+  if (isSmokeTestUpgrade && (order.is_smoke_test_upgrade !== true || order.purpose !== 'tier' || Number(order.amount) !== 200)) {
+    throw new Error(RISE_SMOKE_UPGRADE_CLOSED);
+  }
+  if (isSmokeTest && !isSmokeTestUpgrade
+      && (order.is_smoke_test !== true || order.purpose !== 'tier' || Number(order.amount) !== 100)) {
     throw new Error('Rise live smoke test is unavailable.');
   }
   if (!order.razorpay_order_id && !order.newly_created) {
@@ -130,7 +163,9 @@ export async function createMembershipCheckout(planId: string | null = null, zon
     }
   }
   return { orderId, keyId, amount: Number(order.amount), currency: order.currency,
-    description: isSmokeTest ? 'NUSC Rise live smoke test' : order.purpose === 'registration' ? '₹10 membership registration fee' : 'Annual membership · one year from activation' };
+    description: isSmokeTestUpgrade ? 'NUSC Rise Premium upgrade smoke test'
+      : isSmokeTest ? 'NUSC Rise live smoke test'
+        : order.purpose === 'registration' ? '₹10 membership registration fee' : 'Annual membership · one year from activation' };
 }
 
 export interface PaymentCallback {
