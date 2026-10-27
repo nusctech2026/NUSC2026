@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
@@ -15,6 +15,12 @@ const paymentId = 'pay_smokeupgrade';
 const oldPartnerOrderId = `nusc-order-${oldOrderId}`;
 const newPartnerOrderId = `nusc-order-${newOrderId}`;
 const eventIds = Array.from({ length: 10 }, (_, i) => `event-${i + 1}`);
+const fixtures = [
+  ['2026-11-14', 'Gokulam Kerala FC'], ['2026-11-30', 'Dempo SC'], ['2026-12-15', 'Sreenidi Deccan FC'],
+  ['2026-12-19', 'Mohammedan SC'], ['2027-01-04', 'Rajasthan United FC'], ['2027-01-09', 'FC Bengaluru United'],
+  ['2027-01-16', 'Shillong Lajong FC'], ['2027-02-06', 'Chanmari FC'], ['2027-03-13', 'Samaleswari SC'],
+  ['2027-03-20', 'Real Kashmir FC'],
+];
 const secret = 'test-partner-secret-with-at-least-thirty-two-bytes';
 const oldOrder = {
   id: oldOrderId, member_id: memberId, user_id: userId, plan_id: 'general-plan', purpose: 'tier', status: 'paid',
@@ -31,7 +37,7 @@ const newOrder = {
 const oldTickets = eventIds.map((eventId, i) => ({
   payment_order_id: oldOrderId, member_id: memberId, user_id: userId,
   ahibi_booking_id: `old-booking-${i + 1}`, ahibi_event_id: eventId,
-  match_date: `2027-01-${String(i + 1).padStart(2, '0')}`, opponent: `Opponent ${i + 1}`,
+  match_date: fixtures[i][0], opponent: fixtures[i][1],
   ticket_type: 'General Pass', zone: 'G-1', status: i === 0 ? 'confirmed' : 'confirmed',
   ticket_access_path: `/api/nusc-partner/v1/reservations/${oldReservationId}/tickets/old-booking-${i + 1}`,
 }));
@@ -46,12 +52,12 @@ const premiumTickets = eventIds.slice(1).map((eventId, i) => ({
   ticketAccessPath: `/api/nusc-partner/v1/reservations/${premiumReservationId}/tickets/premium-booking-${i + 1}`,
 }));
 
-function makeDatabase() {
+function makeDatabase({ initialOldPassStatus = 'issued', initialPremiumTickets = [] } = {}) {
   const calls = [];
-  const tickets = [...oldTickets];
+  const tickets = [...oldTickets, ...initialPremiumTickets];
   let oldReplacedBy = null;
-  let newPassStatus = 'held';
-  let oldPassStatus = 'issued';
+  let newPassStatus = initialPremiumTickets.length ? 'issued' : 'held';
+  let oldPassStatus = initialOldPassStatus;
   function from(table) {
     const q = { table, action: 'select', filters: {}, values: null, columns: '*' };
     const chain = {
@@ -75,9 +81,12 @@ function makeDatabase() {
       if (first('id') === oldOrderId || first('upgrade_credit_source_order_id') === oldOrderId) {
         return { data: { ...oldOrder, ahibi_pass_status: oldPassStatus }, error: null };
       }
+      if (first('id') === newOrderId) return { data: { ...newOrder, ahibi_pass_status: newPassStatus }, error: null };
       return { data: newOrder, error: null };
     }
-    if (q.action === 'select' && q.table === 'membership_plans') return { data: { slug: 'rise-premium' }, error: null };
+    if (q.action === 'select' && q.table === 'membership_plans') {
+      return { data: { slug: first('id') === oldOrder.plan_id ? 'rise-general' : 'rise-premium' }, error: null };
+    }
     if (q.action === 'select' && q.table === 'membership_season_pass_tickets') {
       const order = first('payment_order_id');
       const found = tickets.filter(ticket => ticket.payment_order_id === order).map(ticket => {
@@ -175,6 +184,67 @@ test('paid General-to-Premium fulfillment uses replace-general, stores nine Prem
     assert.equal(database.tickets.find(ticket => ticket.payment_order_id === oldOrderId && ticket.ahibi_event_id === eventIds[0]).status, 'used');
     assert.equal(database.tickets.filter(ticket => ticket.payment_order_id === oldOrderId && ticket.status === 'cancelled').length, 9);
     assert.deepEqual(database.state(), { oldPassStatus: 'replaced', oldReplacedBy: newOrderId, newPassStatus: 'issued' });
+  } finally {
+    restoreFetch();
+    for (const key of keys) before[key] === undefined ? delete process.env[key] : process.env[key] = before[key];
+  }
+});
+
+test('admin recovery call stores the two missing Premium tickets and preserves the existing eight IDs', async () => {
+  const initialPremiumTickets = oldTickets.slice(2).map((ticket, i) => ({
+    ...ticket,
+    payment_order_id: newOrderId,
+    ahibi_booking_id: `existing-premium-${i + 1}`,
+    ticket_type: 'Premium Pass',
+    zone: null,
+    status: 'confirmed',
+    ticket_access_path: `/api/nusc-partner/v1/reservations/${premiumReservationId}/tickets/existing-premium-${i + 1}`,
+  }));
+  const database = makeDatabase({ initialOldPassStatus: 'replaced', initialPremiumTickets });
+  let partnerCalls = 0;
+  const recoveryTickets = oldTickets.map((ticket, i) => {
+    const existing = initialPremiumTickets.find(row => row.ahibi_event_id === ticket.ahibi_event_id);
+    const ticketId = existing?.ahibi_booking_id ?? `recovered-premium-${i + 1}`;
+    return {
+      match: { matchIndex: i + 1, eventId: ticket.ahibi_event_id, matchDate: ticket.match_date, opponent: ticket.opponent },
+      ticketId,
+      status: 'confirmed',
+      ticketType: 'Premium Pass',
+      zone: null,
+      ticketAccessPath: `/api/nusc-partner/v1/reservations/${premiumReservationId}/tickets/${ticketId}`,
+    };
+  });
+  const { flow, restoreFetch } = await loadModules(async (url, init) => {
+    assert.equal(new URL(url).pathname, `/api/nusc-partner/v1/reservations/${premiumReservationId}/recover-missing-general-tickets`);
+    partnerCalls += 1;
+    assert.deepEqual(JSON.parse(init.body), { oldReservationId, paymentId });
+    return Response.json({ success: true, recovery: {
+      oldReservationId, premiumReservationId, status: 'issued', issuedTicketCount: 10,
+      recoveredTicketCount: 2, recoveredMatchIndices: [1, 2], retainedUsedTicketCount: 0,
+    }, tickets: recoveryTickets }, { status: 201 });
+  }, database);
+  const keys = ['NUSC_AHIBI_SEASON_PASS_ENABLED', 'NUSC_AHIBI_PARTNER_MODE', 'AHIBI_PARTNER_TEST_BASE_URL',
+    'NUSC_PARTNER_TEST_KEY_ID', 'NUSC_PARTNER_TEST_SECRET', 'NODE_ENV', 'VERCEL_ENV'];
+  const before = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  Object.assign(process.env, {
+    NUSC_AHIBI_SEASON_PASS_ENABLED: 'true', NUSC_AHIBI_PARTNER_MODE: 'test',
+    AHIBI_PARTNER_TEST_BASE_URL: 'http://localhost:5001', NUSC_PARTNER_TEST_KEY_ID: 'nusc-test',
+    NUSC_PARTNER_TEST_SECRET: secret, NODE_ENV: 'development',
+  });
+  delete process.env.VERCEL_ENV;
+  try {
+    assert.equal(await flow.recoverMissingAhibiPremiumTickets(newOrderId), 'recovered');
+    const savedPremium = database.tickets.filter(ticket => ticket.payment_order_id === newOrderId);
+    assert.equal(savedPremium.length, 10);
+    for (const existing of initialPremiumTickets) {
+      assert.equal(savedPremium.find(ticket => ticket.ahibi_event_id === existing.ahibi_event_id)?.ahibi_booking_id, existing.ahibi_booking_id);
+    }
+    assert.equal(savedPremium.filter(ticket => ticket.match_date === '2026-11-14' || ticket.match_date === '2026-11-30').length, 2);
+    assert.equal(database.tickets.filter(ticket => ticket.payment_order_id === oldOrderId && ticket.status === 'confirmed').length, 0);
+    assert.deepEqual(database.state(), { oldPassStatus: 'replaced', oldReplacedBy: newOrderId, newPassStatus: 'issued' });
+    assert.equal(await flow.recoverMissingAhibiPremiumTickets(newOrderId), 'recovered');
+    assert.equal(partnerCalls, 2);
+    assert.equal(database.tickets.filter(ticket => ticket.payment_order_id === newOrderId).length, 10);
   } finally {
     restoreFetch();
     for (const key of keys) before[key] === undefined ? delete process.env[key] : process.env[key] = before[key];

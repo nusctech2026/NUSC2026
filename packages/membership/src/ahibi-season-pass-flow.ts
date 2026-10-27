@@ -3,6 +3,7 @@ import {
   AhibiSeasonPassError,
   confirmAhibiSeasonPass,
   getAhibiSeasonPassStatus,
+  recoverMissingAhibiGeneralTickets,
   replaceAhibiGeneralPass,
   releaseAhibiSeasonPass,
   reserveAhibiSeasonPass,
@@ -416,4 +417,97 @@ export async function ensureAhibiPassIssued(
     console.error('Ahibi season pass confirmation is pending:', confirmError instanceof AhibiSeasonPassError ? confirmError.code : 'partner_error');
     return 'pending';
   }
+}
+
+export async function recoverMissingAhibiPremiumTickets(orderId: string): Promise<'recovered'> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId)) {
+    throw new AhibiSeasonPassError(400, 'AHIBI_REQUEST_INVALID');
+  }
+
+  const db = createAdminClient();
+  const { data, error } = await db.from('membership_payment_orders')
+    .select('id,member_id,user_id,plan_id,purpose,status,razorpay_order_id,payment_id,upgrade_from_plan_id,upgrade_credit_source_order_id,ahibi_replaces_order_id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status,ahibi_reservation_expires_at')
+    .eq('id', orderId).maybeSingle();
+  if (error || !data) throw new AhibiSeasonPassError(404, 'MEMBERSHIP_ORDER_NOT_FOUND');
+  const order = data as PassOrder;
+  if (order.purpose !== 'tier' || order.status !== 'paid' || order.ahibi_pass_status !== 'issued'
+      || !order.payment_id || !order.razorpay_order_id || !order.ahibi_reservation_id
+      || order.ahibi_pass_id !== 'premium-season' || order.ahibi_zone !== null
+      || !order.upgrade_from_plan_id || !order.ahibi_replaces_order_id) {
+    throw new AhibiSeasonPassError(409, 'AHIBI_RECOVERY_NOT_APPLICABLE');
+  }
+
+  const { data: premiumPlan, error: premiumPlanError } = await db.from('membership_plans')
+    .select('slug').eq('id', order.plan_id).maybeSingle();
+  if (premiumPlanError || premiumPlan?.slug !== 'rise-premium') {
+    throw new AhibiSeasonPassError(409, 'AHIBI_RECOVERY_NOT_APPLICABLE');
+  }
+
+  const oldOrder = await getGeneralPassOrderForUpgrade(db, order);
+  if (oldOrder.id !== order.ahibi_replaces_order_id || oldOrder.plan_id !== order.upgrade_from_plan_id
+      || oldOrder.member_id !== order.member_id || oldOrder.user_id !== order.user_id
+      || oldOrder.purpose !== 'tier' || oldOrder.status !== 'paid'
+      || oldOrder.ahibi_pass_id !== 'general-season' || !oldOrder.ahibi_reservation_id
+      || !isZone(oldOrder.ahibi_zone) || oldOrder.ahibi_pass_status !== 'replaced') {
+    throw new AhibiSeasonPassError(409, 'AHIBI_RECOVERY_NOT_APPLICABLE');
+  }
+  const { data: generalPlan, error: generalPlanError } = await db.from('membership_plans')
+    .select('slug').eq('id', oldOrder.plan_id).maybeSingle();
+  if (generalPlanError || generalPlan?.slug !== 'rise-general') {
+    throw new AhibiSeasonPassError(409, 'AHIBI_RECOVERY_NOT_APPLICABLE');
+  }
+
+  const columns = 'ahibi_booking_id,ahibi_event_id,match_date,opponent,ticket_type,zone,status,ticket_access_path';
+  const [generalResult, premiumResult] = await Promise.all([
+    db.from('membership_season_pass_tickets').select(columns).eq('payment_order_id', oldOrder.id),
+    db.from('membership_season_pass_tickets').select(columns).eq('payment_order_id', order.id),
+  ]);
+  const generalTickets = generalResult.data ?? [];
+  const premiumTickets = premiumResult.data ?? [];
+  if (generalResult.error || premiumResult.error || generalTickets.length !== 10
+      || ![8, 10].includes(premiumTickets.length)
+      || new Set(generalTickets.map(ticket => ticket.ahibi_event_id)).size !== 10
+      || new Set(premiumTickets.map(ticket => ticket.ahibi_event_id)).size !== premiumTickets.length
+      || generalTickets.some(ticket => ticket.ticket_type !== 'General Pass')
+      || premiumTickets.some(ticket => ticket.ticket_type !== 'Premium Pass' || ticket.status !== 'confirmed' || ticket.zone !== null)) {
+    throw new AhibiSeasonPassError(409, 'AHIBI_RECOVERY_TICKET_SET_INVALID');
+  }
+
+  const generalByEvent = new Map(generalTickets.map(ticket => [ticket.ahibi_event_id, ticket]));
+  if (premiumTickets.some(ticket => {
+    const original = generalByEvent.get(ticket.ahibi_event_id);
+    return !original || original.match_date !== ticket.match_date || original.opponent !== ticket.opponent;
+  })) throw new AhibiSeasonPassError(409, 'AHIBI_RECOVERY_TICKET_SET_INVALID');
+
+  const missing = generalTickets.filter(ticket => !premiumTickets.some(premium => premium.ahibi_event_id === ticket.ahibi_event_id));
+  const targets = [
+    { matchDate: '2026-11-14', opponent: 'Gokulam Kerala FC' },
+    { matchDate: '2026-11-30', opponent: 'Dempo SC' },
+  ];
+  const missingSorted = [...missing].sort((a, b) => a.match_date.localeCompare(b.match_date));
+  if ((premiumTickets.length === 8 && missingSorted.length !== 2)
+      || (premiumTickets.length === 10 && missingSorted.length !== 0)
+      || (premiumTickets.length === 8 && missingSorted.some((ticket, index) =>
+        ticket.match_date !== targets[index].matchDate || ticket.opponent !== targets[index].opponent))) {
+    throw new AhibiSeasonPassError(409, 'AHIBI_RECOVERY_TARGET_SET_INVALID');
+  }
+
+  const issuedTickets = await recoverMissingAhibiGeneralTickets({
+    premiumReservationId: order.ahibi_reservation_id,
+    oldReservationId: oldOrder.ahibi_reservation_id,
+    paymentId: order.payment_id,
+    expectedMatches: generalTickets.map(ticket => ({
+      eventId: ticket.ahibi_event_id,
+      matchDate: ticket.match_date,
+      opponent: ticket.opponent,
+    })),
+  });
+  const issuedByEvent = new Map(issuedTickets.map(ticket => [ticket.eventId, ticket]));
+  if (premiumTickets.some(ticket => issuedByEvent.get(ticket.ahibi_event_id)?.ticketId !== ticket.ahibi_booking_id)
+      || missingSorted.some(ticket => issuedByEvent.get(ticket.ahibi_event_id)?.ticketType !== 'Premium Pass')) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RECOVERY_RESPONSE_MISMATCH');
+  }
+
+  await persistIssuedTickets(order, issuedTickets, oldOrder);
+  return 'recovered';
 }

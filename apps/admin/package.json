@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@nusc/db": "*",
+    "@nusc/membership": "*",
     "@payloadcms/db-postgres": "3.90.1",
     "@payloadcms/next": "3.90.1",
     "@payloadcms/richtext-lexical": "3.90.1",
