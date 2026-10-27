@@ -311,6 +311,53 @@ export async function replaceAhibiGeneralPass(input: {
   return tickets;
 }
 
+export async function recoverMissingAhibiGeneralTickets(input: {
+  premiumReservationId: string;
+  oldReservationId: string;
+  paymentId: string;
+  expectedMatches: Array<{ eventId: string; matchDate: string; opponent: string }>;
+}): Promise<AhibiSeasonPassTicket[]> {
+  if (!/^nsp_[a-f0-9]{40}$/.test(input.premiumReservationId)
+      || !/^nsp_[a-f0-9]{40}$/.test(input.oldReservationId)
+      || input.premiumReservationId === input.oldReservationId
+      || !/^pay_[A-Za-z0-9]+$/.test(input.paymentId)
+      || input.expectedMatches.length !== 10
+      || new Set(input.expectedMatches.map(match => match.eventId)).size !== 10) {
+    throw new AhibiSeasonPassError(400, 'AHIBI_REQUEST_INVALID');
+  }
+
+  const path = `/api/nusc-partner/v1/reservations/${input.premiumReservationId}/recover-missing-general-tickets`;
+  const payload = await request('POST', path, {
+    oldReservationId: input.oldReservationId,
+    paymentId: input.paymentId,
+  });
+  const recovery = object(payload.recovery);
+  const tickets = parseTickets(payload.tickets);
+  const recoveredMatchIndices = recovery.recoveredMatchIndices;
+  if (recovery.oldReservationId !== input.oldReservationId
+      || recovery.premiumReservationId !== input.premiumReservationId
+      || recovery.status !== 'issued'
+      || recovery.issuedTicketCount !== 10
+      || recovery.recoveredTicketCount !== 2
+      || recovery.retainedUsedTicketCount !== 0
+      || !Array.isArray(recoveredMatchIndices)
+      || recoveredMatchIndices.length !== 2
+      || recoveredMatchIndices[0] !== 1 || recoveredMatchIndices[1] !== 2) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
+  }
+
+  const expectedByEvent = new Map(input.expectedMatches.map(match => [match.eventId, match]));
+  if (tickets.some(ticket => {
+    const expected = expectedByEvent.get(ticket.eventId);
+    return !expected || ticket.matchDate !== expected.matchDate || ticket.opponent !== expected.opponent
+      || ticket.status !== 'confirmed' || ticket.ticketType !== 'Premium Pass' || ticket.zone !== null
+      || !ticket.ticketAccessPath.startsWith(`/api/nusc-partner/v1/reservations/${input.premiumReservationId}/tickets/`);
+  }) || new Set(tickets.map(ticket => ticket.eventId)).size !== 10) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
+  }
+  return tickets;
+}
+
 export async function getAhibiSeasonPassStatus(
   reservationId: string,
   expected: { partnerOrderId: string; passId: AhibiSeasonPassId; zone: AhibiSeasonPassZone | null },

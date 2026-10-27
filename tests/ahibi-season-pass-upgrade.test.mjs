@@ -70,6 +70,84 @@ test('upgrade replacement signs the exact path and body and accepts the returned
   }); } finally { module.restoreFetch(); }
 });
 
+test('missing Premium recovery signs its request and accepts only the complete ten-ticket response', async () => {
+  let request;
+  const partnerApi = await loadWithFetch(async (url, init) => {
+    request = { url: String(url), init };
+    return jsonResponse(201, {
+      success: true,
+      recovery: {
+        oldReservationId, premiumReservationId: reservationId, status: 'issued', issuedTicketCount: 10,
+        recoveredTicketCount: 2, recoveredMatchIndices: [1, 2], retainedUsedTicketCount: 0,
+      },
+      tickets: tickets(10),
+    });
+  });
+  try { await withPartnerEnv(async () => {
+    const recovered = await partnerApi.recoverMissingAhibiGeneralTickets({
+      premiumReservationId: reservationId,
+      oldReservationId,
+      paymentId,
+      expectedMatches: tickets(10).map(ticket => ticket.match),
+    });
+    assert.equal(recovered.length, 10);
+    assert.equal(request.url, `http://localhost:5001/api/nusc-partner/v1/reservations/${reservationId}/recover-missing-general-tickets`);
+    assert.equal(request.init.method, 'POST');
+    assert.deepEqual(JSON.parse(request.init.body), { oldReservationId, paymentId });
+    const timestamp = request.init.headers['x-ahibi-timestamp'];
+    const requestId = request.init.headers['x-ahibi-request-id'];
+    const bodyHash = createHash('sha256').update(request.init.body).digest('hex');
+    const path = `/api/nusc-partner/v1/reservations/${reservationId}/recover-missing-general-tickets`;
+    const message = `${timestamp}\n${requestId}\nPOST\n${path}\n${bodyHash}`;
+    assert.equal(request.init.headers['x-ahibi-signature'], createHmac('sha256', secret).update(message).digest('hex'));
+  }); } finally { partnerApi.restoreFetch(); }
+});
+
+test('missing Premium recovery rejects incomplete or inconsistent recovery responses', async () => {
+  const fullTickets = tickets(10);
+  const invalidResponses = [
+    { recovery: { issuedTicketCount: 8, recoveredTicketCount: 2, recoveredMatchIndices: [1, 2], retainedUsedTicketCount: 0 }, tickets: fullTickets },
+    { recovery: { issuedTicketCount: 10, recoveredTicketCount: 2, recoveredMatchIndices: [1, 3], retainedUsedTicketCount: 0 }, tickets: fullTickets },
+    { recovery: { issuedTicketCount: 10, recoveredTicketCount: 2, recoveredMatchIndices: [1, 2], retainedUsedTicketCount: 0 }, tickets: tickets(9) },
+    { recovery: { issuedTicketCount: 10, recoveredTicketCount: 2, recoveredMatchIndices: [1, 2], retainedUsedTicketCount: 0 }, tickets: fullTickets.map((ticket, i) => i === 0 ? { ...ticket, match: { ...ticket.match, opponent: 'Wrong opponent' } } : ticket) },
+  ];
+  for (const invalid of invalidResponses) {
+    const partnerApi = await loadWithFetch(async () => jsonResponse(200, {
+      success: true,
+      recovery: {
+        oldReservationId, premiumReservationId: reservationId, status: 'issued',
+        ...invalid.recovery,
+      },
+      tickets: invalid.tickets,
+    }));
+    try { await withPartnerEnv(async () => assert.rejects(
+      () => partnerApi.recoverMissingAhibiGeneralTickets({
+        premiumReservationId: reservationId,
+        oldReservationId,
+        paymentId,
+        expectedMatches: fullTickets.map(ticket => ticket.match),
+      }),
+      error => error.code === 'AHIBI_RESPONSE_INVALID' || error.code === 'AHIBI_RESPONSE_MISMATCH',
+    )); } finally { partnerApi.restoreFetch(); }
+  }
+});
+
+test('missing Premium recovery preserves AHIBI check-in conflicts for staff review', async () => {
+  const partnerApi = await loadWithFetch(async () => jsonResponse(409, {
+    success: false,
+    code: 'TARGET_MATCH_ALREADY_CHECKED_IN',
+  }));
+  try { await withPartnerEnv(async () => assert.rejects(
+    () => partnerApi.recoverMissingAhibiGeneralTickets({
+      premiumReservationId: reservationId,
+      oldReservationId,
+      paymentId,
+      expectedMatches: tickets(10).map(ticket => ticket.match),
+    }),
+    error => error.status === 409 && error.code === 'TARGET_MATCH_ALREADY_CHECKED_IN',
+  )); } finally { partnerApi.restoreFetch(); }
+});
+
 test('replacement rejects duplicate, unexpected, wrong-type, and cancelled ticket records', async () => {
   for (const malformed of [
     [tickets(1)[0], tickets(1)[0]],

@@ -148,6 +148,7 @@ export default buildConfig({
         },
       },
       afterNavLinks: [
+        './components/nav/MembershipFulfillmentNavLinks#MembershipFulfillmentNavLinks',
         './components/nav/CampaignNavLinks#CampaignNavLinks',
         './components/nav/StoreNavLinks#StoreNavLinks',
         './components/nav/StoreNavLinks#CatalogNavLinks',
