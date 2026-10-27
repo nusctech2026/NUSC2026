@@ -91,7 +91,7 @@ export default function SplitMembershipLayout() {
     if (result.success) {
       setSuccessData({
         first_name: result.member.first_name,
-        membership_number: result.member.member_number || result.member.membership_number,
+        membership_number: result.member.member_number,
         paymentStatus: 'pending'
       });
       if (result.member.paymentOrderId) {

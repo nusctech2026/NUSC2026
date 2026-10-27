@@ -164,6 +164,11 @@ export async function registerMember(data: MembershipFormData) {
     throw new Error('Failed to obtain payment order ID');
   }
 
-  return { ...rpcData, paymentOrderId };
+  const memberResult = rpcData as { first_name?: unknown; member_number?: unknown } | null;
+  if (typeof memberResult?.first_name !== 'string' || typeof memberResult.member_number !== 'string') {
+    await rollbackRegistration(adminSupabase, authData.user.id, 'member profile RPC returned invalid data');
+    throw new Error('Failed to create member record: invalid RPC response');
+  }
+  return { first_name: memberResult.first_name, member_number: memberResult.member_number, paymentOrderId };
 }
 

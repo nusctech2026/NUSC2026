@@ -35,7 +35,7 @@ export default function MembershipForm() {
     setIsSubmitting(false);
 
     if (result.success) {
-      setSuccessData(result.member);
+      setSuccessData({ first_name: result.member.first_name, membership_number: result.member.member_number });
     } else {
       setError(result.error || 'An unexpected error occurred');
     }
