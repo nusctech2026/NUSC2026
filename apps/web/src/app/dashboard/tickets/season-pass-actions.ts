@@ -23,7 +23,9 @@ export async function refreshSeasonPassTickets() {
     .eq('purpose', 'tier').eq('status', 'paid').not('razorpay_order_id', 'is', null)
     .order('paid_at', { ascending: false }).limit(1).maybeSingle();
   if (!orderError && order?.razorpay_order_id && order.payment_id) {
-    try { await ensureAhibiPassIssued(order.razorpay_order_id, order.payment_id); }
+    try {
+      await ensureAhibiPassIssued(order.razorpay_order_id, order.payment_id, { retryRefundRequired: true });
+    }
     catch { /* Keep the status recoverable; the member can retry from the dashboard. */ }
   }
   revalidatePath('/dashboard/tickets');
