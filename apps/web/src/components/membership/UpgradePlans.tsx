@@ -77,6 +77,10 @@ const PREMIUM_FEATURES = [
   { title: 'Partner Offers', desc: 'Enhanced partner offers where available', gold: false },
 ];
 
+function TierArtwork({ tier }: { tier: 'general' | 'premium' | 'vip' }) {
+  return <div className={`membership-plan-card__art membership-plan-card__art--${tier}`} aria-hidden="true" />;
+}
+
 export function TierBenefits({ plans }: { plans: MembershipPlan[] }) {
   const tierFeatures = plans.map(plan => ({
     plan,
@@ -85,7 +89,7 @@ export function TierBenefits({ plans }: { plans: MembershipPlan[] }) {
         : plan.slug === 'rise-general' ? GENERAL_FEATURES : [],
   })).filter(tier => tier.features.length > 0);
   if (!tierFeatures.length) return null;
-  return <details className="membership-benefits" open>
+  return <details className="membership-benefits">
     <summary className="membership-benefits__summary">
       <span className="membership-benefits__heading">
         <span className="membership-benefits__eyebrow">Compare what each tier includes</span>
@@ -136,7 +140,7 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', alignItems: 'stretch' }}>
+      <div className="membership-plan-grid">
         {plans.map(plan => {
           const isVip = plan.slug === 'rise-vip-box';
           const isPremium = plan.slug === 'rise-premium';
@@ -144,6 +148,10 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
           const isCurrentTier = currentPlanSlug === plan.slug;
           const isAvailableUpgrade = availableUpgradeIds.includes(plan.id);
           const totalPayable = plan.price / 100;
+          const basePricePaise = Math.round(plan.price * 1000 / 1298);
+          const sportsFundPaise = Math.round(basePricePaise / 10);
+          const gstPaise = Math.round((basePricePaise + sportsFundPaise) * 18 / 100);
+          const formatRupees = (paise: number) => `\u20B9${Math.round(paise / 100).toLocaleString('en-IN')}`;
           const shortDescription = isVip
             ? 'Private suite access for up to seven guests.'
             : isPremium
@@ -151,21 +159,11 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
               : 'Core supporter access.';
 
           return (
-            <div key={plan.id} style={{
-              background: isVip ? '#0a0a0a' : '#fff',
-              border: isVip ? '2px solid #b45309' : (isPremium ? '2px solid #1d4ed8' : '1px solid #e2e8f0'),
-              outline: isCurrentTier ? '3px solid rgba(37, 99, 235, 0.22)' : undefined,
-              borderRadius: '8px',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: isVip ? '0 10px 15px -3px rgba(180, 83, 9, 0.2)' : (isPremium ? '0 10px 15px -3px rgba(29, 78, 216, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'),
-              overflow: 'hidden',
-              position: 'relative'
-            }}>
+            <div key={plan.id} className={`membership-plan-card membership-plan-card--${isVip ? 'vip' : isPremium ? 'premium' : 'general'}${isCurrentTier ? ' membership-plan-card--current' : ''}`}>
               {/* Header section */}
               {isVip && (
-                <div style={{ background: 'linear-gradient(90deg, #b45309, #d97706)', color: '#fff', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.05em' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div className="membership-plan-card__ribbon membership-plan-card__ribbon--vip">
+                  <div className="membership-plan-card__ribbon-label">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path></svg>
                     ULTIMATE • EXECUTIVE SUITE TIER
                   </div>
@@ -173,8 +171,8 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
                 </div>
               )}
               {isPremium && (
-                <div style={{ background: '#1d4ed8', color: '#fff', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.05em' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div className="membership-plan-card__ribbon membership-plan-card__ribbon--premium">
+                  <div className="membership-plan-card__ribbon-label">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path></svg>
                     MOST VALUED • PRESTIGE GALLERY TIER
                   </div>
@@ -182,68 +180,96 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
                 </div>
               )}
 
-              <div style={{ padding: '14px 16px 0' }}>
-                {isGeneral && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                    <span style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: '100px' }}>CORE SUPPORTER</span>
-                    <span>Pass Tier 2</span>
-                  </div>
-                )}
+              {isGeneral && <div className="membership-plan-card__ribbon membership-plan-card__ribbon--general"><span>CORE SUPPORTER</span><span>PASS TIER 2</span></div>}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: isVip ? '#fff' : '#0f172a', textTransform: 'uppercase', margin: 0, lineHeight: 1.05 }}>{plan.name}</h3>
-                  {isCurrentTier && <span style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: 999, padding: '4px 9px', fontSize: '0.65rem', fontWeight: 800, whiteSpace: 'nowrap' }}>CURRENT TIER</span>}
+              <div className="membership-plan-card__body">
+                <div className={`membership-plan-card__hero membership-plan-card__hero--${isVip ? 'vip' : isPremium ? 'premium' : 'general'}`}>
+                  <TierArtwork tier={isVip ? 'vip' : isPremium ? 'premium' : 'general'} />
+                  <div className="membership-plan-card__hero-content">
+                <div className="membership-plan-card__title-row">
+                  <h3 className="membership-plan-card__title">{plan.name}</h3>
+                  {isCurrentTier && <span className="membership-plan-card__current-badge">Current tier</span>}
                   {isVip && (
-                    <div style={{ background: '#fef3c7', color: '#b45309', padding: '4px 8px', fontSize: '0.65rem', fontWeight: 800, textAlign: 'center', border: '1px solid #b45309', whiteSpace: 'nowrap' }}>
+                    <div className="membership-plan-card__badge membership-plan-card__badge--gold">
                       ALL INCLUSIVE
                     </div>
                   )}
                   {isPremium && (
-                    <div style={{ background: '#fef3c7', color: '#b45309', padding: '4px 8px', fontSize: '0.65rem', fontWeight: 800, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div className="membership-plan-card__badge membership-plan-card__badge--gold">
                       SCARF INCLUDED
                     </div>
                   )}
                 </div>
 
-                <p style={{ color: isVip ? '#a3a3a3' : '#64748b', fontSize: '0.8rem', lineHeight: 1.35, margin: '0 0 10px' }}>{shortDescription}</p>
+                <p className="membership-plan-card__description">{shortDescription}</p>
+                  </div>
+                </div>
 
-                <div style={{ borderTop: isVip ? '1px solid #262626' : '1px solid #e2e8f0', borderBottom: isVip ? '1px solid #262626' : '1px solid #e2e8f0', padding: '10px 0', marginBottom: '10px' }}>
-                  {isVip ? (
-                    <p style={{ color: '#fbbf24', fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>Call to book</p>
-                  ) : (
+                {isVip ? null : (isGeneral || isPremium) ? (
+                  <div className={`membership-price-breakdown${isPremium ? ' membership-price-breakdown--premium' : ''}`}>
+                    <div className="membership-price-breakdown__base">
+                      <span>Base membership price</span>
+                      <strong className="membership-price-breakdown__base-amount">{formatRupees(basePricePaise)}</strong>
+                    </div>
+                    <div className="membership-price-breakdown__fees">
+                      <div className="membership-price-breakdown__fee">
+                        <span className="membership-price-breakdown__fee-label"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3.2c-1.9-2.1-5.5-1.1-5.5 1.7 0 2.4 2.9 4.5 5.5 6.2 2.6-1.7 5.5-3.8 5.5-6.2 0-2.8-3.6-3.8-5.5-1.7Z"/><path d="M3 14.1h3.2l2.1-1.8a2 2 0 0 1 1.3-.5h4.1a1.7 1.7 0 1 1 0 3.4h-3.1m-7.6 4.1h8.1c.8 0 1.5-.2 2.1-.7l6.1-4.8a1.7 1.7 0 0 0-2.1-2.7l-4.7 3.3M3 13.9v5.4" /></svg>Sports Development Fund (10%)</span>
+                        <strong>+ {formatRupees(sportsFundPaise)}</strong>
+                      </div>
+                      <div className="membership-price-breakdown__fee">
+                        <span className="membership-price-breakdown__fee-label"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 12h7m-7 4h7" /></svg>GST (18%)</span>
+                        <strong>+ {formatRupees(gstPaise)}</strong>
+                      </div>
+                    </div>
+                    <div className="membership-price-breakdown__total">
+                      <span><strong>Total payable</strong><small>Per year</small></span>
+                      <strong>{formatRupees(plan.price)}</strong>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', padding: '10px 0', marginBottom: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 7px' }}>
                       <span style={{ fontSize: '1.7rem', fontWeight: 800, color: '#1e3a8a', lineHeight: 1 }}>&#8377;{totalPayable.toLocaleString('en-IN')}</span>
                       <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem' }}>total payable / year</span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                <div style={{ background: isVip ? '#171717' : (isPremium ? '#1d4ed8' : '#f8fafc'), border: isVip ? '1px solid #b45309' : (isPremium ? 'none' : '1px solid #e2e8f0'), color: isVip ? '#fbbf24' : (isPremium ? '#fff' : '#0f172a'), padding: '9px 10px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600, fontSize: '0.75rem', marginBottom: '12px' }}>
+                {!isVip && <div className="membership-plan-card__included">
+                  <p className="membership-plan-card__included-label">What’s included</p>
+                <div className={`membership-plan-card__access${isPremium ? ' membership-plan-card__access--premium' : ''}`}>
                   {isVip ? (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path></svg>
                   ) : (isPremium ? (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
                   ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3.5" y="5" width="17" height="16" rx="2"></rect><path d="M7.5 3v4M16.5 3v4M3.5 10h17M8 14h3m-3 3h6"></path></svg>
                   ))}
-                  {isVip
-                    ? '1 reserved VIP box at each of the 10 home matches'
-                    : `${isPremium ? 'Premium Gallery' : 'General'} entry at all 10 home matches`}
+                  {`${isPremium ? 'Premium Gallery' : 'General'} entry at all 10 home matches`}
                 </div>
+                {isPremium && <div className="membership-plan-card__included-item"><span className="membership-plan-card__check" aria-hidden="true">✓</span><span>Official club scarf included</span></div>}
+                </div>}
+                {isVip && <ul className="membership-plan-card__vip-highlights">
+                  <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2m5-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8-3h6m-3-3v6" /></svg><span>Private suite access for up to seven guests</span></li>
+                  <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12h4" /></svg><span>Premium hospitality experience</span></li>
+                  <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 2 3 7h7l-5.5 4.5 2 7L12 16.5 5.5 20.5l2-7L2 9h7z" /></svg><span>One reserved VIP box at each of the 10 home matches</span></li>
+                  <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7zm-9 5 9 5 9-5m-9 5v10" /></svg><span>Seven digital memberships, scarves and welcome pack</span></li>
+                </ul>}
+
               </div>
 
               {/* Footer action */}
-              <div style={{ padding: '0 16px 14px', marginTop: 'auto' }}>
-                {isCurrentTier ? <button type="button" className="membership-pay-button" disabled aria-label={`${plan.name} is your current tier`}>Current tier</button>
+              <div className="membership-plan-card__footer">
+                {!isVip && isCurrentTier ? <button type="button" className="membership-pay-button" disabled aria-label={`${plan.name} is your current tier`}>Current tier</button>
                   : isVip ? <div>
-                  <a href="tel:+918837402472" className="membership-pay-button" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
-                    Call to book
-                  </a>
-                  <p style={{ color: '#d4d4d8', fontSize: '.78rem', lineHeight: 1.4, margin: '8px 0 0' }}>
-                    <a href="tel:+918837402472" style={{ color: '#fbbf24' }}>Kaki · 8837402472</a>
-                    {' · '}
-                    <a href="tel:+917005727288" style={{ color: '#fbbf24' }}>Ahibi · 7005727288</a>
-                  </p>
+                  <div className="membership-plan-card__contact">
+                    <span className="membership-plan-card__contact-label">For VIP box availability call</span>
+                    <div className="membership-plan-card__contact-numbers">
+                      <span>8837402472</span>
+                      <span aria-hidden="true">·</span>
+                      <span>7005727288</span>
+                    </div>
+                  </div>
                 </div> : !plan.is_purchasable_online ? <button
                   type="button"
                   className="membership-pay-button"
