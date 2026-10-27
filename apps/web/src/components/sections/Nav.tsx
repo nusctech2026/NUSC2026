@@ -145,7 +145,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
             <span className="brand-txt"><b>Nagaland United</b><span>Sports Club</span></span>
           </Link>
           <div className="nav-links" id="navlinks">
-            <Link href="/#home" className={activeLink === 'home' ? 'active' : ''}>Hero</Link>
+            <Link href="/#home" className={activeLink === 'home' ? 'active' : ''}>Home</Link>
             <Link href="/#club" className={activeLink === 'club' ? 'active' : ''}>About</Link>
             <Link href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Our Journey</Link>
             <Link href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</Link>
@@ -174,7 +174,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
 
       <div className={`drawer ${isOpen ? 'open' : ''}`} id="drawer" role="navigation" aria-label="Mobile">
         <div className="burst faint" aria-hidden="true"></div>
-        <Link href="/#home" onClick={closeDrawer}>Hero<small>Rise Together</small></Link>
+        <Link href="/#home" onClick={closeDrawer}>Home<small>Rise Together</small></Link>
         <Link href="/#club" onClick={closeDrawer}>About<small>About NUSC</small></Link>
         <Link href="/#journey" onClick={closeDrawer}>Our Journey<small>Built on Results. Driven by Progress.</small></Link>
         <Link href="/#honours" onClick={closeDrawer}>Honours<small>Achievements · Earned on the Pitch.</small></Link>
