@@ -134,7 +134,7 @@ export default async function TicketsPage() {
           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24 }}>
             <p style={{ color: '#475569', lineHeight: 1.6, marginTop: 0 }}>
               {seasonOrder.ahibi_pass_status === 'refund_required'
-                ? 'Payment was received, but Ahibi could not confirm the ticket allocation. The club must review this payment; please do not pay again.'
+                ? 'Payment was received, but Ahibi has not confirmed the ticket allocation yet. Refresh to retry the existing allocation; please do not pay again.'
                 : seasonOrder.ahibi_pass_status === 'needs_reconciliation'
                   ? 'Your ticket allocation needs a status check. Please refresh ticket status; do not pay again.'
                   : 'Your Ahibi tickets are being prepared. Refresh ticket status shortly; do not pay again.'}
