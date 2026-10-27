@@ -92,46 +92,55 @@ export const JerseyInterestRegistrations: CollectionConfig = {
         if (!canReadJerseyInterests(req.user)) {
           return new Response('Unauthorized', { status: 401 })
         }
-        const { payload } = req
-        const result = await payload.find({
-          collection: 'jersey-interest-registrations',
-          limit: 5000,
-          depth: 0,
-          overrideAccess: true,
-        })
+        const result = await req.payload.db.pool.query<{
+          total: number
+          officialCount: number
+          awayCount: number
+          reserveCount: number
+          sizes: Record<string, number> | null
+        }>(`
+          SELECT
+            count(*)::int AS total,
+            count(*) FILTER (WHERE interested_in_official)::int AS "officialCount",
+            count(*) FILTER (WHERE interested_in_away)::int AS "awayCount",
+            count(*) FILTER (WHERE interested_in_reserve)::int AS "reserveCount",
+            COALESCE((
+              SELECT jsonb_object_agg(size, size_count)
+                FROM (
+                  SELECT size, count(*)::int AS size_count
+                    FROM (
+                      SELECT COALESCE(official_kit_size, usual_size) AS size
+                        FROM public.jersey_interest_registrations
+                       WHERE NULLIF(official_kit_size, '') IS NOT NULL
+                      UNION ALL
+                      SELECT away_kit_size AS size
+                        FROM public.jersey_interest_registrations
+                       WHERE NULLIF(away_kit_size, '') IS NOT NULL
+                      UNION ALL
+                      SELECT reserve_kit_size AS size
+                        FROM public.jersey_interest_registrations
+                       WHERE NULLIF(reserve_kit_size, '') IS NOT NULL
+                      UNION ALL
+                      SELECT usual_size AS size
+                        FROM public.jersey_interest_registrations
+                       WHERE NULLIF(usual_size, '') IS NOT NULL
+                         AND NULLIF(official_kit_size, '') IS NULL
+                         AND NULLIF(away_kit_size, '') IS NULL
+                         AND NULLIF(reserve_kit_size, '') IS NULL
+                    ) AS selected_sizes
+                   WHERE size IS NOT NULL AND size <> ''
+                   GROUP BY size
+                ) AS grouped_sizes
+            ), '{}'::jsonb) AS sizes
+          FROM public.jersey_interest_registrations
+        `)
 
-        let officialCount = 0
-        let awayCount = 0
-        let reserveCount = 0
-        const sizes: Record<string, number> = {}
-
-        for (const doc of result.docs) {
-          const d = doc as unknown as Record<string, unknown>
-          if (d.interestedInOfficial) officialCount++
-          if (d.interestedInAway) awayCount++
-          if (d.interestedInReserve) reserveCount++
-          if (typeof d.officialKitSize === 'string' && d.officialKitSize) {
-            sizes[d.officialKitSize] = (sizes[d.officialKitSize] || 0) + 1
-          }
-          if (typeof d.awayKitSize === 'string' && d.awayKitSize) {
-            sizes[d.awayKitSize] = (sizes[d.awayKitSize] || 0) + 1
-          }
-          if (typeof d.reserveKitSize === 'string' && d.reserveKitSize) {
-            sizes[d.reserveKitSize] = (sizes[d.reserveKitSize] || 0) + 1
-          }
-
-          if (d.usualSize && !d.officialKitSize && !d.awayKitSize && !d.reserveKitSize) {
-            const sz = String(d.usualSize)
-            sizes[sz] = (sizes[sz] || 0) + 1
-          }
-        }
-
-        return Response.json({
-          total: result.totalDocs,
-          officialCount,
-          awayCount,
-          reserveCount,
-          sizes,
+        return Response.json(result.rows[0] ?? {
+          total: 0,
+          officialCount: 0,
+          awayCount: 0,
+          reserveCount: 0,
+          sizes: {},
         })
       },
     },

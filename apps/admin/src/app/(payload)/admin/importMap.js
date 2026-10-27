@@ -25,6 +25,9 @@ import { DownloadCertificate as DownloadCertificate_d362f213792f35fadc41fdd32f26
 import { DownloadAadhar as DownloadAadhar_d362f213792f35fadc41fdd32f266de8 } from '../../../components/DownloadLinks'
 import { ExportButton as ExportButton_e9b1764876e4b0596b213a1cacb561c4 } from '../../../components/ExportButton'
 import { ExportInterestButton as ExportInterestButton_608a579a8522d2f153b3946906ab2717 } from '../../../components/ExportInterestButton'
+import { ResetMemberColumns as ResetMemberColumns_20261028 } from '../../../components/membership/ResetMemberColumns'
+import { MemberSummary as MemberSummary_20261028 } from '../../../components/membership/MemberSummary'
+import { JerseyDemandSummary as JerseyDemandSummary_20261028 } from '../../../components/JerseyDemandSummary'
 import { PressRequestedAccessField as PressRequestedAccessField_a8af911fc42faac4550221c4f9d950ef } from '../../../components/PressAccessFields'
 import { PressApprovedAccessField as PressApprovedAccessField_a8af911fc42faac4550221c4f9d950ef } from '../../../components/PressAccessFields'
 import { PressEquipmentField as PressEquipmentField_a8af911fc42faac4550221c4f9d950ef } from '../../../components/PressAccessFields'
@@ -93,6 +96,9 @@ export const importMap = {
   "./components/DownloadLinks#DownloadAadhar": DownloadAadhar_d362f213792f35fadc41fdd32f266de8,
   "./components/ExportButton#ExportButton": ExportButton_e9b1764876e4b0596b213a1cacb561c4,
   "./components/ExportInterestButton#ExportInterestButton": ExportInterestButton_608a579a8522d2f153b3946906ab2717,
+  "./components/membership/ResetMemberColumns#ResetMemberColumns": ResetMemberColumns_20261028,
+  "./components/membership/MemberSummary#MemberSummary": MemberSummary_20261028,
+  "./components/JerseyDemandSummary#JerseyDemandSummary": JerseyDemandSummary_20261028,
   "./components/PressAccessFields#PressRequestedAccessField": PressRequestedAccessField_a8af911fc42faac4550221c4f9d950ef,
   "./components/PressAccessFields#PressApprovedAccessField": PressApprovedAccessField_a8af911fc42faac4550221c4f9d950ef,
   "./components/PressAccessFields#PressEquipmentField": PressEquipmentField_a8af911fc42faac4550221c4f9d950ef,

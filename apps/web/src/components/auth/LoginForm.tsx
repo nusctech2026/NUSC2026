@@ -49,6 +49,13 @@ export default function LoginForm() {
             <input type="password" id="password" name="password" required placeholder="Enter your password" />
           </div>
 
+          <Link
+            href="/forgot-password"
+            style={{ alignSelf: 'flex-end', color: 'var(--navy-600)', fontWeight: 600, fontSize: '0.9rem' }}
+          >
+            Forgot password?
+          </Link>
+
           <button type="submit" disabled={isSubmitting} style={{ 
             background: 'var(--navy-600)', 
             color: '#fff', 
