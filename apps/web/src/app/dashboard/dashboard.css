@@ -381,3 +381,9 @@
     max-width: 60%;
   }
 }
+
+.membership-pay-button { width: 100%; padding: 14px 18px; border: 0; border-radius: 6px; background: var(--navy-600, #081936); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.membership-pay-button:disabled { opacity: .55; cursor: default; }
+.membership-pay-button:focus-visible { outline: 3px solid #e31f2b; outline-offset: 3px; }
+.registration-payment-notice { padding: 24px; margin-bottom: 24px; border: 1px solid #dbe2ed; border-radius: 8px; background: #f8fafc; }
+.registration-payment-notice p { margin: 12px 0 20px; }

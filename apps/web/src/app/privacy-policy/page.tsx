@@ -42,6 +42,9 @@ export default function PrivacyPolicyPage() {
                     <strong>Details you give us:</strong> name, date of birth, email, mobile/WhatsApp number, city/district, membership tier, and, for trials, eligibility information (e.g., Indigenous Inhabitant Certificate status).
                   </li>
                   <li>
+                    <strong>Campaign applications:</strong> legal name, date of birth, gender, contact details, residential address, selected campaign category and role, availability, relevant experience and motivation, an emergency contact&apos;s name and phone number, and the photograph you upload. Please provide an emergency contact&apos;s details only if you are authorised to do so.
+                  </li>
+                  <li>
                     <strong>Transaction information:</strong> records of memberships, registrations and orders. <strong>Payment details (card/UPI/bank) are collected and processed directly by Razorpay — we do not receive or store them.</strong>
                   </li>
                   <li>
@@ -56,6 +59,9 @@ export default function PrivacyPolicyPage() {
                 <p>
                   We use your personal data to process payments and deliver memberships, merchandise and registrations; to communicate about fixtures, orders and club activity (where you have opted in); to provide support; to meet legal and accounting obligations; and to improve the Website.
                 </p>
+                <p>
+                  For campaign applications, we use these details to assess and contact applicants, plan event staffing, issue and verify approved event credentials, confirm attendance across matches, and contact the named emergency contact when reasonably necessary for an event-related emergency. An approved candidate&apos;s photograph may appear on their credential so authorised campaign staff and gate personnel can verify identity.
+                </p>
               </section>
 
               {/* Section 3 */}
@@ -63,6 +69,9 @@ export default function PrivacyPolicyPage() {
                 <h2>3. Sharing</h2>
                 <p>
                   We share data only with: our payment processor (<strong>Razorpay</strong>), delivery/logistics partners, communication and IT service providers, and authorities where required by law.
+                </p>
+                <p>
+                  Campaign application details are available to authorised NUSC campaign staff involved in application review, event assignments, credentialing, or attendance. Information needed for event operations may be shared with the relevant venue or matchday personnel for those purposes.
                 </p>
                 <p>
                   We do <strong>not</strong> sell your personal data under any circumstances.

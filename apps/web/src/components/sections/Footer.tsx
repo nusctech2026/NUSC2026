@@ -19,14 +19,12 @@ export function Footer() {
         </div>
         <div className="f-col">
           <h4>Explore</h4>
-          <Link href="/about">About Us</Link>
-          <Link href="/#club">Club</Link>
-          <Link href="/#journey">Journey</Link>
+          <Link href="/#home">Hero</Link>
+          <Link href="/#club">About</Link>
+          <Link href="/#journey">Our Journey</Link>
           <Link href="/#honours">Honours</Link>
-          <Link href="/#pathway">Pathway</Link>
-          <Link href="/#community">Community</Link>
-          <Link href="/#partners">Partners</Link>
-          <Link href="/pricing">Pricing</Link>
+          <Link href="/jersey-interest">Jersey</Link>
+          <Link href="/membership">Membership</Link>
         </div>
         <div className="f-col">
           <h4>Legal &amp; Policies</h4>

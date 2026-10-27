@@ -5,6 +5,7 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
+import { restrictCampaignCollection, restrictCampaignGlobal } from './auth/staffRoles'
 
 import { Admins } from './collections/Admins'
 import { Media } from './collections/Media'
@@ -26,6 +27,7 @@ import { MemberProfiles } from './collections/membership/MemberProfiles'
 import { BenefitRedemptions } from './collections/membership/BenefitRedemptions'
 import { TrialRegistrations } from './collections/TrialRegistrations'
 import { MembershipInterestRegistrations } from './collections/MembershipInterestRegistrations'
+import { JerseyInterestRegistrations } from './collections/JerseyInterestRegistrations'
 import { PaymentReconciliations } from './collections/membership/PaymentReconciliations'
 import { UserRoles } from './collections/UserRoles'
 import { PressAccreditations } from './collections/PressAccreditations'
@@ -40,6 +42,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
     components: {
+      beforeDashboard: ['./components/nav/CampaignDashboardRedirect#CampaignDashboardRedirect'],
       views: {
         login: {
           Component: './components/CustomLogin#CustomLogin',
@@ -108,8 +111,44 @@ export default buildConfig({
           path: '/integrations',
           Component: './components/views/IntegrationsView#IntegrationsView',
         },
+        CampaignDashboard: {
+          path: '/campaign',
+          exact: true,
+          Component: './components/views/campaign/CampaignDashboardView#CampaignDashboardView',
+        },
+        CampaignApplications: {
+          path: '/campaign/applications',
+          exact: true,
+          Component: './components/views/campaign/CampaignApplicationsView#CampaignApplicationsView',
+        },
+        CampaignApproved: {
+          path: '/campaign/approved',
+          exact: true,
+          Component: './components/views/campaign/CampaignApprovedView#CampaignApprovedView',
+        },
+        CampaignIds: {
+          path: '/campaign/ids',
+          exact: true,
+          Component: './components/views/campaign/CampaignIdsView#CampaignIdsView',
+        },
+        CampaignScanner: {
+          path: '/campaign/scanner',
+          exact: true,
+          Component: './components/views/campaign/CampaignScannerView#CampaignScannerView',
+        },
+        CampaignAttendance: {
+          path: '/campaign/attendance',
+          exact: true,
+          Component: './components/views/campaign/CampaignAttendanceView#CampaignAttendanceView',
+        },
+        CampaignMatches: {
+          path: '/campaign/matches',
+          exact: true,
+          Component: './components/views/campaign/CampaignMatchesView#CampaignMatchesView',
+        },
       },
       afterNavLinks: [
+        './components/nav/CampaignNavLinks#CampaignNavLinks',
         './components/nav/StoreNavLinks#StoreNavLinks',
         './components/nav/StoreNavLinks#CatalogNavLinks',
         './components/nav/StoreNavLinks#SystemNavLinks',
@@ -165,8 +204,9 @@ export default buildConfig({
     Media,
     TrialRegistrations,
     MembershipInterestRegistrations,
+    JerseyInterestRegistrations,
     PressAccreditations
-  ] as any,
+  ].map(restrictCampaignCollection) as any,
   globals: [
     ...[
       WebsiteSettings,
@@ -195,7 +235,7 @@ export default buildConfig({
         }
       }
     }))
-  ] as any,
+  ].map(restrictCampaignGlobal) as any,
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   cors: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3102', 'http://192.168.29.107:3000', 'https://nagalandunited.com', 'https://www.nagalandunited.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean),

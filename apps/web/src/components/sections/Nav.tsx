@@ -109,7 +109,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
     window.addEventListener('scroll', onScroll, { passive: true });
     
     // Scrollspy for active link
-    const sections = ['club', 'journey', 'honours', 'pathway', 'community', 'partners', 'careers'];
+    const sections = ['home', 'club', 'journey', 'honours'];
     
     if ('IntersectionObserver' in window) {
       const observer = new IntersectionObserver((entries) => {
@@ -145,19 +145,18 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
             <span className="brand-txt"><b>Nagaland United</b><span>Sports Club</span></span>
           </Link>
           <div className="nav-links" id="navlinks">
-            <Link href="/#club" className={activeLink === 'club' ? 'active' : ''}>Club</Link>
-            <Link href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Journey</Link>
+            <Link href="/#home" className={activeLink === 'home' ? 'active' : ''}>Hero</Link>
+            <Link href="/#club" className={activeLink === 'club' ? 'active' : ''}>About</Link>
+            <Link href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Our Journey</Link>
             <Link href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</Link>
-            <Link href="/#pathway" className={activeLink === 'pathway' ? 'active' : ''}>Pathway</Link>
-            <Link href="/trials" className={pathname === '/trials' ? 'active' : ''}>Trials</Link>
-            <Link href="/#community" className={activeLink === 'community' ? 'active' : ''}>Community</Link>
-            <Link href="/#partners" className={activeLink === 'partners' ? 'active' : ''}>Partners</Link>
+            <Link href="/jersey-interest" className={pathname === '/jersey-interest' ? 'active' : ''}>Jersey</Link>
+            <Link href="/registrations" className={pathname === '/registrations' ? 'active' : ''}>Registrations</Link>
           </div>
           
           {isLoggedIn ? (
             <Link href="/dashboard" className="btn btn-red nav-cta">Dashboard</Link>
           ) : (
-            <Link href="/membership-interest" className="btn btn-red nav-cta">Membership</Link>
+            <Link href="/membership" className="btn btn-red nav-cta">Membership</Link>
           )}
 
           <button 
@@ -175,19 +174,16 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
 
       <div className={`drawer ${isOpen ? 'open' : ''}`} id="drawer" role="navigation" aria-label="Mobile">
         <div className="burst faint" aria-hidden="true"></div>
-        <Link href="/" onClick={closeDrawer}>Home<small>Back to frontpage</small></Link>
-        <Link href="/#club" onClick={closeDrawer}>Club<small>Snapshot • Who We Are • Mission</small></Link>
-        <Link href="/#journey" onClick={closeDrawer}>Journey<small>The rise, year by year</small></Link>
-        <Link href="/#honours" onClick={closeDrawer}>Honours<small>Champions • Representing Nagaland</small></Link>
-        <Link href="/#pathway" onClick={closeDrawer}>Pathway<small>Players • Inspire Institute</small></Link>
-        <Link href="/trials" onClick={closeDrawer}>Trials<small>U23 Registrations</small></Link>
-        <Link href="/#community" onClick={closeDrawer}>Community<small>Peace Pays</small></Link>
-        <Link href="/#partners" onClick={closeDrawer}>Partners<small>Support NUSC</small></Link>
-        <Link href="/careers" onClick={closeDrawer} aria-label="Careers">Careers<small>Join the team</small></Link>
+        <Link href="/#home" onClick={closeDrawer}>Hero<small>Rise Together</small></Link>
+        <Link href="/#club" onClick={closeDrawer}>About<small>About NUSC</small></Link>
+        <Link href="/#journey" onClick={closeDrawer}>Our Journey<small>Built on Results. Driven by Progress.</small></Link>
+        <Link href="/#honours" onClick={closeDrawer}>Honours<small>Achievements · Earned on the Pitch.</small></Link>
+        <Link href="/jersey-interest" onClick={closeDrawer}>Jersey<small>Explore Jerseys</small></Link>
+        <Link href="/registrations" onClick={closeDrawer}>Registrations<small>Matchday roles &amp; press accreditation</small></Link>
         {isLoggedIn ? (
           <Link href="/dashboard" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Dashboard</Link>
         ) : (
-          <Link href="/membership-interest" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Membership</Link>
+          <Link href="/membership" onClick={closeDrawer} className="btn btn-red" style={{ marginTop: '1rem' }}>Membership</Link>
         )}
       </div>
     </>

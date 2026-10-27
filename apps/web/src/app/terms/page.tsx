@@ -25,7 +25,7 @@ export default function TermsAndConditionsPage() {
               {/* Meta bar */}
               <div className="terms-meta-bar">
                 <div className="terms-meta-date">
-                  <span>●</span> Last updated: 14 October 2026
+                  <span>●</span> Last updated: 15 October 2026
                 </div>
                 <div className="terms-meta-tag">Website &amp; Store Terms</div>
               </div>
@@ -52,7 +52,9 @@ export default function TermsAndConditionsPage() {
               <section className="terms-section" id="memberships">
                 <h2>2. Memberships</h2>
                 <ul>
-                  <li>Memberships are sold per season and grant the benefits described on the membership page for that tier.</li>
+                  <li>The ₹10 registration fee creates your member account and dashboard access. Rise tier benefits require a separate paid activation.</li>
+                  <li>Paid Rise tiers are valid for one year from activation and grant the benefits described on the membership page for that tier. General and Premium activate after verified online payment; VIP Box activates after the club confirms offline payment.</li>
+                  <li>Upgrades are charged at the full listed tier price, without proration, and start a fresh one-year term.</li>
                   <li>Match admission benefits are subject to fixture scheduling, venue capacity and applicable rules; fixtures, dates and venues may change.</li>
                   <li>Membership benefits are personal to the named member(s) and are non-transferable unless we state otherwise.</li>
                   <li>We may add, modify or withdraw specific benefits where reasonably necessary; where a change is material we will give reasonable notice.</li>

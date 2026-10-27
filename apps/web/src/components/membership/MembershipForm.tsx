@@ -47,10 +47,10 @@ export default function MembershipForm() {
         <div className="wrap" style={{ maxWidth: '600px', textAlign: 'center' }}>
           <div style={{ padding: '40px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
             <h2 style={{ color: '#0f172a', fontSize: '2rem', marginBottom: '16px', fontFamily: '"Barlow Condensed", sans-serif', textTransform: 'uppercase' }}>
-              Welcome to NUSC Membership!
+              Complete your membership registration
             </h2>
             <p style={{ color: '#475569', marginBottom: '24px', fontSize: '1.1rem' }}>
-              Your registration was successful. Welcome to the club, {successData.first_name}!
+              Your account is ready, {successData.first_name}. Pay the ₹10 membership fee in your dashboard to finish registration.
             </p>
             <div style={{ background: '#f1f5f9', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
               <p style={{ color: '#64748b', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
@@ -61,7 +61,7 @@ export default function MembershipForm() {
               </p>
             </div>
             <p style={{ color: '#475569', fontSize: '0.9rem' }}>
-              Keep this number handy. You will use it to access ticket benefits on Ahibi and merchandise discounts in our store.
+              <Link href="/dashboard">Continue to your dashboard</Link>
             </p>
           </div>
         </div>

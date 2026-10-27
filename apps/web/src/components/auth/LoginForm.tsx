@@ -69,7 +69,7 @@ export default function LoginForm() {
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
           <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
             Not a member yet?{' '}
-            <Link href="/membership-interest" style={{ color: 'var(--navy-600)', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/membership" style={{ color: 'var(--navy-600)', fontWeight: 600, textDecoration: 'none' }}>
               Sign up here
             </Link>
           </p>
