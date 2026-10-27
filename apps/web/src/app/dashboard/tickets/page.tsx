@@ -2,8 +2,11 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createAdminClient } from '@nusc/db';
+import QRCode from 'qrcode';
+import { AhibiSeasonPassError, getAhibiSeasonPassTicket, type AhibiSeasonPassTicketDetails } from '@nusc/membership/src/ahibi-season-pass';
 import { getDashboardData } from '../service';
 import { ClaimMembershipEntryButton } from './ClaimMembershipEntryButton';
+import { refreshSeasonPassTickets } from './season-pass-actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Match Tickets | NUSC Membership' };
@@ -33,7 +36,46 @@ export default async function TicketsPage() {
   const active = member?.registration_payment_status === 'paid' && member.status === 'active'
     && (!member.end_date || new Date(member.end_date) > new Date());
   const admin = createAdminClient();
-  const [fixturesResult, entriesResult] = await Promise.all([
+  const seasonPassMember = Boolean(active && member && ['rise-general', 'rise-premium'].includes(member.plan.slug));
+  let seasonOrder: { id: string; ahibi_reservation_id: string | null; ahibi_pass_id: string | null; ahibi_zone: string | null; ahibi_pass_status: string } | null = null;
+  let seasonTickets: Array<AhibiSeasonPassTicketDetails & { qrDataUrl: string | null }> = [];
+  if (seasonPassMember && member) {
+    const { data: paidOrder } = await admin.from('membership_payment_orders')
+      .select('id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status')
+      .eq('member_id', member.id).eq('user_id', dashboard.profile.id).eq('plan_id', member.plan_id)
+      .eq('purpose', 'tier').eq('status', 'paid').order('paid_at', { ascending: false }).limit(1).maybeSingle();
+    seasonOrder = paidOrder;
+    if (paidOrder?.ahibi_reservation_id && paidOrder.ahibi_pass_status === 'issued') {
+      const { data: storedTickets } = await admin.from('membership_season_pass_tickets')
+        .select('ahibi_booking_id,ahibi_event_id,match_date,opponent,ticket_type,zone,status,ticket_access_path')
+        .eq('payment_order_id', paidOrder.id).eq('member_id', member.id).eq('user_id', dashboard.profile.id)
+        .order('match_date', { ascending: true });
+      if (storedTickets?.length === 10) {
+        const ticketResults = await Promise.all(storedTickets.map(async (stored) => {
+          const expected = {
+            ticketId: stored.ahibi_booking_id,
+            eventId: stored.ahibi_event_id,
+            matchDate: stored.match_date,
+            opponent: stored.opponent,
+            ticketType: stored.ticket_type,
+            zone: stored.zone,
+            status: stored.status,
+            ticketAccessPath: stored.ticket_access_path,
+          } as AhibiSeasonPassTicketDetails;
+          try {
+            const ticket = await getAhibiSeasonPassTicket(paidOrder.ahibi_reservation_id!, stored.ahibi_booking_id, expected);
+            const qrDataUrl = await QRCode.toDataURL(ticket.qrPayload, { errorCorrectionLevel: 'M', margin: 2, width: 240 });
+            return { ...ticket, qrDataUrl };
+          } catch (error) {
+            console.error('Ahibi ticket lookup failed:', error instanceof AhibiSeasonPassError ? error.code : 'ticket_lookup_failed');
+            return { ...expected, qrPayload: '', qrDataUrl: null };
+          }
+        }));
+        seasonTickets = ticketResults;
+      }
+    }
+  }
+  const legacyResults = seasonPassMember ? null : await Promise.all([
     admin.from('membership_home_matches')
       .select('id,opponent,date_time,venue,ahibi_event_id,ahibi_ticket_url')
       .eq('status', 'upcoming')
@@ -46,12 +88,12 @@ export default async function TicketsPage() {
           .in('status', ['reserved', 'session_created', 'redeemed'])
       : Promise.resolve({ data: [], error: null }),
   ]);
-  if (fixturesResult.error || entriesResult.error) {
+  if (legacyResults && (legacyResults[0].error || legacyResults[1].error)) {
     return <p>Unable to load matchday benefits. Please try again shortly.</p>;
   }
 
-  const entryByFixture = new Map((entriesResult.data || []).map((entry) => [entry.fixture_id, entry]));
-  const fixtures = (fixturesResult.data || []).filter((fixture) => Boolean(fixture.ahibi_event_id?.trim()));
+  const entryByFixture = new Map((legacyResults?.[1].data || []).map((entry) => [entry.fixture_id, entry]));
+  const fixtures = (legacyResults?.[0].data || []).filter((fixture) => Boolean(fixture.ahibi_event_id?.trim()));
   const entryType = typeof dashboard.entitlements.entry === 'string' ? dashboard.entitlements.entry : '';
   const homeMatches = Number(dashboard.entitlements.home_matches || 0);
 
@@ -59,16 +101,52 @@ export default async function TicketsPage() {
     <div>
       <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Match Tickets</h1>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 32 }}>
-        <p style={{ color: '#64748b', margin: 0 }}>Use one membership entry for each eligible home match through Ahibi.</p>
+        <p style={{ color: '#64748b', margin: 0 }}>{seasonPassMember ? 'Your Ahibi season pass tickets for all ten home matches.' : 'Use your membership entry for each eligible home match through Ahibi.'}</p>
       </div>
 
-      {!active || !entryType || !Number.isFinite(homeMatches) || homeMatches <= 0 ? (
+      {seasonPassMember && <section aria-labelledby="season-pass-heading" style={{ marginBottom: 32 }}>
+        <h2 id="season-pass-heading" style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>Season Pass</h2>
+        {!seasonOrder ? (
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24, color: '#475569' }}>
+            Your Rise membership is active, but its Ahibi season pass record is not available yet. Refresh shortly or contact the club.
+          </div>
+        ) : seasonOrder.ahibi_pass_status === 'issued' && seasonTickets.length === 10 ? (
+          <>
+            {seasonOrder.ahibi_zone && <p style={{ color: '#475569' }}>General seating zone: <strong>{seasonOrder.ahibi_zone}</strong> across all ten matches.</p>}
+            {seasonTickets.some(ticket => !ticket.qrDataUrl) && <p role="status" style={{ color: '#92400e' }}>Some ticket QR codes could not load. You can still download the AHIBI ticket.</p>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+              {seasonTickets.map(ticket => <article key={ticket.ticketId} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20 }}>
+                <h3 style={{ margin: '0 0 6px', color: '#0f172a' }}>NUSC vs {ticket.opponent}</h3>
+                <p style={{ margin: '0 0 12px', color: '#64748b' }}>{new Date(`${ticket.matchDate}T12:00:00+05:30`).toLocaleDateString('en-IN', { dateStyle: 'long', timeZone: 'Asia/Kolkata' })}</p>
+                <p style={{ margin: '0 0 14px', color: '#334155' }}>{ticket.ticketType}{ticket.zone ? ` · ${ticket.zone}` : ''} · {ticket.status}</p>
+                {ticket.qrDataUrl && <img src={ticket.qrDataUrl} alt={`Scannable AHIBI ticket QR code for NUSC versus ${ticket.opponent}`} width="240" height="240" style={{ display: 'block', width: 'min(100%, 240px)', height: 'auto', margin: '0 auto 16px' }} />}
+                <a href={`/api/dashboard/tickets/${encodeURIComponent(ticket.ticketId)}/pdf`} style={{ display: 'block', boxSizing: 'border-box', width: '100%', marginTop: 8, background: '#173f78', color: '#fff', padding: '10px 14px', borderRadius: 6, fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
+                  Download AHIBI ticket (PDF)
+                </a>
+              </article>)}
+            </div>
+          </>
+        ) : (
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24 }}>
+            <p style={{ color: '#475569', lineHeight: 1.6, marginTop: 0 }}>
+              {seasonOrder.ahibi_pass_status === 'refund_required'
+                ? 'Payment was received, but Ahibi could not confirm the ticket allocation. The club must review this payment; please do not pay again.'
+                : seasonOrder.ahibi_pass_status === 'needs_reconciliation'
+                  ? 'Your ticket allocation needs a status check. Please refresh ticket status; do not pay again.'
+                  : 'Your Ahibi tickets are being prepared. Refresh ticket status shortly; do not pay again.'}
+            </p>
+            <form action={refreshSeasonPassTickets}><button type="submit" className="membership-pay-button">Refresh ticket status</button></form>
+          </div>
+        )}
+      </section>}
+
+      {!seasonPassMember && (!active || !entryType || !Number.isFinite(homeMatches) || homeMatches <= 0) ? (
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 32 }}>
           <p style={{ color: '#475569', lineHeight: 1.6 }}>
               Activate a Rise tier to access its matchday entry benefit. <Link href="/dashboard">Choose your membership tier</Link>.
           </p>
         </div>
-      ) : (
+      ) : !seasonPassMember ? (
         <>
           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24, marginBottom: 20 }}>
             <p style={{ color: '#334155', lineHeight: 1.6, margin: 0 }}>
@@ -113,7 +191,7 @@ export default async function TicketsPage() {
             </div>
           )}
         </>
-      )}
+      ) : null}
     </div>
   );
 }

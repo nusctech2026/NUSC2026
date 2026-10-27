@@ -12,7 +12,7 @@ export interface Member {
 export interface UserProfile { id: string; email: string; first_name: string; last_name: string }
 export interface DashboardData {
   profile: UserProfile; membership: Member | null; availablePlans: MembershipPlan[];
-  pendingPayment: { plan_id: string; purpose: string } | null;
+  pendingPayment: { id: string; plan_id: string; purpose: string; ahibi_zone: string | null; ahibi_pass_id: string | null; ahibi_pass_status: string; ahibi_reservation_expires_at: string | null } | null;
   entitlements: Record<string, unknown>;
 }
 
@@ -25,7 +25,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     supabase.from('membership_plans').select('*').eq('is_active', true)
       .in('slug', ['rise-general', 'rise-premium', 'rise-vip-box']).order('price', { ascending: true }),
     supabase.from('member_profiles').select('first_name,last_name').eq('user_id', user.id).maybeSingle(),
-    supabase.from('membership_payment_orders').select('plan_id,purpose').eq('user_id', user.id).in('status', ['creating','pending']).maybeSingle(),
+    supabase.from('membership_payment_orders').select('id,plan_id,purpose,ahibi_zone,ahibi_pass_id,ahibi_pass_status,ahibi_reservation_expires_at').eq('user_id', user.id).in('status', ['creating','pending']).maybeSingle(),
   ]);
   if (memberResult.error || plansResult.error || profileResult.error || pendingResult.error) throw new Error('Unable to load membership');
   // Inactive plans are hidden by public plan RLS, but existing members retain their

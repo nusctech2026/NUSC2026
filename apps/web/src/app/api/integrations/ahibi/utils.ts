@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createAdminClient } from '@nusc/db';
 
-export async function verifyAhibiRequest(req: Request) {
+export async function verifyAhibiRequest(req: Request, eventType = 'redemption') {
   const rawBody = await req.text();
   let payload;
   try {
     payload = JSON.parse(rawBody);
-  } catch (e) {
+  } catch {
     return { errorResponse: NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) };
   }
 
@@ -27,7 +27,10 @@ export async function verifyAhibiRequest(req: Request) {
   }
 
   // Verify HMAC
-  const secret = process.env.AHIBI_PARTNER_SECRET || 'test_secret';
+  const secret = process.env.AHIBI_PARTNER_SECRET;
+  if (!secret) {
+    return { errorResponse: NextResponse.json({ error: 'Integration is not configured' }, { status: 503 }) };
+  }
   const canonicalPayload = `${timestamp}.${requestId}.${rawBody}`;
   const expectedSig = crypto.createHmac('sha256', secret).update(canonicalPayload).digest('hex');
 
@@ -42,7 +45,7 @@ export async function verifyAhibiRequest(req: Request) {
     if (!crypto.timingSafeEqual(sigBuf, expectedSigBuf)) {
       return { errorResponse: NextResponse.json({ error: 'Invalid signature' }, { status: 401 }) };
     }
-  } catch (err) {
+  } catch {
     return { errorResponse: NextResponse.json({ error: 'Malformed signature' }, { status: 401 }) };
   }
 
@@ -83,7 +86,7 @@ export async function verifyAhibiRequest(req: Request) {
     .from('integration_events')
     .insert({
       provider: 'ahibi',
-      event_type: 'redemption',
+      event_type: eventType,
       external_request_id: requestId,
       payload_hash: payloadHash,
       status: 'processing'

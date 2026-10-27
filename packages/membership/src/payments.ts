@@ -1,11 +1,42 @@
 import { createAdminClient, createServerClient } from '@nusc/db';
 import Razorpay from 'razorpay';
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { AhibiSeasonPassError, type AhibiSeasonPassId, type AhibiSeasonPassZone } from './ahibi-season-pass';
+import { ensureAhibiPassIssued, releaseAhibiPassForOrder, reserveAhibiPassForOrder } from './ahibi-season-pass-flow';
 
 export function assertMembershipCheckoutEnabled() {
   if (process.env.MEMBERSHIP_CHECKOUT_ENABLED === 'false') {
     throw new Error('Membership payments are temporarily paused. Please try again shortly.');
   }
+}
+
+const RISE_SMOKE_GATE_ENABLED = 'NUSC_RISE_LIVE_SMOKE_TEST_ENABLED';
+const RISE_SMOKE_TESTER_ID = 'NUSC_RISE_LIVE_SMOKE_TEST_USER_ID';
+const RISE_SMOKE_EXPIRES_AT = 'NUSC_RISE_LIVE_SMOKE_TEST_EXPIRES_AT';
+const RISE_SMOKE_GATE_CLOSED = 'Rise tier checkout is temporarily unavailable.';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+const MAX_SMOKE_TEST_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+function isRiseLiveSmokeTester(userId: string): boolean {
+  const enabled = process.env[RISE_SMOKE_GATE_ENABLED];
+  if (enabled === undefined || enabled === 'false') return false;
+  if (enabled !== 'true') throw new Error(RISE_SMOKE_GATE_CLOSED);
+
+  const testerId = process.env[RISE_SMOKE_TESTER_ID];
+  const expiresAt = process.env[RISE_SMOKE_EXPIRES_AT];
+  if (!testerId || !UUID_PATTERN.test(testerId) || !expiresAt || !UTC_TIMESTAMP_PATTERN.test(expiresAt)) {
+    throw new Error(RISE_SMOKE_GATE_CLOSED);
+  }
+  const expiry = Date.parse(expiresAt);
+  const now = Date.now();
+  if (!Number.isFinite(expiry) || expiry <= now || expiry - now > MAX_SMOKE_TEST_WINDOW_MS) {
+    throw new Error(RISE_SMOKE_GATE_CLOSED);
+  }
+  if (!UUID_PATTERN.test(userId) || userId.toLowerCase() !== testerId.toLowerCase()) {
+    throw new Error(RISE_SMOKE_GATE_CLOSED);
+  }
+  return true;
 }
 
 export function paymentGateway() {
@@ -29,17 +60,53 @@ export interface CheckoutOrder {
   description: string;
 }
 
-export async function createMembershipCheckout(planId: string | null = null): Promise<CheckoutOrder> {
+export async function createMembershipCheckout(planId: string | null = null, zone: string | null = null): Promise<CheckoutOrder> {
   if (planId !== null && (typeof planId !== 'string' || !/^[a-f0-9-]{36}$/i.test(planId))) throw new Error('Invalid membership plan');
+  if (planId === null && zone !== null) throw new Error('Invalid membership plan');
   const session = await createServerClient();
   const { data: { user }, error: authError } = await session.auth.getUser();
   if (authError || !user) throw new Error('Please sign in to continue.');
   assertMembershipCheckoutEnabled();
-  const { keyId, client } = paymentGateway();
   const db = createAdminClient();
-  const { data: order, error } = await db.rpc('begin_membership_payment', { p_user_id: user.id, p_plan_id: planId });
-  if (error) throw new Error(error.message);
+  let passId: AhibiSeasonPassId | null = null;
+  if (planId) {
+    const { data: selectedPlan, error: planError } = await db.from('membership_plans')
+      .select('slug,is_active,is_purchasable_online').eq('id', planId).maybeSingle();
+    if (planError || !selectedPlan || !selectedPlan.is_active || !selectedPlan.is_purchasable_online) {
+      throw new Error('Invalid membership plan');
+    }
+    if (selectedPlan.slug === 'rise-general') {
+      passId = 'general-season';
+      if (zone !== 'G-1' && zone !== 'G-2' && zone !== 'G-3' && zone !== 'G-4' && zone !== 'G-5') {
+        throw new Error('Choose a General season pass seating zone.');
+      }
+    } else if (selectedPlan.slug === 'rise-premium') {
+      passId = 'premium-season';
+      if (zone !== null) throw new Error('Premium season passes do not use a seating zone.');
+    } else {
+      throw new Error('Plan is not available for online payment');
+    }
+  }
+  const isSmokeTest = passId !== null && isRiseLiveSmokeTester(user.id);
+  const { keyId, client } = paymentGateway();
+  const { data: order, error } = await db.rpc(
+    isSmokeTest ? 'begin_membership_smoke_test_payment' : 'begin_membership_payment',
+    { p_user_id: user.id, p_plan_id: planId },
+  );
+  if (error) {
+    if (!isSmokeTest) throw new Error(error.message);
+    if (error.message.includes('already been used')) throw new Error('Rise live smoke test has already been used.');
+    if (error.message.includes('existing pending payment')) throw new Error('Complete the existing pending payment first');
+    throw new Error('Rise live smoke test is unavailable.');
+  }
   if (!order) throw new Error('Unable to prepare payment.');
+  if (isSmokeTest && (order.is_smoke_test !== true || order.purpose !== 'tier' || Number(order.amount) !== 100)) {
+    throw new Error('Rise live smoke test is unavailable.');
+  }
+  if (!order.razorpay_order_id && !order.newly_created) {
+    throw new Error('A payment is being prepared. Please try again in a few moments.');
+  }
+  if (passId) await reserveAhibiPassForOrder(order.id, zone as AhibiSeasonPassZone | null);
   let orderId: string = order.razorpay_order_id;
   if (!orderId) {
     if (!order.newly_created) throw new Error('A payment is being prepared. Please try again in a few moments.');
@@ -54,6 +121,7 @@ export async function createMembershipCheckout(planId: string | null = null): Pr
       orderId = external.id;
     } catch (error) {
       await db.from('membership_payment_orders').update({ status: 'creation_failed' }).eq('id', order.id).eq('status', 'creating');
+      if (passId) await releaseAhibiPassForOrder(order.id);
       if (typeof error === 'object' && error !== null && 'statusCode' in error && error.statusCode === 401) {
         console.error('Membership checkout: Razorpay rejected the configured API credentials.');
         throw new Error('Payments are temporarily unavailable. Please try again later.');
@@ -62,7 +130,7 @@ export async function createMembershipCheckout(planId: string | null = null): Pr
     }
   }
   return { orderId, keyId, amount: Number(order.amount), currency: order.currency,
-    description: order.purpose === 'registration' ? '₹10 membership registration fee' : 'Annual membership · one year from activation' };
+    description: isSmokeTest ? 'NUSC Rise live smoke test' : order.purpose === 'registration' ? '₹10 membership registration fee' : 'Annual membership · one year from activation' };
 }
 
 export interface PaymentCallback {
@@ -71,7 +139,7 @@ export interface PaymentCallback {
   razorpay_signature: string;
 }
 
-export async function recoverMembershipCheckout() {
+export async function recoverMembershipCheckout(): Promise<{ status: string; ticketStatus?: string }> {
   const session = await createServerClient();
   const { data: { user }, error: authError } = await session.auth.getUser();
   if (authError || !user) throw new Error('Please sign in to continue.');
@@ -106,19 +174,26 @@ export async function cancelMembershipCheckout() {
       throw new Error('Payment is processing. Please wait for confirmation before changing tiers.');
     }
   }
-  const { data, error: cancelError } = await createAdminClient().rpc('cancel_membership_payment', { p_user_id: user.id, p_order_id: order.id });
+  const db = createAdminClient();
+  const { data, error: cancelError } = await db.rpc('cancel_membership_payment', { p_user_id: user.id, p_order_id: order.id });
   if (cancelError || !data) throw new Error('Unable to cancel checkout. Please try again.');
+  if (data.status === 'cancelled') await releaseAhibiPassForOrder(order.id);
   return data as { status: string };
 }
 
-export async function settleCapturedPayment(payment: { id: string; order_id?: string | null; amount: number | string; currency: string; status: string; captured: boolean }) {
+export async function settleCapturedPayment(payment: { id: string; order_id?: string | null; amount: number | string; currency: string; status: string; captured: boolean }): Promise<{ status: string; ticketStatus?: string }> {
   if (payment.status !== 'captured' || payment.captured !== true) return { status: 'pending' };
   if (!payment.order_id || !Number.isSafeInteger(Number(payment.amount)) || Number(payment.amount) <= 0) throw new Error('Invalid captured payment');
   const db = createAdminClient();
   const { data, error } = await db.rpc('settle_membership_payment', { p_order_id: payment.order_id, p_payment_id: payment.id,
     p_amount: Number(payment.amount), p_currency: payment.currency });
   if (error || !data) throw new Error('Unable to confirm payment. Please refresh your dashboard shortly.');
-  return data as { status: string };
+  const result = data as { status: string };
+  if (result.status === 'paid' || result.status === 'already_processed') {
+    const ticketStatus = await ensureAhibiPassIssued(payment.order_id, payment.id);
+    return { ...result, ticketStatus };
+  }
+  return result;
 }
 
 export async function confirmMembershipCheckout(callback: PaymentCallback) {

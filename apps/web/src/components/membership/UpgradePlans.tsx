@@ -1,9 +1,10 @@
-import React from 'react';
 import PaymentButton from './PaymentButton';
-import { MembershipPlan } from '@/app/dashboard/service';
+import type { MembershipPlan } from '@/app/dashboard/service';
 
 interface UpgradePlansProps {
-  availableUpgrades: MembershipPlan[];
+  plans: MembershipPlan[];
+  availableUpgradeIds: string[];
+  currentPlanSlug: string | null;
   hasMembership: boolean;
   canPurchase: boolean;
 }
@@ -76,34 +77,59 @@ const PREMIUM_FEATURES = [
   { title: 'Partner Offers', desc: 'Enhanced partner offers where available', gold: false },
 ];
 
-export function TierBenefits({ slug }: { slug: string }) {
-  const features = slug === 'rise-vip-box' ? VIP_FEATURES : slug === 'rise-premium' ? PREMIUM_FEATURES : slug === 'rise-general' ? GENERAL_FEATURES : [];
-  if (!features.length) return null;
-  return <section style={{ marginTop: 32 }} aria-labelledby="active-benefits-title">
-    <h2 id="active-benefits-title" style={{ fontSize: '1.5rem', marginBottom: 16 }}>Your membership benefits</h2>
-    <ul style={{ paddingLeft: 20, display: 'grid', gap: 12 }}>
-      {features.map(feature => <li key={feature.title}><strong>{feature.title}:</strong> {feature.desc}</li>)}
-    </ul>
-  </section>;
+export function TierBenefits({ plans }: { plans: MembershipPlan[] }) {
+  const tierFeatures = plans.map(plan => ({
+    plan,
+    features: plan.slug === 'rise-vip-box' ? VIP_FEATURES
+      : plan.slug === 'rise-premium' ? PREMIUM_FEATURES
+        : plan.slug === 'rise-general' ? GENERAL_FEATURES : [],
+  })).filter(tier => tier.features.length > 0);
+  if (!tierFeatures.length) return null;
+  return <details className="membership-benefits" open>
+    <summary className="membership-benefits__summary">
+      <span className="membership-benefits__heading">
+        <span className="membership-benefits__eyebrow">Compare what each tier includes</span>
+        <span className="membership-benefits__title">Perks &amp; benefits by tier</span>
+      </span>
+      <span className="membership-benefits__toggle">
+        <span className="membership-benefits__show-label">View benefits</span>
+        <span className="membership-benefits__hide-label">Hide benefits</span>
+        <svg className="membership-benefits__chevron" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    </summary>
+    <div className="membership-benefits__columns">
+      {tierFeatures.map(({ plan, features }) => (
+        <section className={`membership-benefits__column membership-benefits__column--${plan.slug}`} key={plan.id} aria-label={`${plan.name} benefits`}>
+          <h3>{plan.name}</h3>
+          <ul className="membership-benefits__list">
+            {features.map(feature => (
+              <li className="membership-benefits__item" key={feature.title}>
+                {plan.slug === 'rise-vip-box'
+                  ? feature.gold ? <GoldIcon /> : <VipCheckIcon />
+                  : plan.slug === 'rise-premium'
+                    ? feature.gold ? <GoldIcon /> : <PremiumCheckIcon />
+                    : <CheckIcon />}
+                <span><strong>{feature.title}:</strong> {feature.desc}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  </details>;
 }
 
-export default function UpgradePlans({ availableUpgrades, hasMembership, canPurchase }: UpgradePlansProps) {
-  if (availableUpgrades.length === 0) {
-    return (
-      <div style={{ marginTop: '40px' }}>
-        <p style={{ color: '#64748b' }}>You are currently on the highest tier. Thank you for your incredible support!</p>
-      </div>
-    );
-  }
-
+export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSlug, hasMembership, canPurchase }: UpgradePlansProps) {
   return (
     <div style={{ marginTop: '20px' }}>
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <p style={{ color: '#2563eb', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '8px' }}>
-          Select Your Matchday Tier
+          Explore every Rise tier
         </p>
         <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px', lineHeight: 1.2 }}>
-          ANNUAL MEMBERSHIP PACKS
+          ANNUAL MEMBERSHIP TIERS
         </h2>
         <p style={{ color: '#64748b', maxWidth: '600px', margin: '0 auto', fontSize: '0.95rem', lineHeight: 1.5 }}>
           Passionate support backed by tangible matchday privileges. Valid for one year from activation. The ₹10 registration fee is separate. Tier purchases are charged at the full listed price.
@@ -111,16 +137,24 @@ export default function UpgradePlans({ availableUpgrades, hasMembership, canPurc
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', alignItems: 'stretch' }}>
-        {availableUpgrades.map(plan => {
-          const isVip = plan.name.toLowerCase().includes('vip');
-          const isPremium = !isVip && plan.name.toLowerCase().includes('premium');
-          const isGeneral = !isPremium && !isVip;
-          const features = isVip ? VIP_FEATURES : (isPremium ? PREMIUM_FEATURES : GENERAL_FEATURES);
+        {plans.map(plan => {
+          const isVip = plan.slug === 'rise-vip-box';
+          const isPremium = plan.slug === 'rise-premium';
+          const isGeneral = plan.slug === 'rise-general';
+          const isCurrentTier = currentPlanSlug === plan.slug;
+          const isAvailableUpgrade = availableUpgradeIds.includes(plan.id);
+          const totalPayable = plan.price / 100;
+          const shortDescription = isVip
+            ? 'Private suite access for up to seven guests.'
+            : isPremium
+              ? 'Premium Gallery access · scarf included.'
+              : 'Core supporter access.';
 
           return (
             <div key={plan.id} style={{
               background: isVip ? '#0a0a0a' : '#fff',
               border: isVip ? '2px solid #b45309' : (isPremium ? '2px solid #1d4ed8' : '1px solid #e2e8f0'),
+              outline: isCurrentTier ? '3px solid rgba(37, 99, 235, 0.22)' : undefined,
               borderRadius: '8px',
               display: 'flex',
               flexDirection: 'column',
@@ -148,16 +182,17 @@ export default function UpgradePlans({ availableUpgrades, hasMembership, canPurc
                 </div>
               )}
 
-              <div style={{ padding: '20px 20px 0' }}>
+              <div style={{ padding: '14px 16px 0' }}>
                 {isGeneral && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', marginBottom: '10px' }}>
                     <span style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: '100px' }}>CORE SUPPORTER</span>
                     <span>Pass Tier 2</span>
                   </div>
                 )}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: isVip ? '#fff' : '#0f172a', textTransform: 'uppercase', margin: 0 }}>{plan.name}</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: isVip ? '#fff' : '#0f172a', textTransform: 'uppercase', margin: 0, lineHeight: 1.05 }}>{plan.name}</h3>
+                  {isCurrentTier && <span style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: 999, padding: '4px 9px', fontSize: '0.65rem', fontWeight: 800, whiteSpace: 'nowrap' }}>CURRENT TIER</span>}
                   {isVip && (
                     <div style={{ background: '#fef3c7', color: '#b45309', padding: '4px 8px', fontSize: '0.65rem', fontWeight: 800, textAlign: 'center', border: '1px solid #b45309', whiteSpace: 'nowrap' }}>
                       ALL INCLUSIVE
@@ -170,34 +205,20 @@ export default function UpgradePlans({ availableUpgrades, hasMembership, canPurc
                   )}
                 </div>
 
-                <p style={{ color: isVip ? '#a3a3a3' : '#64748b', fontSize: '0.85rem', lineHeight: 1.4, marginBottom: '16px', minHeight: '38px' }}>
-                  {isVip
-                    ? "A year-long shared experience for a family, group of supporters or business. The membership covers one box admitting up to seven guests at each of the 10 home matches."
-                    : (isPremium
-                      ? "For a supporter who wants better seats and a closer connection."
-                      : "The accessible way to belong to the club for the whole year.")}
-                </p>
+                <p style={{ color: isVip ? '#a3a3a3' : '#64748b', fontSize: '0.8rem', lineHeight: 1.35, margin: '0 0 10px' }}>{shortDescription}</p>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: isVip ? '1px solid #262626' : '1px solid #e2e8f0', borderBottom: isVip ? '1px solid #262626' : '1px solid #e2e8f0', padding: '16px 0', marginBottom: '16px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                      <span style={{ fontSize: '2rem', fontWeight: 800, color: isVip ? '#fbbf24' : '#1e3a8a', lineHeight: 1 }}>₹{(plan.price / 100).toLocaleString('en-IN')}</span>
-                      <span style={{ color: isVip ? '#a3a3a3' : '#64748b', fontWeight: 600, fontSize: '0.8rem' }}>/ year</span>
+                <div style={{ borderTop: isVip ? '1px solid #262626' : '1px solid #e2e8f0', borderBottom: isVip ? '1px solid #262626' : '1px solid #e2e8f0', padding: '10px 0', marginBottom: '10px' }}>
+                  {isVip ? (
+                    <p style={{ color: '#fbbf24', fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>Call to book</p>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 7px' }}>
+                      <span style={{ fontSize: '1.7rem', fontWeight: 800, color: '#1e3a8a', lineHeight: 1 }}>&#8377;{totalPayable.toLocaleString('en-IN')}</span>
+                      <span style={{ color: '#64748b', fontWeight: 600, fontSize: '0.75rem' }}>total payable / year</span>
                     </div>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: isVip ? '#fbbf24' : '#1e3a8a', letterSpacing: '0.05em', marginTop: '6px' }}>
-                      {isVip ? "10 MATCH EXEC SUITE + VIP PRIVILEGES" : (isPremium ? "10 MATCH PREMIUM + VIP PRIVILEGES" : "FULL SEASON 10 MATCH ACCESS")}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', fontWeight: 700, color: isVip ? '#d4d4d8' : '#475569', fontSize: '0.75rem' }}>
-                    {isVip || isPremium ? (
-                      <>AT <span style={{color: isVip ? '#fbbf24' : 'inherit'}}>₹{((plan.price / 100) / 10).toLocaleString('en-IN')} / Match</span></>
-                    ) : (
-                      <span style={{ color: '#2563eb' }}>₹{((plan.price / 100) / 10).toLocaleString('en-IN')} / MATCH</span>
-                    )}
-                  </div>
+                  )}
                 </div>
 
-                <div style={{ background: isVip ? '#171717' : (isPremium ? '#1d4ed8' : '#f8fafc'), border: isVip ? '1px solid #b45309' : (isPremium ? 'none' : '1px solid #e2e8f0'), color: isVip ? '#fbbf24' : (isPremium ? '#fff' : '#0f172a'), padding: '12px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600, fontSize: '0.8rem', marginBottom: '20px' }}>
+                <div style={{ background: isVip ? '#171717' : (isPremium ? '#1d4ed8' : '#f8fafc'), border: isVip ? '1px solid #b45309' : (isPremium ? 'none' : '1px solid #e2e8f0'), color: isVip ? '#fbbf24' : (isPremium ? '#fff' : '#0f172a'), padding: '9px 10px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600, fontSize: '0.75rem', marginBottom: '12px' }}>
                   {isVip ? (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path></svg>
                   ) : (isPremium ? (
@@ -206,46 +227,29 @@ export default function UpgradePlans({ availableUpgrades, hasMembership, canPurc
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                   ))}
                   {isVip
-                    ? "Includes 1 VIP Box Reserved Entry to each home match"
-                    : (isPremium
-                      ? "Includes 1 Premium Gallery Entry to each home match"
-                      : "Includes 1 General entry to each home match")}
-                </div>
-              </div>
-
-              {/* Features list */}
-              <div style={{ padding: '0 20px', flexGrow: 1 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
-                  {features.map((feature, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                      {isVip ? (
-                        feature.gold ? <GoldIcon /> : <VipCheckIcon />
-                      ) : (isPremium ? (
-                        feature.gold ? <GoldIcon /> : <PremiumCheckIcon />
-                      ) : (
-                        <CheckIcon />
-                      ))}
-                      <div>
-                        <h4 style={{ fontWeight: 700, color: isVip ? '#fff' : '#0f172a', fontSize: '0.85rem', marginBottom: '2px', lineHeight: 1.2 }}>{feature.title}</h4>
-                        <p style={{ color: isVip ? '#a3a3a3' : '#64748b', fontSize: '0.75rem', lineHeight: 1.3, margin: 0 }}>{feature.desc}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ? '1 reserved VIP box at each of the 10 home matches'
+                    : `${isPremium ? 'Premium Gallery' : 'General'} entry at all 10 home matches`}
                 </div>
               </div>
 
               {/* Footer action */}
-              <div style={{ padding: '20px', marginTop: '16px' }}>
-                {!plan.is_purchasable_online ? <button
+              <div style={{ padding: '0 16px 14px', marginTop: 'auto' }}>
+                {isCurrentTier ? <button type="button" className="membership-pay-button" disabled aria-label={`${plan.name} is your current tier`}>Current tier</button>
+                  : isVip ? <div>
+                  <a href="tel:+918837402472" className="membership-pay-button" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
+                    Call to book
+                  </a>
+                  <p style={{ color: '#d4d4d8', fontSize: '.78rem', lineHeight: 1.4, margin: '8px 0 0' }}>
+                    <a href="tel:+918837402472" style={{ color: '#fbbf24' }}>Kaki · 8837402472</a>
+                    {' · '}
+                    <a href="tel:+917005727288" style={{ color: '#fbbf24' }}>Ahibi · 7005727288</a>
+                  </p>
+                </div> : !plan.is_purchasable_online ? <button
                   type="button"
                   className="membership-pay-button"
                   disabled
                   aria-label={`${plan.name} membership coming soon`}
-                >Coming soon</button> : isVip ? <div>
-                  <p style={{ color: '#d4d4d8', fontSize: '.9rem', lineHeight: 1.5 }}>Pay offline; the club will activate your VIP Box after confirming receipt.</p>
-                  <p style={{ marginTop: 12 }}><a href="tel:+918837402472" style={{ color: '#fbbf24' }}>Kaki · 8837402472</a></p>
-                  <p><a href="tel:+917005727288" style={{ color: '#fbbf24' }}>Ahibi · 7005727288</a></p>
-                </div> : <PaymentButton planId={plan.id} disabled={!canPurchase || !plan.is_purchasable_online}>
+                >Coming soon</button> : !isAvailableUpgrade ? <button type="button" className="membership-pay-button" disabled>{hasMembership ? 'Not available as an upgrade' : 'Unavailable'}</button> : <PaymentButton planId={plan.id} requiresGeneralZone={plan.slug === 'rise-general'} disabled={!canPurchase || !plan.is_purchasable_online}>
                   {hasMembership ? 'Upgrade to ' : 'Activate '}{plan.name}
                 </PaymentButton>}
               </div>
@@ -253,6 +257,7 @@ export default function UpgradePlans({ availableUpgrades, hasMembership, canPurc
           );
         })}
       </div>
+      <TierBenefits plans={plans} />
     </div>
   );
 }
