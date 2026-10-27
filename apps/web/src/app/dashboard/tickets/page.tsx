@@ -37,11 +37,11 @@ export default async function TicketsPage() {
     && (!member.end_date || new Date(member.end_date) > new Date());
   const admin = createAdminClient();
   const seasonPassMember = Boolean(active && member && ['rise-general', 'rise-premium'].includes(member.plan.slug));
-  let seasonOrder: { id: string; ahibi_reservation_id: string | null; ahibi_pass_id: string | null; ahibi_zone: string | null; ahibi_pass_status: string } | null = null;
+  let seasonOrder: { id: string; ahibi_reservation_id: string | null; ahibi_pass_id: string | null; ahibi_zone: string | null; ahibi_pass_status: string; ahibi_replaces_order_id: string | null } | null = null;
   let seasonTickets: Array<AhibiSeasonPassTicketDetails & { qrDataUrl: string | null }> = [];
   if (seasonPassMember && member) {
     const { data: paidOrder } = await admin.from('membership_payment_orders')
-      .select('id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status')
+      .select('id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status,ahibi_replaces_order_id')
       .eq('member_id', member.id).eq('user_id', dashboard.profile.id).eq('plan_id', member.plan_id)
       .eq('purpose', 'tier').eq('status', 'paid').order('paid_at', { ascending: false }).limit(1).maybeSingle();
     seasonOrder = paidOrder;
@@ -50,7 +50,7 @@ export default async function TicketsPage() {
         .select('ahibi_booking_id,ahibi_event_id,match_date,opponent,ticket_type,zone,status,ticket_access_path')
         .eq('payment_order_id', paidOrder.id).eq('member_id', member.id).eq('user_id', dashboard.profile.id)
         .order('match_date', { ascending: true });
-      if (storedTickets?.length === 10) {
+      if (storedTickets && storedTickets.length > 0 && storedTickets.length <= 10) {
         const ticketResults = await Promise.all(storedTickets.map(async (stored) => {
           const expected = {
             ticketId: stored.ahibi_booking_id,
@@ -101,7 +101,11 @@ export default async function TicketsPage() {
     <div>
       <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Match Tickets</h1>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 32 }}>
-        <p style={{ color: '#64748b', margin: 0 }}>{seasonPassMember ? 'Your Ahibi season pass tickets for all ten home matches.' : 'Use your membership entry for each eligible home match through Ahibi.'}</p>
+        <p style={{ color: '#64748b', margin: 0 }}>{seasonPassMember
+          ? seasonOrder?.ahibi_replaces_order_id
+            ? `Your Premium season pass tickets for ${seasonTickets.length || 'the remaining'} home matches.`
+            : 'Your Ahibi season pass tickets for all ten home matches.'
+          : 'Use your membership entry for each eligible home match through Ahibi.'}</p>
       </div>
 
       {seasonPassMember && <section aria-labelledby="season-pass-heading" style={{ marginBottom: 32 }}>
@@ -110,7 +114,7 @@ export default async function TicketsPage() {
           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24, color: '#475569' }}>
             Your Rise membership is active, but its Ahibi season pass record is not available yet. Refresh shortly or contact the club.
           </div>
-        ) : seasonOrder.ahibi_pass_status === 'issued' && seasonTickets.length === 10 ? (
+        ) : seasonOrder.ahibi_pass_status === 'issued' && seasonTickets.length > 0 && seasonTickets.length <= 10 ? (
           <>
             {seasonOrder.ahibi_zone && <p style={{ color: '#475569' }}>General seating zone: <strong>{seasonOrder.ahibi_zone}</strong> across all ten matches.</p>}
             {seasonTickets.some(ticket => !ticket.qrDataUrl) && <p role="status" style={{ color: '#92400e' }}>Some ticket QR codes could not load. You can still download the AHIBI ticket.</p>}

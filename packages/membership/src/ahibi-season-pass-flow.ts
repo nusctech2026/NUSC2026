@@ -3,6 +3,7 @@ import {
   AhibiSeasonPassError,
   confirmAhibiSeasonPass,
   getAhibiSeasonPassStatus,
+  replaceAhibiGeneralPass,
   releaseAhibiSeasonPass,
   reserveAhibiSeasonPass,
   type AhibiSeasonPassId,
@@ -19,6 +20,9 @@ type PassOrder = {
   status: string;
   razorpay_order_id: string | null;
   payment_id: string | null;
+  upgrade_from_plan_id: string | null;
+  upgrade_credit_source_order_id: string | null;
+  ahibi_replaces_order_id: string | null;
   ahibi_reservation_id: string | null;
   ahibi_pass_id: AhibiSeasonPassId | null;
   ahibi_zone: AhibiSeasonPassZone | null;
@@ -56,10 +60,72 @@ async function setOrderAhibiStatus(orderId: string, status: string) {
   if (error) console.error('Could not update Ahibi pass status:', error.code || 'database_error');
 }
 
+async function getGeneralPassOrderForUpgrade(db: ReturnType<typeof createAdminClient>, order: PassOrder) {
+  let query = db.from('membership_payment_orders')
+    .select('id,member_id,user_id,plan_id,purpose,status,payment_id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status')
+    .eq('member_id', order.member_id).eq('user_id', order.user_id)
+    .eq('plan_id', order.upgrade_from_plan_id).eq('purpose', 'tier').eq('status', 'paid')
+    .eq('ahibi_pass_id', 'general-season');
+  if (order.upgrade_credit_source_order_id) {
+    query = query.eq('id', order.upgrade_credit_source_order_id);
+  } else {
+    query = query.order('paid_at', { ascending: false }).limit(1);
+  }
+  const { data, error } = await query.maybeSingle();
+  if (error || !data?.ahibi_reservation_id || !data.payment_id
+      || !['issued', 'replaced'].includes(data.ahibi_pass_status)) {
+    throw new AhibiSeasonPassError(409, 'AHIBI_GENERAL_PASS_NOT_ACTIVE');
+  }
+  return data as PassOrder;
+}
+
+async function syncGeneralTicketStatuses(
+  db: ReturnType<typeof createAdminClient>,
+  orderId: string,
+  remoteTickets: AhibiSeasonPassTicket[],
+) {
+  const { data: stored, error } = await db.from('membership_season_pass_tickets')
+    .select('ahibi_event_id,ahibi_booking_id').eq('payment_order_id', orderId);
+  if (error || !stored || stored.length !== 10 || remoteTickets.length !== 10) {
+    throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
+  }
+  const storedByEvent = new Map(stored.map(ticket => [ticket.ahibi_event_id, ticket.ahibi_booking_id]));
+  for (const remote of remoteTickets) {
+    if (storedByEvent.get(remote.eventId) !== remote.ticketId) throw new AhibiSeasonPassError(502, 'AHIBI_RESPONSE_MISMATCH');
+  }
+  for (const status of ['confirmed', 'used', 'cancelled'] as const) {
+    const eventIds = remoteTickets.filter(ticket => ticket.status === status).map(ticket => ticket.eventId);
+    if (eventIds.length === 0) continue;
+    const { error: updateError } = await db.from('membership_season_pass_tickets')
+      .update({ status }).eq('payment_order_id', orderId).in('ahibi_event_id', eventIds);
+    if (updateError) throw new AhibiSeasonPassError(503, 'AHIBI_STATUS_SYNC_FAILED');
+  }
+}
+
+async function prepareGeneralPassReplacement(db: ReturnType<typeof createAdminClient>, order: PassOrder) {
+  if (!order.upgrade_from_plan_id) return null;
+  const oldOrder = await getGeneralPassOrderForUpgrade(db, order);
+  if (oldOrder.ahibi_pass_status !== 'issued') throw new AhibiSeasonPassError(409, 'AHIBI_GENERAL_PASS_NOT_ACTIVE');
+  if (!isZone(oldOrder.ahibi_zone)) throw new AhibiSeasonPassError(409, 'AHIBI_GENERAL_PASS_NOT_ACTIVE');
+  const status = await getAhibiSeasonPassStatus(oldOrder.ahibi_reservation_id!, {
+    partnerOrderId: reservationIdFor(oldOrder.id),
+    passId: 'general-season',
+    zone: oldOrder.ahibi_zone,
+  });
+  if (status.reservation.status !== 'issued' || status.tickets.length !== 10) {
+    throw new AhibiSeasonPassError(409, 'AHIBI_GENERAL_PASS_NOT_ACTIVE');
+  }
+  await syncGeneralTicketStatuses(db, oldOrder.id, status.tickets);
+  if (!status.tickets.some(ticket => ticket.status === 'confirmed')) {
+    throw new AhibiSeasonPassError(409, 'AHIBI_NO_REMAINING_MATCHES');
+  }
+  return oldOrder;
+}
+
 export async function reserveAhibiPassForOrder(orderId: string, requestedZone: unknown) {
   const db = createAdminClient();
   const { data: orderData, error: orderError } = await db.from('membership_payment_orders')
-    .select('id,member_id,user_id,plan_id,purpose,status,razorpay_order_id,payment_id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status,ahibi_reservation_expires_at')
+    .select('id,member_id,user_id,plan_id,purpose,status,razorpay_order_id,payment_id,upgrade_from_plan_id,upgrade_credit_source_order_id,ahibi_replaces_order_id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status,ahibi_reservation_expires_at')
     .eq('id', orderId).single();
   if (orderError || !orderData) throw new Error('Unable to prepare the membership pass reservation.');
   const order = orderData as PassOrder;
@@ -81,6 +147,9 @@ export async function reserveAhibiPassForOrder(orderId: string, requestedZone: u
     }
     if (order.ahibi_pass_status === 'held' && order.ahibi_reservation_expires_at
         && Date.parse(order.ahibi_reservation_expires_at) > Date.now()) {
+      if (order.upgrade_from_plan_id && !order.ahibi_replaces_order_id) {
+        throw new AhibiSeasonPassError(409, 'AHIBI_GENERAL_PASS_NOT_ACTIVE');
+      }
       return { reservationId: order.ahibi_reservation_id, status: 'held' as const };
     }
     if (order.ahibi_pass_status === 'held' || order.ahibi_pass_status === 'issuing') {
@@ -98,6 +167,13 @@ export async function reserveAhibiPassForOrder(orderId: string, requestedZone: u
   if (beginError || !preparingOrder) throw new Error('Membership checkout is no longer available.');
 
   try {
+    const oldGeneralOrder = await prepareGeneralPassReplacement(db, order);
+    if (oldGeneralOrder) {
+      const { data: linkedOrder, error: linkError } = await db.from('membership_payment_orders')
+        .update({ ahibi_replaces_order_id: oldGeneralOrder.id })
+        .eq('id', order.id).in('status', ['creating', 'pending']).select('id').maybeSingle();
+      if (linkError || !linkedOrder) throw new Error('Unable to link the General pass being replaced.');
+    }
     const reservation = await reserveAhibiSeasonPass({
       partnerOrderId,
       memberReference: memberReferenceFor(order.member_id),
@@ -145,7 +221,7 @@ export async function releaseAhibiPassForOrder(orderId: string) {
   }
 }
 
-async function persistIssuedTickets(order: PassOrder, tickets: AhibiSeasonPassTicket[]) {
+async function persistIssuedTickets(order: PassOrder, tickets: AhibiSeasonPassTicket[], replacedOrder?: PassOrder) {
   const db = createAdminClient();
   const rows = tickets.map(ticket => ({
     payment_order_id: order.id,
@@ -167,7 +243,9 @@ async function persistIssuedTickets(order: PassOrder, tickets: AhibiSeasonPassTi
   const { data: saved, error: readError } = await db.from('membership_season_pass_tickets')
     .select('ahibi_booking_id,ahibi_event_id,match_date,opponent,ticket_type,zone,ticket_access_path')
     .eq('payment_order_id', order.id);
-  if (readError || !saved || saved.length !== 10) throw new Error('Issued Ahibi tickets need reconciliation.');
+  if (readError || !saved || saved.length !== tickets.length || tickets.length < 1 || tickets.length > 10) {
+    throw new Error('Issued Ahibi tickets need reconciliation.');
+  }
   const savedByEvent = new Map(saved.map(ticket => [ticket.ahibi_event_id, ticket]));
   for (const ticket of tickets) {
     const existing = savedByEvent.get(ticket.eventId);
@@ -176,6 +254,16 @@ async function persistIssuedTickets(order: PassOrder, tickets: AhibiSeasonPassTi
         || existing.zone !== ticket.zone || existing.ticket_access_path !== ticket.ticketAccessPath) {
       throw new Error('Issued Ahibi tickets need reconciliation.');
     }
+  }
+  if (replacedOrder) {
+    const { error: cancelError } = await db.from('membership_season_pass_tickets')
+      .update({ status: 'cancelled' }).eq('payment_order_id', replacedOrder.id).eq('status', 'confirmed');
+    if (cancelError) throw new Error('Issued Ahibi tickets need reconciliation.');
+    const { data: linked, error: linkError } = await db.from('membership_payment_orders')
+      .update({ ahibi_pass_status: 'replaced', ahibi_replaced_by_order_id: order.id })
+      .eq('id', replacedOrder.id).eq('status', 'paid').in('ahibi_pass_status', ['issued', 'replaced'])
+      .select('id').maybeSingle();
+    if (linkError || !linked) throw new Error('Issued Ahibi tickets need reconciliation.');
   }
   const { error: updateError } = await db.from('membership_payment_orders').update({ ahibi_pass_status: 'issued' })
     .eq('id', order.id).eq('status', 'paid').eq('payment_id', order.payment_id);
@@ -187,6 +275,14 @@ function isExpiredReservationError(error: unknown) {
     && ['AHIBI_HOLD_EXPIRED', 'HOLD_EXPIRED', 'RESERVATION_EXPIRED', 'RESERVATION_RELEASED'].includes(error.code);
 }
 
+function isPersistenceError(error: unknown) {
+  return error instanceof Error && [
+    'Unable to save issued Ahibi tickets.',
+    'Issued Ahibi tickets need reconciliation.',
+    'Replacement status needs reconciliation.',
+  ].includes(error.message);
+}
+
 async function markPassNeedsReview(orderId: string, status: 'refund_required' | 'needs_reconciliation') {
   await setOrderAhibiStatus(orderId, status);
 }
@@ -194,7 +290,7 @@ async function markPassNeedsReview(orderId: string, status: 'refund_required' | 
 export async function ensureAhibiPassIssued(razorpayOrderId: string, paymentId: string): Promise<string> {
   const db = createAdminClient();
   const { data, error } = await db.from('membership_payment_orders')
-    .select('id,member_id,user_id,plan_id,purpose,status,razorpay_order_id,payment_id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status,ahibi_reservation_expires_at')
+    .select('id,member_id,user_id,plan_id,purpose,status,razorpay_order_id,payment_id,upgrade_from_plan_id,upgrade_credit_source_order_id,ahibi_replaces_order_id,ahibi_reservation_id,ahibi_pass_id,ahibi_zone,ahibi_pass_status,ahibi_reservation_expires_at')
     .eq('razorpay_order_id', razorpayOrderId).maybeSingle();
   if (error || !data) return 'not_required';
   const order = data as PassOrder;
@@ -208,7 +304,8 @@ export async function ensureAhibiPassIssued(razorpayOrderId: string, paymentId: 
   const passId = plan && !planError ? passForPlan(plan.slug) : null;
   if (!passId || !order.ahibi_reservation_id || order.ahibi_pass_id !== passId
       || (passId === 'general-season' && !isZone(order.ahibi_zone))
-      || (passId === 'premium-season' && order.ahibi_zone !== null)) {
+      || (passId === 'premium-season' && order.ahibi_zone !== null)
+      || Boolean(order.upgrade_from_plan_id) !== Boolean(order.ahibi_replaces_order_id)) {
     await markPassNeedsReview(order.id, 'refund_required');
     return 'refund_required';
   }
@@ -226,8 +323,37 @@ export async function ensureAhibiPassIssued(razorpayOrderId: string, paymentId: 
   }
 
   try {
-    const issuance = await confirmAhibiSeasonPass(order.ahibi_reservation_id, paymentId, expected);
-    await persistIssuedTickets(order, issuance.tickets);
+    if (order.upgrade_from_plan_id && order.ahibi_replaces_order_id) {
+      const oldOrder = await getGeneralPassOrderForUpgrade(db, order);
+      if (oldOrder.id !== order.ahibi_replaces_order_id || !isZone(oldOrder.ahibi_zone)) {
+        throw new AhibiSeasonPassError(409, 'AHIBI_GENERAL_PASS_NOT_ACTIVE');
+      }
+      const oldStatus = await getAhibiSeasonPassStatus(oldOrder.ahibi_reservation_id!, {
+        partnerOrderId: reservationIdFor(oldOrder.id), passId: 'general-season', zone: oldOrder.ahibi_zone,
+      });
+      if (oldStatus.reservation.status === 'issued') {
+        await syncGeneralTicketStatuses(db, oldOrder.id, oldStatus.tickets);
+      } else if (oldStatus.reservation.status !== 'replaced') {
+        throw new AhibiSeasonPassError(409, 'AHIBI_GENERAL_PASS_NOT_ACTIVE');
+      }
+      const { data: oldTickets, error: oldTicketsError } = await db.from('membership_season_pass_tickets')
+        .select('ahibi_event_id').eq('payment_order_id', oldOrder.id);
+      const expectedEventIds = (oldTickets ?? []).map(ticket => ticket.ahibi_event_id as string);
+      if (oldTicketsError || expectedEventIds.length !== 10 || new Set(expectedEventIds).size !== 10) {
+        throw new Error('Issued Ahibi tickets need reconciliation.');
+      }
+      const replacementTickets = await replaceAhibiGeneralPass({
+        premiumReservationId: order.ahibi_reservation_id,
+        oldReservationId: oldOrder.ahibi_reservation_id!,
+        paymentId,
+        partnerOrderId: reservationIdFor(order.id),
+        expectedEventIds,
+      });
+      await persistIssuedTickets(order, replacementTickets, oldOrder);
+    } else {
+      const issuance = await confirmAhibiSeasonPass(order.ahibi_reservation_id, paymentId, expected);
+      await persistIssuedTickets(order, issuance.tickets);
+    }
     return 'issued';
   } catch (confirmError) {
     if (isExpiredReservationError(confirmError)
@@ -238,7 +364,26 @@ export async function ensureAhibiPassIssued(razorpayOrderId: string, paymentId: 
     try {
       const status = await getAhibiSeasonPassStatus(order.ahibi_reservation_id, expected);
       if (status.reservation.status === 'issued') {
-        await persistIssuedTickets(order, status.tickets);
+        if (order.upgrade_from_plan_id && order.ahibi_replaces_order_id) {
+          const oldOrder = await getGeneralPassOrderForUpgrade(db, order);
+          if (oldOrder.id !== order.ahibi_replaces_order_id || !isZone(oldOrder.ahibi_zone)) {
+            throw new Error('Replacement status needs reconciliation.');
+          }
+          const oldStatus = await getAhibiSeasonPassStatus(oldOrder.ahibi_reservation_id!, {
+            partnerOrderId: reservationIdFor(oldOrder.id), passId: 'general-season', zone: oldOrder.ahibi_zone,
+          });
+          if (oldStatus.reservation.status !== 'replaced') throw new Error('Replacement status needs reconciliation.');
+          const { data: oldTickets, error: oldTicketsError } = await db.from('membership_season_pass_tickets')
+            .select('ahibi_event_id').eq('payment_order_id', oldOrder.id);
+          const expectedEventIds = (oldTickets ?? []).map(ticket => ticket.ahibi_event_id as string);
+          if (oldTicketsError || expectedEventIds.length !== 10 || new Set(expectedEventIds).size !== 10
+              || status.tickets.some(ticket => !expectedEventIds.includes(ticket.eventId))) {
+            throw new Error('Replacement status needs reconciliation.');
+          }
+          await persistIssuedTickets(order, status.tickets, oldOrder);
+        } else {
+          await persistIssuedTickets(order, status.tickets);
+        }
         return 'issued';
       }
       if (status.reservation.status === 'expired' || status.reservation.status === 'released') {
@@ -246,9 +391,13 @@ export async function ensureAhibiPassIssued(razorpayOrderId: string, paymentId: 
         return 'refund_required';
       }
     } catch (statusError) {
+      if (isPersistenceError(statusError)) {
+        await markPassNeedsReview(order.id, 'needs_reconciliation');
+        return 'needs_reconciliation';
+      }
       console.error('Ahibi season pass confirmation is pending:', statusError instanceof AhibiSeasonPassError ? statusError.code : 'partner_error');
     }
-    if (confirmError instanceof Error && confirmError.message === 'Issued Ahibi tickets need reconciliation.') {
+    if (isPersistenceError(confirmError)) {
       await markPassNeedsReview(order.id, 'needs_reconciliation');
       return 'needs_reconciliation';
     }

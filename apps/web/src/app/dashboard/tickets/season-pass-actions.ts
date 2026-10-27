@@ -12,8 +12,9 @@ export async function refreshSeasonPassTickets() {
   const { data: member, error: memberError } = await session.from('members')
     .select('id,plan_id,plan:membership_plans(slug)')
     .eq('user_id', user.id).maybeSingle();
-  const planRelation = Array.isArray(member?.plan) ? member.plan[0] : member?.plan;
-  if (memberError || !member || !planRelation || !['rise-general', 'rise-premium'].includes(planRelation.slug)) return;
+  const planRelation = member?.plan;
+  const plan = Array.isArray(planRelation) ? planRelation[0] : planRelation;
+  if (memberError || !member || !plan || !['rise-general', 'rise-premium'].includes(plan.slug)) return;
 
   const db = createAdminClient();
   const { data: order, error: orderError } = await db.from('membership_payment_orders')
