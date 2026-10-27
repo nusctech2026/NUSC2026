@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 type DemandStats = {
   total: number;
@@ -13,16 +13,34 @@ type DemandStats = {
 export const JerseyDemandSummary: React.FC = () => {
   const [stats, setStats] = useState<DemandStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const response = await fetch('/api/jersey-interest-registrations/stats', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Stats request failed');
+      const data = (await response.json()) as DemandStats;
+      if (
+        !Number.isFinite(data.total) ||
+        !Number.isFinite(data.officialCount) ||
+        !Number.isFinite(data.awayCount) ||
+        !Number.isFinite(data.reserveCount)
+      ) {
+        throw new Error('Stats response is invalid');
+      }
+      setStats(data);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch('/api/jersey-interest-registrations/stats')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setStats(data);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    void loadStats();
+  }, [loadStats]);
 
   const handleExport = () => {
     window.location.href = '/api/jersey-interest-registrations/export-csv';
@@ -100,6 +118,14 @@ export const JerseyDemandSummary: React.FC = () => {
           Export Supporters CSV
         </button>
       </div>
+
+      {loading && <p role="status" style={{ margin: 0, color: '#667085' }}>Loading supporter counts…</p>}
+      {error && (
+        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#b42318' }}>
+          <span>Could not load jersey supporter counts.</span>
+          <button type="button" onClick={() => void loadStats()}>Retry</button>
+        </div>
+      )}
 
       {stats && (
         <div

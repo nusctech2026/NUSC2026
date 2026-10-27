@@ -1,0 +1,51 @@
+.member-recovery-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+  padding: 20px;
+}
+
+.member-recovery-card {
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09);
+}
+
+.member-recovery-card h1 {
+  color: #0f172a;
+  font-size: 1.75rem;
+  margin: 0 0 12px;
+}
+
+.member-recovery-card p {
+  color: #475569;
+  line-height: 1.5;
+}
+
+.member-recovery-card a { color: var(--navy-600); font-weight: 600; }
+
+.member-recovery-submit {
+  width: 100%;
+  background: var(--navy-600);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.member-recovery-submit:disabled { opacity: 0.7; cursor: wait; }
+.member-recovery-submit:focus-visible,
+.member-recovery-card a:focus-visible { outline: 3px solid #7298d4; outline-offset: 3px; }
+.member-recovery-error { color: #991b1b !important; }
+.member-recovery-status { color: #166534 !important; }
+
+@media (max-width: 480px) {
+  .member-recovery-card { padding: 28px 22px; }
+}
