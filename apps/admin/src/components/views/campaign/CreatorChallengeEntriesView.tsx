@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
 import {
+  deleteCreatorChallengeEntry,
   getCreatorChallengeEntries,
   getCreatorChallengeSummary,
   type CreatorChallengeEntry,
@@ -70,9 +71,15 @@ export const CreatorChallengeEntriesView: React.FC = () => {
   const [summaryError, setSummaryError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteNotice, setDeleteNotice] = useState('');
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setSummaryLoading(true);
+    setSummaryError('');
     getCreatorChallengeSummary().then(result => {
       if (active) setSummary(result);
     }).catch(cause => {
@@ -81,7 +88,7 @@ export const CreatorChallengeEntriesView: React.FC = () => {
       if (active) setSummaryLoading(false);
     });
     return () => { active = false; };
-  }, []);
+  }, [refreshVersion]);
 
   useEffect(() => {
     let active = true;
@@ -103,7 +110,7 @@ export const CreatorChallengeEntriesView: React.FC = () => {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [category, matchday, search, page]);
+  }, [category, matchday, search, page, refreshVersion]);
 
   function applySearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,6 +124,30 @@ export const CreatorChallengeEntriesView: React.FC = () => {
   if (search) exportParams.set('search', search);
   const exportQuery = exportParams.toString();
   const exportHref = `/admin/campaign/creator-challenge/export${exportQuery ? `?${exportQuery}` : ''}`;
+
+  async function deleteEntry(entry: CreatorChallengeEntry) {
+    if (deletingEntryId) return;
+    const confirmed = window.confirm(
+      `Permanently delete ${entry.entry_number} for ${entry.full_name}? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingEntryId(entry.id);
+    setDeleteError('');
+    setDeleteNotice('');
+    try {
+      await deleteCreatorChallengeEntry(entry.id);
+      setDeleteNotice(`${entry.entry_number} was permanently deleted.`);
+      if (entries.length === 1 && page > 1) {
+        setPage(current => Math.max(1, current - 1));
+      }
+      setRefreshVersion(current => current + 1);
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : 'Unable to delete this entry. Please try again.');
+    } finally {
+      setDeletingEntryId(null);
+    }
+  }
 
   return (
     <div className="campaign-page creator-challenge-admin">
@@ -178,6 +209,8 @@ export const CreatorChallengeEntriesView: React.FC = () => {
       </div>
 
       {error && <p className="creator-entry-error" role="alert">{error}</p>}
+      {deleteError && <p className="creator-entry-error" role="alert">{deleteError}</p>}
+      {deleteNotice && <p className="creator-entry-state" role="status">{deleteNotice}</p>}
       {loading && <p className="creator-entry-state" role="status">Loading entries…</p>}
       {!loading && !error && entries.length === 0 && <p className="creator-entry-state">No Creator Challenge entries match these filters.</p>}
 
@@ -194,6 +227,17 @@ export const CreatorChallengeEntriesView: React.FC = () => {
                 <div className="creator-entry-summary-side">
                   <span>{formatDate(entry.submitted_at)}</span>
                   <a href={entry.published_entry_url} target="_blank" rel="noreferrer">Open submitted entry ↗</a>
+                  {summary?.canDeleteEntries && (
+                    <button
+                      className="creator-entry-delete"
+                      type="button"
+                      disabled={deletingEntryId !== null}
+                      aria-label={`Delete entry ${entry.entry_number}`}
+                      onClick={() => void deleteEntry(entry)}
+                    >
+                      {deletingEntryId === entry.id ? 'Deleting...' : 'Delete entry'}
+                    </button>
+                  )}
                 </div>
               </div>
               <details className="creator-entry-details">

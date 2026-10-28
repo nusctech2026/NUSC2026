@@ -41,10 +41,11 @@ export type CreatorChallengeSummary = {
   total: number;
   categories: Record<'poster' | 'football_edits' | 'fan_voice', number>;
   matchdays: number[];
+  canDeleteEntries: boolean;
 };
 
 export async function getCreatorChallengeSummary(): Promise<CreatorChallengeSummary> {
-  await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']);
+  const staff = await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']);
 
   const supabase = getSupabaseAdminClient();
   const totalRequest = supabase.from('creator_challenge_entries').select('id', { count: 'exact', head: true });
@@ -71,6 +72,7 @@ export async function getCreatorChallengeSummary(): Promise<CreatorChallengeSumm
     total: total.count || 0,
     categories,
     matchdays: Array.from({ length: 10 }, (_, index) => byMatchday.get(index + 1) || 0),
+    canDeleteEntries: staff.roles.some(role => role === 'super_admin' || role === 'campaign_manager'),
   };
 }
 
@@ -118,4 +120,31 @@ export async function getCreatorChallengeEntries(filters: CreatorChallengeEntryF
     pageSize,
     totalPages: Math.max(1, Math.ceil((count || 0) / pageSize)),
   };
+}
+
+export async function deleteCreatorChallengeEntry(entryId: unknown): Promise<void> {
+  const staff = await assertStaffRole(['super_admin', 'campaign_manager']);
+  if (!staff.roles.some(role => role === 'super_admin' || role === 'campaign_manager')) {
+    throw new Error('Access denied: only campaign managers and super admins can delete entries.');
+  }
+
+  const id = typeof entryId === 'string' ? entryId.trim() : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error('Invalid Creator Challenge entry identifier.');
+  }
+
+  const { data, error } = await getSupabaseAdminClient()
+    .from('creator_challenge_entries')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Creator Challenge entry deletion failed:', error.code || 'database_error');
+    throw new Error('Unable to delete this entry. Please try again.');
+  }
+  if (!data) {
+    throw new Error('This entry was not found or has already been deleted. Refresh the page and try again.');
+  }
 }
