@@ -6,14 +6,23 @@ import { NavGroup, useAuth } from '@payloadcms/ui';
 
 export const CampaignNavLinks: React.FC = () => {
   const { user } = useAuth();
-  const rawRoles = Array.isArray((user as any)?.roles)
-    ? (user as any).roles
-    : ((user as any)?.display_roles?.map((r: any) => (typeof r === 'string' ? r : r?.role)) || []);
+  const userRecord = user as { roles?: unknown; display_roles?: unknown } | null;
+  const roleNames = (value: unknown): string[] => Array.isArray(value)
+    ? value.flatMap(item => {
+      if (typeof item === 'string') return [item];
+      if (item && typeof item === 'object' && 'role' in item && typeof item.role === 'string') return [item.role];
+      return [];
+    })
+    : [];
+  const rawRoles = new Set([
+    ...roleNames(userRecord?.roles),
+    ...roleNames(userRecord?.display_roles),
+  ]);
 
-  const isSuperAdmin = rawRoles.includes('super_admin');
-  const isManager = rawRoles.includes('campaign_manager');
-  const isReviewer = rawRoles.includes('reviewer');
-  const isGateStaff = rawRoles.includes('gate_staff');
+  const isSuperAdmin = rawRoles.has('super_admin');
+  const isManager = rawRoles.has('campaign_manager');
+  const isReviewer = rawRoles.has('reviewer');
+  const isGateStaff = rawRoles.has('gate_staff');
 
   // If user has no campaign-related role, do not render the campaign nav group
   if (!isSuperAdmin && !isManager && !isReviewer && !isGateStaff) {
@@ -41,6 +50,9 @@ export const CampaignNavLinks: React.FC = () => {
         </Link>
         <Link href="/admin/campaign/applications" style={{ color: 'inherit', textDecoration: 'none' }}>
           📝 Applications
+        </Link>
+        <Link href="/admin/campaign/creator-challenge" style={{ color: 'inherit', textDecoration: 'none' }}>
+          Creator Challenge Entries
         </Link>
         <Link href="/admin/campaign/approved" style={{ color: 'inherit', textDecoration: 'none' }}>
           ✅ Approved Candidates

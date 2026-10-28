@@ -146,9 +146,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
           </Link>
           <div className="nav-links" id="navlinks">
             <Link href="/#home" className={activeLink === 'home' ? 'active' : ''}>Home</Link>
-            <Link href="/#club" className={activeLink === 'club' ? 'active' : ''}>About</Link>
-            <Link href="/#journey" className={activeLink === 'journey' ? 'active' : ''}>Our Journey</Link>
-            <Link href="/#honours" className={activeLink === 'honours' ? 'active' : ''}>Honours</Link>
+            <Link href="/creator-challenge" className={pathname === '/creator-challenge' ? 'active' : ''}>Creator Challenge</Link>
             <Link href="/jersey-interest" className={pathname === '/jersey-interest' ? 'active' : ''}>Jersey</Link>
             <Link href="/registrations" className={pathname === '/registrations' ? 'active' : ''}>Registrations</Link>
           </div>
@@ -175,9 +173,7 @@ export function Nav({ theme = 'dark', forceScrolled = false }: { theme?: 'light'
       <div className={`drawer ${isOpen ? 'open' : ''}`} id="drawer" role="navigation" aria-label="Mobile">
         <div className="burst faint" aria-hidden="true"></div>
         <Link href="/#home" onClick={closeDrawer}>Home<small>Rise Together</small></Link>
-        <Link href="/#club" onClick={closeDrawer}>About<small>About NUSC</small></Link>
-        <Link href="/#journey" onClick={closeDrawer}>Our Journey<small>Built on Results. Driven by Progress.</small></Link>
-        <Link href="/#honours" onClick={closeDrawer}>Honours<small>Achievements · Earned on the Pitch.</small></Link>
+        <Link href="/creator-challenge" onClick={closeDrawer}>Creator Challenge<small>Enter the NUSC matchday content challenge</small></Link>
         <Link href="/jersey-interest" onClick={closeDrawer}>Jersey<small>Explore Jerseys</small></Link>
         <Link href="/registrations" onClick={closeDrawer}>Registrations<small>Matchday roles &amp; press accreditation</small></Link>
         {isLoggedIn ? (

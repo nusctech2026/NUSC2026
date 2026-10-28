@@ -4,11 +4,11 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@payloadcms/ui'
-import { isCampaignOnlyStaff } from '../../auth/staffRoles'
 
 const managerLinks = [
   { label: 'Overview', href: '/admin/campaign' },
   { label: 'Applications', href: '/admin/campaign/applications' },
+  { label: 'Creator Challenge', href: '/admin/campaign/creator-challenge' },
   { label: 'Approved', href: '/admin/campaign/approved' },
   { label: 'Pass IDs', href: '/admin/campaign/ids' },
   { label: 'Matches', href: '/admin/campaign/matches' },
@@ -18,17 +18,23 @@ const managerLinks = [
 export const CampaignWorkspaceNav: React.FC = () => {
   const pathname = usePathname()
   const { user } = useAuth()
-  const roles = (user as { roles?: string[]; display_roles?: { role: string }[] } | null)?.roles
-    ?? (user as { display_roles?: { role: string }[] } | null)?.display_roles?.map(item => item.role)
-    ?? []
-  const campaignOnly = isCampaignOnlyStaff(user)
+  const userRecord = user as { roles?: unknown; display_roles?: unknown } | null
+  const roleNames = (value: unknown): string[] => Array.isArray(value)
+    ? value.flatMap(item => {
+      if (typeof item === 'string') return [item]
+      if (item && typeof item === 'object' && 'role' in item && typeof item.role === 'string') return [item.role]
+      return []
+    })
+    : []
+  const roles = [...new Set([...roleNames(userRecord?.roles), ...roleNames(userRecord?.display_roles)])]
+  const hasCampaignAccess = roles.some(role => ['super_admin', 'campaign_manager', 'reviewer', 'gate_staff'].includes(role))
   const gateOnly = roles.includes('gate_staff') && !roles.some(role => ['super_admin', 'campaign_manager', 'reviewer'].includes(role))
   const links = gateOnly ? [] : managerLinks.filter(link => link.href !== '/admin/campaign/matches' || roles.some(role => ['super_admin', 'campaign_manager'].includes(role)))
   const currentHref = pathname === '/admin/campaign'
     ? pathname
     : links.find(link => link.href !== '/admin/campaign' && pathname.startsWith(link.href))?.href
 
-  if (!campaignOnly) return null
+  if (!hasCampaignAccess) return null
 
   return (
     <nav className="campaign-workspace-nav" aria-label="Campaign workspace">
