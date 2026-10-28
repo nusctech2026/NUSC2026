@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { createAdminClient } from '@nusc/db';
 import QRCode from 'qrcode';
 import { AhibiSeasonPassError, getAhibiSeasonPassTicket, type AhibiSeasonPassTicketDetails } from '@nusc/membership/src/ahibi-season-pass';
-import { getDashboardData } from '../service';
+import { getTicketsDashboardData } from '../service';
 import { ClaimMembershipEntryButton } from './ClaimMembershipEntryButton';
 import { refreshSeasonPassTickets } from './season-pass-actions';
 
@@ -26,13 +26,47 @@ function safeAhibiUrl(value: string | null) {
 export default async function TicketsPage() {
   let dashboard;
   try {
-    dashboard = await getDashboardData();
+    dashboard = await getTicketsDashboardData();
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') redirect('/login');
     return <p>Unable to load matchday benefits. Please try again shortly.</p>;
   }
 
   const member = dashboard.membership;
+  if (!dashboard.hasActiveTier) {
+    const registrationPaid = member?.registration_payment_status === 'paid';
+    return (
+      <section aria-labelledby="match-tickets-empty-title" style={{
+        boxSizing: 'border-box', maxWidth: 680, margin: '32px auto', padding: 'clamp(24px, 5vw, 40px)',
+        border: '1px solid #e2e8f0', borderRadius: 16, background: '#fff', textAlign: 'center',
+      }}>
+        <div aria-hidden="true" style={{
+          display: 'grid', placeItems: 'center', width: 56, height: 56, margin: '0 auto 16px',
+          borderRadius: 16, background: '#eff6ff', color: '#173f78',
+        }}>
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0-2-2V7Z" />
+            <path d="M9 8v1m0 3v1m0 3v1" />
+          </svg>
+        </div>
+        <h1 id="match-tickets-empty-title" style={{ margin: '0 0 12px', color: '#0f172a', fontSize: '1.75rem', fontWeight: 700 }}>
+          Matchday entry is part of your Rise membership
+        </h1>
+        <p style={{ maxWidth: 520, margin: '0 auto 24px', color: '#475569', lineHeight: 1.65 }}>
+          {registrationPaid
+            ? 'Your NUSC registration is complete. Activate Rise General, Rise Premium, or Rise VIP Box to unlock matchday entry. Your tickets will appear here once your tier is active.'
+            : 'Complete your NUSC registration and activate a Rise tier to unlock matchday entry. Your tickets will appear here once your tier is active.'}
+        </p>
+        <Link href="/dashboard" className="membership-pay-button" style={{
+          display: 'inline-flex', width: 'auto', minHeight: 46, alignItems: 'center', justifyContent: 'center',
+          padding: '12px 20px', borderRadius: 8, textDecoration: 'none',
+        }}>
+          Choose a Rise tier
+        </Link>
+      </section>
+    );
+  }
+
   const active = member?.registration_payment_status === 'paid' && member.status === 'active'
     && (!member.end_date || new Date(member.end_date) > new Date());
   const admin = createAdminClient();

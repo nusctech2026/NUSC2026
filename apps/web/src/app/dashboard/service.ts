@@ -16,6 +16,50 @@ export interface DashboardData {
   entitlements: Record<string, unknown>;
 }
 
+export interface TicketsDashboardData {
+  profile: Pick<UserProfile, 'id'>;
+  membership: Member | null;
+  hasActiveTier: boolean;
+  entitlements: Record<string, unknown>;
+}
+
+export async function getTicketsDashboardData(): Promise<TicketsDashboardData> {
+  const supabase = await createServerClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) throw new Error('Unauthorized');
+
+  const { data: member, error: memberError } = await supabase.from('members')
+    .select('*, plan:membership_plans(*)').eq('user_id', user.id).maybeSingle();
+  if (memberError) throw new Error('Unable to load membership');
+  if (member && !member.plan) {
+    const { data: historicalPlan, error } = await createAdminClient().from('membership_plans')
+      .select('id,name,slug,price,billing_cycle,description,is_purchasable_online,is_active')
+      .eq('id', member.plan_id).single();
+    if (error || !historicalPlan) throw new Error('Unable to load membership plan');
+    member.plan = historicalPlan;
+  }
+
+  const membership = member as Member | null;
+  const active = Boolean(membership && membership.registration_payment_status === 'paid'
+    && membership.status === 'active'
+    && (!membership.end_date || new Date(membership.end_date) > new Date()));
+  const hasActiveTier = Boolean(active && membership
+    && ['rise-general', 'rise-premium', 'rise-vip-box'].includes(membership.plan.slug));
+
+  let entitlements: Record<string, unknown> = {};
+  if (hasActiveTier && membership && !['rise-general', 'rise-premium'].includes(membership.plan.slug)) {
+    const { data: benefit, error } = await supabase.from('membership_benefits')
+      .select('metadata').eq('plan_id', membership.plan_id)
+      .eq('category', 'annual_entitlements').eq('is_active', true)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error('Unable to load membership entitlements');
+    entitlements = (benefit?.metadata && typeof benefit.metadata === 'object' && !Array.isArray(benefit.metadata))
+      ? benefit.metadata as Record<string, unknown> : {};
+  }
+
+  return { profile: { id: user.id }, membership, hasActiveTier, entitlements };
+}
+
 export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
