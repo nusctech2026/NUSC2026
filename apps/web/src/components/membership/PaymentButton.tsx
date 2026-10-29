@@ -16,6 +16,18 @@ declare global { interface Window { Razorpay?: new (options: CheckoutOptions) =>
 } } }
 
 let checkoutScript: Promise<void> | undefined;
+const razorpayOrigins = ['https://checkout.razorpay.com', 'https://api.razorpay.com'] as const;
+
+function warmRazorpayConnections() {
+  for (const href of razorpayOrigins) {
+    if (document.head.querySelector(`link[rel="preconnect"][href="${href}"]`)) continue;
+    const hint = document.createElement('link');
+    hint.rel = 'preconnect';
+    hint.href = href;
+    document.head.appendChild(hint);
+  }
+}
+
 async function loadCheckout() {
   if (window.Razorpay) return;
   if (!checkoutScript) checkoutScript = new Promise<void>((resolve, reject) => {
@@ -60,6 +72,13 @@ export default function PaymentButton({ planId = null, children, autoStart = fal
   const [zone, setZone] = useState(initialZone || '');
   const opened = useRef(false);
   const inFlight = useRef(false);
+
+  useEffect(() => {
+    warmRazorpayConnections();
+    void loadCheckout().catch(() => {
+      // The click path reports an actionable error and retries if loading failed.
+    });
+  }, []);
 
   async function pay() {
     if (inFlight.current) return;
