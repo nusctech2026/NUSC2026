@@ -9,6 +9,7 @@ import { Wishlist } from "@/components/wishlist";
 import { MobileNav } from "@/components/mobile-nav";
 import { SmoothScrolling } from "@/components/SmoothScrolling";
 import { NetworkStatus } from "@/components/network-status";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import "./globals.css";
 
 const inter = Inter({
@@ -116,6 +117,7 @@ export default function StoreLayout({
             }}
           />
         </SmoothScrolling>
+        <GoogleAnalytics />
       </body>
     </html>
   );
