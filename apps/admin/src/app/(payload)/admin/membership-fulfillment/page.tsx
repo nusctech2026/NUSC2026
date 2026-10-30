@@ -1,5 +1,9 @@
 import { assertStaffRole } from '../../../../utils/supabaseServerClient'
-import { listMembershipFulfillmentOrders, type MembershipFulfillmentOrder } from '../../../../utils/membershipFulfillmentDb'
+import {
+  listMembershipFulfillmentOrders,
+  MEMBERSHIP_FULFILLMENT_PAGE_SIZES,
+  type MembershipFulfillmentOrdersPage,
+} from '../../../../utils/membershipFulfillmentDb'
 import { recoverMissingPremiumTicketsAction, retryMembershipTicketIssuanceAction } from './actions'
 
 const dateTime = (value: string | null) => value
@@ -23,7 +27,7 @@ const badgeColors: Record<string, { background: string; color: string }> = {
 export default async function MembershipFulfillmentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string }>
+  searchParams: Promise<{ action?: string; page?: string; pageSize?: string }>
 }) {
   try {
     await assertStaffRole(['store_manager', 'membership_manager'])
@@ -47,12 +51,16 @@ export default async function MembershipFulfillmentPage({
   }
 
   const query = await searchParams
-  let orders: MembershipFulfillmentOrder[]
+  let fulfillmentPage: MembershipFulfillmentOrdersPage
   try {
-    orders = await listMembershipFulfillmentOrders()
+    fulfillmentPage = await listMembershipFulfillmentOrders({
+      page: Number(query.page),
+      pageSize: Number(query.pageSize),
+    })
   } catch {
     return <main style={{ padding: 32 }}>Unable to load membership fulfillment records. Check the Admin database connection and membership migrations.</main>
   }
+  const { orders, page, pageSize, hasNextPage } = fulfillmentPage
 
   const actionMessages: Record<string, { text: string; tone: string }> = {
     issued: { text: 'AHIBI issuance is complete and the ticket records were saved.', tone: '#166534' },
@@ -69,6 +77,7 @@ export default async function MembershipFulfillmentPage({
     unavailable: { text: 'Unable to load this order for retry.', tone: '#991b1b' },
   }
   const actionMessage = query.action ? actionMessages[query.action] : null
+  const paginationHref = (targetPage: number) => `?page=${targetPage}&pageSize=${pageSize}`
 
   return (
     <main style={{ maxWidth: 1440, margin: '0 auto', padding: '36px 20px' }}>
@@ -77,6 +86,26 @@ export default async function MembershipFulfillmentPage({
         Review Rise General and Rise Premium payment orders, AHIBI issuance status, and the ten match tickets attached to each order. Retrying uses the existing paid order and AHIBI reservation; it does not create another charge.
       </p>
       {actionMessage && <p role="status" style={{ padding: 12, background: '#f8fafc', color: actionMessage.tone, borderRadius: 8 }}>{actionMessage.text}</p>}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 20, padding: 14, border: '1px solid var(--theme-elevation-200)', borderRadius: 8 }}>
+        <form method="get" action="/admin/membership-fulfillment" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label htmlFor="membership-fulfillment-page-size">Orders per page</label>
+          <select id="membership-fulfillment-page-size" name="pageSize" defaultValue={String(pageSize)} style={{ padding: '7px 9px', border: '1px solid var(--theme-elevation-300)', borderRadius: 6 }}>
+            {MEMBERSHIP_FULFILLMENT_PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+          <button type="submit" style={buttonStyle}>Apply</button>
+        </form>
+
+        <nav aria-label="Membership fulfillment pages" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {page > 1
+            ? <a href={paginationHref(page - 1)} style={paginationLinkStyle}>Previous</a>
+            : <span aria-disabled="true" style={paginationDisabledStyle}>Previous</span>}
+          <span>Page {page}</span>
+          {hasNextPage
+            ? <a href={paginationHref(page + 1)} style={paginationLinkStyle}>Next</a>
+            : <span aria-disabled="true" style={paginationDisabledStyle}>Next</span>}
+        </nav>
+      </div>
 
       {!orders.length ? (
         <section style={{ border: '1px solid var(--theme-elevation-200)', borderRadius: 10, padding: 24 }}>
@@ -172,6 +201,8 @@ export default async function MembershipFulfillmentPage({
 
 const cellStyle = { padding: '9px 8px', borderBottom: '1px solid var(--theme-elevation-100)', fontSize: 13, whiteSpace: 'nowrap' } as const
 const buttonStyle = { border: 0, borderRadius: 6, background: 'var(--theme-elevation-800)', color: 'var(--theme-elevation-0)', fontWeight: 600, padding: '10px 16px', cursor: 'pointer' } as const
+const paginationLinkStyle = { color: 'var(--theme-elevation-800)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 } as const
+const paginationDisabledStyle = { color: 'var(--theme-elevation-400)' } as const
 
 function Info({ label, value }: { label: string; value: string }) {
   return <div style={{ minWidth: 0 }}><div style={{ color: 'var(--theme-elevation-500)', fontSize: 12, marginBottom: 4 }}>{label}</div><div style={{ overflowWrap: 'anywhere', fontSize: 13 }}>{value}</div></div>

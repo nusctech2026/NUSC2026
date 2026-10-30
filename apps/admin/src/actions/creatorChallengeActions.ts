@@ -1,6 +1,8 @@
 'use server';
 
 import { assertStaffRole, getSupabaseAdminClient } from '../utils/supabaseServerClient';
+import configPromise from '@payload-config';
+import { getPayload } from 'payload';
 
 export type CreatorChallengeEntry = {
   id: string;
@@ -44,34 +46,75 @@ export type CreatorChallengeSummary = {
   canDeleteEntries: boolean;
 };
 
+type CreatorChallengeSummaryRow = {
+  total: number;
+  poster: number;
+  football_edits: number;
+  fan_voice: number;
+  matchday_1: number;
+  matchday_2: number;
+  matchday_3: number;
+  matchday_4: number;
+  matchday_5: number;
+  matchday_6: number;
+  matchday_7: number;
+  matchday_8: number;
+  matchday_9: number;
+  matchday_10: number;
+};
+
 export async function getCreatorChallengeSummary(): Promise<CreatorChallengeSummary> {
   const staff = await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']);
 
-  const supabase = getSupabaseAdminClient();
-  const totalRequest = supabase.from('creator_challenge_entries').select('id', { count: 'exact', head: true });
-  const categoryRequests = Promise.all((['poster', 'football_edits', 'fan_voice'] as const).map(async category => ({
-    category,
-    ...await supabase.from('creator_challenge_entries').select('id', { count: 'exact', head: true }).eq('category', category),
-  })));
-  const matchdayRequests = Promise.all(Array.from({ length: 10 }, (_, index) => index + 1).map(async matchday => ({
-    matchday,
-    ...await supabase.from('creator_challenge_entries').select('id', { count: 'exact', head: true }).eq('matchday_number', matchday),
-  })));
-
-  const [total, categoryResults, matchdayResults] = await Promise.all([totalRequest, categoryRequests, matchdayRequests]);
-  if (total.error || categoryResults.some(result => result.error) || matchdayResults.some(result => result.error)) {
-    console.error('Creator Challenge summary lookup failed:', total.error?.code || 'database_error');
+  const payload = await getPayload({ config: configPromise });
+  let row: CreatorChallengeSummaryRow | undefined;
+  try {
+    const result = await payload.db.pool.query<CreatorChallengeSummaryRow>(`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE category = 'poster')::int AS poster,
+        COUNT(*) FILTER (WHERE category = 'football_edits')::int AS football_edits,
+        COUNT(*) FILTER (WHERE category = 'fan_voice')::int AS fan_voice,
+        COUNT(*) FILTER (WHERE matchday_number = 1)::int AS matchday_1,
+        COUNT(*) FILTER (WHERE matchday_number = 2)::int AS matchday_2,
+        COUNT(*) FILTER (WHERE matchday_number = 3)::int AS matchday_3,
+        COUNT(*) FILTER (WHERE matchday_number = 4)::int AS matchday_4,
+        COUNT(*) FILTER (WHERE matchday_number = 5)::int AS matchday_5,
+        COUNT(*) FILTER (WHERE matchday_number = 6)::int AS matchday_6,
+        COUNT(*) FILTER (WHERE matchday_number = 7)::int AS matchday_7,
+        COUNT(*) FILTER (WHERE matchday_number = 8)::int AS matchday_8,
+        COUNT(*) FILTER (WHERE matchday_number = 9)::int AS matchday_9,
+        COUNT(*) FILTER (WHERE matchday_number = 10)::int AS matchday_10
+      FROM public.creator_challenge_entries
+    `);
+    row = result.rows[0];
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : 'database_error';
+    console.error('Creator Challenge summary lookup failed:', code);
     throw new Error('Unable to load the Creator Challenge summary. Please try again.');
   }
 
-  const categories: CreatorChallengeSummary['categories'] = { poster: 0, football_edits: 0, fan_voice: 0 };
-  for (const result of categoryResults) categories[result.category] = result.count || 0;
-
-  const byMatchday = new Map(matchdayResults.map(result => [result.matchday, result.count || 0]));
   return {
-    total: total.count || 0,
-    categories,
-    matchdays: Array.from({ length: 10 }, (_, index) => byMatchday.get(index + 1) || 0),
+    total: row?.total ?? 0,
+    categories: {
+      poster: row?.poster ?? 0,
+      football_edits: row?.football_edits ?? 0,
+      fan_voice: row?.fan_voice ?? 0,
+    },
+    matchdays: [
+      row?.matchday_1 ?? 0,
+      row?.matchday_2 ?? 0,
+      row?.matchday_3 ?? 0,
+      row?.matchday_4 ?? 0,
+      row?.matchday_5 ?? 0,
+      row?.matchday_6 ?? 0,
+      row?.matchday_7 ?? 0,
+      row?.matchday_8 ?? 0,
+      row?.matchday_9 ?? 0,
+      row?.matchday_10 ?? 0,
+    ],
     canDeleteEntries: staff.roles.some(role => role === 'super_admin' || role === 'campaign_manager'),
   };
 }

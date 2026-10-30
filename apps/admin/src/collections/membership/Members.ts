@@ -1,4 +1,4 @@
-import { CollectionConfig } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
 
 type MemberContact = { name: string | null; email: string | null; phone: string | null }
 
@@ -7,6 +7,71 @@ const contactRoles = new Set(['super_admin', 'store_manager', 'membership_manage
 function canReadMemberContacts(user: unknown): boolean {
   const roles = (user as { roles?: unknown } | null)?.roles
   return Array.isArray(roles) && roles.some((role) => typeof role === 'string' && contactRoles.has(role))
+}
+
+type MemberContactRow = MemberContact & { user_id: string }
+type MemberContactBatch = {
+  userIds: Set<string>
+  promise: Promise<Map<string, MemberContact>>
+  resolve: (contacts: Map<string, MemberContact>) => void
+  reject: (error: unknown) => void
+}
+
+const memberContactDetails = `NULLIF(concat_ws(' ', NULLIF(trim(p.first_name), ''), NULLIF(trim(p.last_name), '')), '') AS name,
+  u.email, p.phone`
+const memberContactFrom = `FROM auth.users AS u
+  LEFT JOIN public.member_profiles AS p ON p.user_id = u.id::text`
+const memberContactBatches = new WeakMap<object, MemberContactBatch>()
+
+async function findMemberContact(
+  req: PayloadRequest,
+  userId: string,
+  findMany?: boolean,
+): Promise<MemberContact | undefined> {
+  if (!findMany) {
+    const result = await req.payload.db.pool.query<MemberContact>(
+      `SELECT ${memberContactDetails} ${memberContactFrom} WHERE u.id = $1::uuid LIMIT 1`,
+      [userId],
+    )
+    return result.rows[0]
+  }
+
+  const existingBatch = memberContactBatches.get(req)
+  if (existingBatch) {
+    existingBatch.userIds.add(userId)
+    return existingBatch.promise.then((contacts) => contacts.get(userId))
+  }
+
+  let resolveBatch!: (contacts: Map<string, MemberContact>) => void
+  let rejectBatch!: (error: unknown) => void
+  const promise = new Promise<Map<string, MemberContact>>((resolve, reject) => {
+    resolveBatch = resolve
+    rejectBatch = reject
+  })
+  const newBatch: MemberContactBatch = {
+    userIds: new Set([userId]),
+    promise,
+    resolve: resolveBatch,
+    reject: rejectBatch,
+  }
+
+  memberContactBatches.set(req, newBatch)
+  queueMicrotask(async () => {
+    // Payload invokes findMany afterRead hooks concurrently. Remove this batch before
+    // awaiting the query so a later operation on this request gets its own IDs.
+    if (memberContactBatches.get(req) === newBatch) memberContactBatches.delete(req)
+    try {
+      const result = await req.payload.db.pool.query<MemberContactRow>(
+        `SELECT u.id::text AS user_id, ${memberContactDetails} ${memberContactFrom} WHERE u.id = ANY($1::uuid[])`,
+        [[...newBatch.userIds]],
+      )
+      newBatch.resolve(new Map(result.rows.map(({ user_id, ...contact }) => [user_id, contact])))
+    } catch (error) {
+      newBatch.reject(error)
+    }
+  })
+
+  return newBatch.promise.then((contacts) => contacts.get(userId))
 }
 
 export const Members: CollectionConfig = {
@@ -63,19 +128,10 @@ export const Members: CollectionConfig = {
   ],
   forceSelect: { user_id: true },
   hooks: {
-    afterRead: [async ({ doc, req }) => {
+    afterRead: [async ({ doc, findMany, req }) => {
       if (!canReadMemberContacts(req.user) || typeof doc.user_id !== 'string') return doc
 
-      const result = await req.payload.db.pool.query<MemberContact>(
-        `SELECT NULLIF(concat_ws(' ', NULLIF(trim(p.first_name), ''), NULLIF(trim(p.last_name), '')), '') AS name,
-                u.email, p.phone
-           FROM auth.users AS u
-           LEFT JOIN public.member_profiles AS p ON p.user_id = u.id::text
-          WHERE u.id = $1::uuid
-          LIMIT 1`,
-        [doc.user_id],
-      )
-      const contact = result.rows[0]
+      const contact = await findMemberContact(req, doc.user_id, findMany)
       return {
         ...doc,
         member_name: contact?.name ?? null,
