@@ -24,6 +24,10 @@ function makeUserId(index: number) {
 }
 
 describe('RISE member contact afterRead hook', () => {
+  it('includes the created-at timestamp in the default Members columns', () => {
+    expect(Members.admin?.defaultColumns).toContain('createdAt')
+  })
+
   it('uses one batched database lookup for a page of 100 members and preserves contact fallbacks', async () => {
     const userIds = Array.from({ length: 100 }, (_, index) => makeUserId(index + 1))
     const query = vi.fn(async (_sql: string, values: unknown[]) => {

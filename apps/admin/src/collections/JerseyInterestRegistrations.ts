@@ -98,41 +98,118 @@ export const JerseyInterestRegistrations: CollectionConfig = {
           awayCount: number
           reserveCount: number
           sizes: Record<string, number> | null
+          sizeBreakdown: Record<string, { official: number; away: number; reserve: number }> | null
         }>(`
+          WITH registrations AS (
+            SELECT
+              interested_in_official,
+              official_kit_size,
+              interested_in_away,
+              away_kit_size,
+              interested_in_reserve,
+              reserve_kit_size,
+              usual_size
+            FROM public.jersey_interest_registrations
+          ),
+          registration_counts AS (
+            SELECT
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE interested_in_official)::int AS "officialCount",
+              COUNT(*) FILTER (WHERE interested_in_away)::int AS "awayCount",
+              COUNT(*) FILTER (WHERE interested_in_reserve)::int AS "reserveCount"
+            FROM registrations
+          ),
+          selected_kit_sizes AS (
+            SELECT 'official'::text AS kit, official_kit_size AS explicit_size, usual_size
+            FROM registrations
+            WHERE interested_in_official
+            UNION ALL
+            SELECT 'away'::text AS kit, away_kit_size AS explicit_size, usual_size
+            FROM registrations
+            WHERE interested_in_away
+            UNION ALL
+            SELECT 'reserve'::text AS kit, reserve_kit_size AS explicit_size, usual_size
+            FROM registrations
+            WHERE interested_in_reserve
+          ),
+          selected_size_buckets AS (
+            SELECT
+              kit,
+              CASE
+                WHEN requested_size IN ('XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure') THEN requested_size
+                ELSE 'Not sure'
+              END AS bucket
+            FROM (
+              SELECT
+                kit,
+                COALESCE(
+                  NULLIF(btrim(explicit_size, U&'\\0009\\000A\\000B\\000C\\000D\\0020\\00A0\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2007\\2008\\2009\\200A\\2028\\2029\\202F\\205F\\3000\\FEFF'), ''),
+                  NULLIF(btrim(usual_size, U&'\\0009\\000A\\000B\\000C\\000D\\0020\\00A0\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2007\\2008\\2009\\200A\\2028\\2029\\202F\\205F\\3000\\FEFF'), '')
+                ) AS requested_size
+              FROM selected_kit_sizes
+            ) AS normalized_sizes
+          ),
+          size_bucket_counts AS (
+            SELECT kit, bucket, COUNT(*)::int AS count
+            FROM selected_size_buckets
+            GROUP BY kit, bucket
+          ),
+          size_buckets(bucket) AS (
+            VALUES ('XS'::text), ('S'), ('M'), ('L'), ('XL'), ('XXL'), ('Not sure')
+          ),
+          size_breakdown_rows AS (
+            SELECT
+              buckets.bucket,
+              COALESCE(MAX(counts.count) FILTER (WHERE counts.kit = 'official'), 0)::int AS official,
+              COALESCE(MAX(counts.count) FILTER (WHERE counts.kit = 'away'), 0)::int AS away,
+              COALESCE(MAX(counts.count) FILTER (WHERE counts.kit = 'reserve'), 0)::int AS reserve
+            FROM size_buckets AS buckets
+            LEFT JOIN size_bucket_counts AS counts ON counts.bucket = buckets.bucket
+            GROUP BY buckets.bucket
+          ),
+          legacy_size_values AS (
+            SELECT explicit_sizes.size_value AS size
+            FROM registrations
+            CROSS JOIN LATERAL (VALUES
+              (official_kit_size),
+              (away_kit_size),
+              (reserve_kit_size)
+            ) AS explicit_sizes(size_value)
+            WHERE explicit_sizes.size_value IS NOT NULL AND explicit_sizes.size_value <> ''
+            UNION ALL
+            SELECT usual_size AS size
+            FROM registrations
+            WHERE usual_size IS NOT NULL
+              AND usual_size <> ''
+              AND COALESCE(official_kit_size, '') = ''
+              AND COALESCE(away_kit_size, '') = ''
+              AND COALESCE(reserve_kit_size, '') = ''
+          ),
+          legacy_size_counts AS (
+            SELECT size, COUNT(*)::int AS size_count
+            FROM legacy_size_values
+            GROUP BY size
+          )
           SELECT
-            count(*)::int AS total,
-            count(*) FILTER (WHERE interested_in_official)::int AS "officialCount",
-            count(*) FILTER (WHERE interested_in_away)::int AS "awayCount",
-            count(*) FILTER (WHERE interested_in_reserve)::int AS "reserveCount",
-            COALESCE((
-              SELECT jsonb_object_agg(size, size_count)
-                FROM (
-                  SELECT size, count(*)::int AS size_count
-                    FROM (
-                      SELECT COALESCE(official_kit_size, usual_size) AS size
-                        FROM public.jersey_interest_registrations
-                       WHERE NULLIF(official_kit_size, '') IS NOT NULL
-                      UNION ALL
-                      SELECT away_kit_size AS size
-                        FROM public.jersey_interest_registrations
-                       WHERE NULLIF(away_kit_size, '') IS NOT NULL
-                      UNION ALL
-                      SELECT reserve_kit_size AS size
-                        FROM public.jersey_interest_registrations
-                       WHERE NULLIF(reserve_kit_size, '') IS NOT NULL
-                      UNION ALL
-                      SELECT usual_size AS size
-                        FROM public.jersey_interest_registrations
-                       WHERE NULLIF(usual_size, '') IS NOT NULL
-                         AND NULLIF(official_kit_size, '') IS NULL
-                         AND NULLIF(away_kit_size, '') IS NULL
-                         AND NULLIF(reserve_kit_size, '') IS NULL
-                    ) AS selected_sizes
-                   WHERE size IS NOT NULL AND size <> ''
-                   GROUP BY size
-                ) AS grouped_sizes
-            ), '{}'::jsonb) AS sizes
-          FROM public.jersey_interest_registrations
+            registration_counts.total,
+            registration_counts."officialCount",
+            registration_counts."awayCount",
+            registration_counts."reserveCount",
+            COALESCE(
+              (SELECT jsonb_object_agg(size, size_count) FROM legacy_size_counts),
+              '{}'::jsonb
+            ) AS sizes,
+            COALESCE(
+              (
+                SELECT jsonb_object_agg(
+                  bucket,
+                  jsonb_build_object('official', official, 'away', away, 'reserve', reserve)
+                )
+                FROM size_breakdown_rows
+              ),
+              '{}'::jsonb
+            ) AS "sizeBreakdown"
+          FROM registration_counts
         `)
 
         return Response.json(result.rows[0] ?? {
@@ -141,6 +218,7 @@ export const JerseyInterestRegistrations: CollectionConfig = {
           awayCount: 0,
           reserveCount: 0,
           sizes: {},
+          sizeBreakdown: {},
         })
       },
     },

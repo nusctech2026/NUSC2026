@@ -8,7 +8,10 @@ type DemandStats = {
   awayCount: number;
   reserveCount: number;
   sizes: Record<string, number>;
+  sizeBreakdown: Record<string, { official: number; away: number; reserve: number }>;
 };
+
+const JERSEY_SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure'] as const;
 
 export const JerseyDemandSummary: React.FC = () => {
   const [stats, setStats] = useState<DemandStats | null>(null);
@@ -50,6 +53,21 @@ export const JerseyDemandSummary: React.FC = () => {
   const officialPct = totalVotes > 0 && stats ? Math.round((stats.officialCount / totalVotes) * 100) : 0;
   const awayPct = totalVotes > 0 && stats ? Math.round((stats.awayCount / totalVotes) * 100) : 0;
   const reservePct = totalVotes > 0 && stats ? Math.round((stats.reserveCount / totalVotes) * 100) : 0;
+  const sizeRows = stats
+    ? JERSEY_SIZE_ORDER.map((size) => {
+        const counts = stats.sizeBreakdown[size] ?? { official: 0, away: 0, reserve: 0 };
+        return { size, ...counts, total: counts.official + counts.away + counts.reserve };
+      })
+    : [];
+  const sizeTotals = sizeRows.reduce(
+    (totals, row) => ({
+      official: totals.official + row.official,
+      away: totals.away + row.away,
+      reserve: totals.reserve + row.reserve,
+      total: totals.total + row.total,
+    }),
+    { official: 0, away: 0, reserve: 0, total: 0 },
+  );
 
   // Determine top kit
   let topKit = 'Official Kit';
@@ -236,6 +254,88 @@ export const JerseyDemandSummary: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {stats && (
+        <section
+          aria-labelledby="jersey-size-demand-heading"
+          style={{
+            alignSelf: 'flex-start',
+            width: '100%',
+            maxWidth: '760px',
+            border: '1px solid #d9e1eb',
+            borderRadius: '6px',
+            background: '#ffffff',
+            overflow: 'hidden',
+            color: '#172238',
+          }}
+        >
+          <div style={{ padding: '10px 14px 8px' }}>
+            <h4 id="jersey-size-demand-heading" style={{ margin: 0, color: '#172238', fontSize: '15px', lineHeight: 1.25, fontWeight: 700 }}>
+              Kit interest by size
+            </h4>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                minWidth: '440px',
+                borderCollapse: 'collapse',
+                textAlign: 'center',
+                color: '#172238',
+                fontSize: '12px',
+                lineHeight: 1.25,
+              }}
+            >
+              <thead>
+                <tr style={{ background: '#edf1f6', color: '#344054' }}>
+                  {['Size', 'Official', 'Away', 'Reserve', 'Total Demand'].map((heading) => (
+                    <th
+                      key={heading}
+                      scope="col"
+                      style={{ padding: '7px 10px', color: '#344054', fontSize: '11px', lineHeight: 1.25, fontWeight: 700, whiteSpace: 'nowrap' }}
+                    >
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sizeRows.map((row, index) => (
+                  <tr key={row.size} style={{ background: index % 2 === 0 ? '#ffffff' : '#f4f6f9' }}>
+                    <th
+                      scope="row"
+                      style={{ padding: '4px 10px', borderBottom: '1px solid #e5eaf0', color: '#172238', lineHeight: 1.25, fontWeight: 600 }}
+                    >
+                      {row.size}
+                    </th>
+                    {[row.official, row.away, row.reserve, row.total].map((count, cellIndex) => (
+                      <td
+                        key={cellIndex}
+                        style={{ padding: '4px 10px', borderBottom: '1px solid #e5eaf0', color: '#172238', lineHeight: 1.25, fontVariantNumeric: 'tabular-nums' }}
+                      >
+                        {count}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: '#edf1f6', color: '#172238', fontWeight: 700 }}>
+                  <th scope="row" style={{ padding: '6px 10px', borderTop: '1px solid #c7d0dc', color: '#172238', lineHeight: 1.25 }}>
+                    Total
+                  </th>
+                  {[sizeTotals.official, sizeTotals.away, sizeTotals.reserve, sizeTotals.total].map((count, cellIndex) => (
+                    <td key={cellIndex} style={{ padding: '6px 10px', borderTop: '1px solid #c7d0dc', color: '#172238', lineHeight: 1.25, fontVariantNumeric: 'tabular-nums' }}>
+                      {count}
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );

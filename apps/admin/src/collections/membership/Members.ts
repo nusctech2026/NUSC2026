@@ -79,7 +79,7 @@ export const Members: CollectionConfig = {
   admin: {
     useAsTitle: 'membership_number',
     group: 'Membership',
-    defaultColumns: ['membership_number', 'member_name', 'contact_email', 'contact_phone', 'plan', 'status', 'registration_payment_status'],
+    defaultColumns: ['membership_number', 'member_name', 'contact_email', 'contact_phone', 'plan', 'status', 'registration_payment_status', 'createdAt'],
     components: {
       beforeListTable: [
         './components/membership/MemberSummary#MemberSummary',
