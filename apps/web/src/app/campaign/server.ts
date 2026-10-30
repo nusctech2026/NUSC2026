@@ -34,6 +34,7 @@ export async function campaignRateLimit(purpose: string, identity: string, limit
 type Role = { name?: string; code?: string };
 export function campaignRoleLabel(role: Role | Role[] | null | undefined, other?: string | null) {
   const value = Array.isArray(role) ? role[0] : role;
+  if ((value?.code?.endsWith('_others') || value?.name === 'Others') && other) return ['Others', other].join(': ');
   if ((value?.code === 'crew_others' || value?.name === 'Others') && other) return `Others: ${other}`;
   return value?.name || other || 'Not assigned';
 }

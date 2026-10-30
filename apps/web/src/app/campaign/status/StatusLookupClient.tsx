@@ -99,13 +99,13 @@ export default function StatusLookupClient({ verifiedEmail }: { verifiedEmail: s
       <form onSubmit={handleLookup} className="form-card" style={{ marginBottom: '30px' }}>
         <div className="form-group">
           <label htmlFor="appNumber">
-            Application Number <span className="req" aria-hidden="true">*</span>
+          Registration ID <span className="req" aria-hidden="true">*</span>
           </label>
           <input
             id="appNumber"
             type="text"
             className="form-control"
-            placeholder="e.g. NUSC-CMP-2026-X7K9P"
+            placeholder="e.g. NUSC-AHB-001"
             value={applicationNumber}
             onChange={(e) => setApplicationNumber(e.target.value)}
             required
@@ -115,7 +115,7 @@ export default function StatusLookupClient({ verifiedEmail }: { verifiedEmail: s
 
         {needsSignIn ? <div className="form-group">
           <label htmlFor="contact">
-            Registered Email <span className="req" aria-hidden="true">*</span>
+            Registered email <span className="req" aria-hidden="true">*</span>
           </label>
           <input
             id="contact"
@@ -160,7 +160,7 @@ export default function StatusLookupClient({ verifiedEmail }: { verifiedEmail: s
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '20px' }}>
             <div>
               <div style={{ fontSize: '12px', color: 'var(--camp-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Application Record
+                Registration record
               </div>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--camp-navy-950)', margin: '2px 0 4px' }}>
                 {result.fullName}

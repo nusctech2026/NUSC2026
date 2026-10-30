@@ -6,6 +6,11 @@ import { campaignRoleLabel } from '../../../utils/campaignRoleLabel';
 import { getCampaignApplicationsList } from '../../../actions/campaignAdminActions';
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  ahibi: 'Ahibi', volunteer: 'Volunteers', media: 'Press and Media', crew: 'Crew',
+  management: 'Management', officials: 'Match Officials', medical: 'Medical Team',
+};
+
 export const CampaignApprovedView: React.FC = () => {
   const [approvedList, setApprovedList] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -123,7 +128,7 @@ export const CampaignApprovedView: React.FC = () => {
                     {row.full_name}
                   </td>
                   <td style={{ padding: '12px 16px', textTransform: 'capitalize' }}>
-                    {row.category}
+                    {DEPARTMENT_LABELS[row.category] || row.category}
                   </td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: '#15803d' }}>
                     {campaignRoleLabel(row.assigned_role || row.preferred_role, row.other_role)}

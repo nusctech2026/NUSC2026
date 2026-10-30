@@ -1,8 +1,5 @@
-import React from 'react';
 import type { Metadata } from 'next';
-import { Nav } from '@/components/sections/Nav';
-import { Footer } from '@/components/sections/Footer';
-import CampaignForm from '../CampaignForm';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Volunteer Registration | NUSC Campaign',
@@ -10,13 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function VolunteerRegistrationPage() {
-  return (
-    <>
-      <Nav theme="light" forceScrolled={true} />
-      <main className="campaign-page-wrapper">
-        <CampaignForm fixedCategory="volunteer" />
-      </main>
-      <Footer />
-    </>
-  );
+  redirect('/registrations?department=volunteer');
 }

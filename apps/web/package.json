@@ -12,7 +12,7 @@
     "@nusc/db": "*",
     "@nusc/membership": "*",
     "@types/qrcode": "^1.5.6",
-    "next": "16.3.4",
+    "next": "16.4.3",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.8",
     "react": "19.3.0",

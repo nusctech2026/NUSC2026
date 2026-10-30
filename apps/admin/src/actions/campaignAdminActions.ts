@@ -5,6 +5,11 @@ import QRCode from 'qrcode';
 import { getSupabaseAdminClient, assertStaffRole } from '../utils/supabaseServerClient';
 import { createPerformanceTrace } from '@nusc/db/src/performance';
 
+function normalizeWorkforcePhone(value: string) {
+  const digits = value.replace(/\D/g, '');
+  return digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+}
+
 export interface CampaignListFilters {
   category?: string;
   status?: string;
@@ -33,17 +38,19 @@ export async function getAdminCampaignStats() {
  * 2. Applications Listing with multi-criteria filtering, search & pagination
  */
 export async function getCampaignApplicationsList(filters: CampaignListFilters = {}) {
-  await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']);
-  const supabase = getSupabaseAdminClient();
+  const trace = createPerformanceTrace('admin.campaign_applications_list');
+  try {
+    await trace.measure('authorize', () => assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']));
+    const supabase = getSupabaseAdminClient();
 
-  const page = Math.max(1, filters.page || 1);
-  const pageSize = Math.min(100, Math.max(10, filters.pageSize || 20));
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+    const page = Math.max(1, filters.page || 1);
+    const pageSize = Math.min(100, Math.max(10, filters.pageSize || 20));
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-  let query = supabase
-    .from('campaign_applications')
-    .select(`
+    let query = supabase
+      .from('campaign_applications')
+      .select(`
       id,
       application_number,
       full_name,
@@ -56,53 +63,55 @@ export async function getCampaignApplicationsList(filters: CampaignListFilters =
       assigned_zone,
       assigned_shift,
       submitted_at,
+      potential_duplicate,
       preferred_role:campaign_roles!preferred_role_id (name, code),
       assigned_role:campaign_roles!assigned_role_id (name, code),
       other_role
-    `, { count: 'exact' });
+      `, { count: 'exact' });
 
-  // Apply filters
-  if (filters.category && filters.category !== 'all') {
-    query = query.eq('category', filters.category);
-  }
-
-  if (filters.status && filters.status !== 'all') {
-    query = query.eq('application_status', filters.status);
-  }
-
-  if (filters.roleId && filters.roleId !== 'all') {
-    query = query.eq('preferred_role_id', filters.roleId);
-  }
-
-  // Lightweight search logic (Application number, phone, email, or name)
-  if (filters.search && filters.search.trim()) {
-    const s = filters.search.trim();
-    if (s.toUpperCase().startsWith('NUSC-')) {
-      query = query.ilike('application_number', `%${s}%`);
-    } else if (s.includes('@')) {
-      query = query.ilike('email', `%${s}%`);
-    } else if (/^\d+$/.test(s)) {
-      query = query.ilike('phone', `%${s}%`);
-    } else {
-      query = query.ilike('full_name', `%${s}%`);
+    // Apply filters
+    if (filters.category && filters.category !== 'all') {
+      query = query.eq('category', filters.category);
     }
-  }
 
-  query = query.order('submitted_at', { ascending: false }).range(from, to);
+    if (filters.status && filters.status !== 'all') {
+      query = query.eq('application_status', filters.status);
+    }
 
-  const { data, count, error } = await query;
-  if (error) {
-    console.error('getCampaignApplicationsList error:', error);
-    throw new Error('Failed to retrieve applications: ' + error.message);
-  }
+    if (filters.roleId && filters.roleId !== 'all') {
+      query = query.eq('preferred_role_id', filters.roleId);
+    }
 
-  return {
-    applications: data || [],
-    totalCount: count || 0,
-    page,
-    pageSize,
-    totalPages: Math.ceil((count || 0) / pageSize),
-  };
+    // Lightweight search logic (Application number, phone, email, or name)
+    if (filters.search && filters.search.trim()) {
+      const s = filters.search.trim();
+      if (s.toUpperCase().startsWith('NUSC-')) {
+        query = query.ilike('application_number', `%${s}%`);
+      } else if (s.includes('@')) {
+        query = query.ilike('email', `%${s}%`);
+      } else if (/^\d+$/.test(s)) {
+        query = query.ilike('phone', `%${s}%`);
+      } else {
+        query = query.ilike('full_name', `%${s}%`);
+      }
+    }
+
+    query = query.order('submitted_at', { ascending: false }).range(from, to);
+
+    const { data, count, error } = await trace.measure('query', () => query);
+    if (error) {
+      console.error('getCampaignApplicationsList error:', error);
+      throw new Error('Failed to retrieve applications: ' + error.message);
+    }
+
+    return {
+      applications: data || [],
+      totalCount: count || 0,
+      page,
+      pageSize,
+      totalPages: Math.ceil((count || 0) / pageSize),
+    };
+  } finally { trace.finish(); }
 }
 
 /**
@@ -130,9 +139,15 @@ export async function getCampaignApplicationDetail(applicationId: string) {
 
     // All reads follow authorization and the authoritative application lookup.
     // Return editor options in this action instead of two more authenticated actions.
-    const [photo, issued, roles, matches] = await trace.measure('related_records', () => Promise.all([
+    const [photo, mediaAuthorisationDocument, officialCredentialDocument, issued, roles, matches, changeHistory] = await trace.measure('related_records', () => Promise.all([
       app.photo_storage_path
         ? supabase.storage.from('campaign_documents').createSignedUrl(app.photo_storage_path, 1800)
+        : Promise.resolve({ data: null, error: null }),
+      app.category === 'media' && app.media_authorisation_storage_path
+        ? supabase.storage.from('campaign_documents').createSignedUrl(app.media_authorisation_storage_path, 900, { download: true })
+        : Promise.resolve({ data: null, error: null }),
+      app.category === 'officials' && app.official_credential_storage_path
+        ? supabase.storage.from('campaign_documents').createSignedUrl(app.official_credential_storage_path, 900, { download: true })
         : Promise.resolve({ data: null, error: null }),
       supabase.from('campaign_ids')
         .select('id, id_number, pass_slug, valid_from, valid_until, is_active, revoked_at')
@@ -141,15 +156,21 @@ export async function getCampaignApplicationDetail(applicationId: string) {
         .eq('category', app.category).eq('is_active', true).order('name'),
       supabase.from('campaign_events').select('id, title, venue, start_date, end_date, is_active')
         .order('start_date', { ascending: false }),
+      supabase.from('campaign_application_change_history')
+        .select('id, changed_at, changed_by, changed_fields')
+        .eq('application_id', app.id).order('changed_at', { ascending: false }).limit(25),
     ]));
-    if (issued.error || roles.error || matches.error) throw new Error('Unable to load applicant details');
+    if (issued.error || roles.error || matches.error || changeHistory.error) throw new Error('Unable to load applicant details');
     const idRecord = issued.data;
 
     return {
       ...app,
       signedPhotoUrl: photo.data?.signedUrl || null,
+      signedMediaAuthorisationUrl: mediaAuthorisationDocument.data?.signedUrl || null,
+      signedOfficialCredentialUrl: officialCredentialDocument.data?.signedUrl || null,
       roleOptions: roles.data || [],
       matches: matches.data || [],
+      changeHistory: changeHistory.data || [],
       issuedId: idRecord ? { ...idRecord, isExpired: new Date(idRecord.valid_until).getTime() < Date.now() } : null,
     };
   } finally { trace.finish(); }
@@ -190,7 +211,7 @@ export async function updateApplicationStatus(applicationId: string, newStatus: 
 export async function assignRoleZoneShift(
   applicationId: string, assignedRoleId: string, assignedZone: string, assignedShift: string, eventId?: string | null
 ) {
-  await assertStaffRole(['super_admin', 'campaign_manager']);
+  const staff = await assertStaffRole(['super_admin', 'campaign_manager']);
   const supabase = getSupabaseAdminClient();
   if (assignedZone.length > 100 || assignedShift.length > 100) throw new Error('Zone and shift must be at most 100 characters');
   const { data: app, error: appError } = await supabase.from('campaign_applications').select('category, other_role').eq('id', applicationId).single();
@@ -198,16 +219,273 @@ export async function assignRoleZoneShift(
   const { data: role, error: roleError } = await supabase.from('campaign_roles').select('id, code').eq('id', assignedRoleId)
     .eq('category', app.category).eq('is_active', true).single();
   if (roleError || !role) throw new Error('Choose an active role in this applicant category');
-  if (role.code === 'crew_others' && !app.other_role) throw new Error('This application has no specified Other role');
+  if (role.code.endsWith('_others') && !app.other_role) throw new Error('This application has no specified Other role');
   if (eventId) {
     const { data: event, error } = await supabase.from('campaign_events').select('id').eq('id', eventId).eq('is_active', true).single();
     if (error || !event) throw new Error('Match is unavailable');
   }
   const { error } = await supabase.from('campaign_applications').update({
     assigned_role_id: role.id, assigned_zone: assignedZone.trim(), assigned_shift: assignedShift.trim(),
-    ...(eventId !== undefined ? { event_id: eventId || null } : {}), updated_at: new Date().toISOString(),
+    ...(eventId !== undefined ? { event_id: eventId || null } : {}),
+    last_updated_by: staff.email,
+    updated_at: new Date().toISOString(),
   }).eq('id', applicationId);
   if (error) throw new Error('Unable to save assignment');
+  return { success: true };
+}
+
+export async function updateCampaignRegistrationDetails(
+  applicationId: string,
+  input: {
+    fullName: string;
+    phone: string;
+    email: string;
+    otherRole: string;
+    organisation: string;
+    designation: string;
+    availabilityMode: 'all' | 'selected';
+    availabilityMatchIds: string[];
+    mediaAccessTypes: string[];
+    mediaOutlet: string;
+    mediaOrganisationType: string;
+    portfolioUrl: string;
+    professionalBody: string;
+    professionalQualification: string;
+    professionalRegistrationNumber: string;
+    professionalExperience: string;
+    conflictOfInterest: string;
+    conflictDetails: string;
+    technicalSpecialty: string;
+    experience: string;
+    crewWorkArrangement: string;
+    crewOrganisation: string;
+    crewLeadName: string;
+    crewLeadPhone: string;
+  }
+) {
+  const staff = await assertStaffRole(['super_admin', 'campaign_manager']);
+  if (!input || typeof input !== 'object') throw new Error('Enter valid registration details');
+  const readText = (value: unknown) => typeof value === 'string' ? value.trim() : '';
+  const fullName = readText(input.fullName);
+  const phone = normalizeWorkforcePhone(readText(input.phone));
+  const email = readText(input.email).toLowerCase();
+  const otherRole = readText(input.otherRole);
+  const organisation = readText(input.organisation);
+  const designation = readText(input.designation);
+  const availabilityMode = input.availabilityMode;
+  const availabilityMatchIds = Array.isArray(input.availabilityMatchIds)
+    ? input.availabilityMatchIds.filter((id): id is string => typeof id === 'string').map((id) => id.trim()).filter(Boolean)
+    : [];
+  const mediaAccessValues = Array.isArray(input.mediaAccessTypes) ? input.mediaAccessTypes : [];
+  if (mediaAccessValues.some((value) => typeof value !== 'string')) {
+    throw new Error('Choose valid media access areas');
+  }
+  const mediaAccessTypes = mediaAccessValues.map((value) => value.trim()).filter(Boolean);
+  const mediaOutlet = readText(input.mediaOutlet);
+  const mediaOrganisationType = readText(input.mediaOrganisationType);
+  const portfolioUrlInput = readText(input.portfolioUrl);
+  const professionalBody = readText(input.professionalBody);
+  const professionalQualification = readText(input.professionalQualification);
+  const professionalRegistrationNumber = readText(input.professionalRegistrationNumber);
+  const professionalExperience = readText(input.professionalExperience);
+  const conflictOfInterestAnswer = readText(input.conflictOfInterest);
+  const conflictDetails = readText(input.conflictDetails);
+  const technicalSpecialty = readText(input.technicalSpecialty);
+  const experience = readText(input.experience);
+  const crewWorkArrangement = readText(input.crewWorkArrangement);
+  const crewOrganisation = readText(input.crewOrganisation);
+  const crewLeadName = readText(input.crewLeadName);
+  const crewLeadPhone = normalizeWorkforcePhone(readText(input.crewLeadPhone));
+  if (fullName.length < 2 || fullName.length > 255 || !/^\d{10}$/.test(phone)
+      || (email && (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))) {
+    throw new Error('Check the name, 10-digit phone number, and email address');
+  }
+  const allowedMediaAccessTypes = new Set([
+    'media_press_seating',
+    'photography_area',
+    'press_conference_area',
+    'mixed_zone_interview_area',
+    'broadcast_video_coverage_area',
+  ]);
+  if (!['all', 'selected'].includes(availabilityMode)
+      || availabilityMatchIds.length > 10
+      || new Set(availabilityMatchIds).size !== availabilityMatchIds.length
+      || (availabilityMode === 'selected' && availabilityMatchIds.length === 0)
+      || (availabilityMode !== 'selected' && availabilityMatchIds.length > 0)) {
+    throw new Error('Choose a valid match availability and match selection');
+  }
+  if (mediaAccessTypes.length > allowedMediaAccessTypes.size
+      || new Set(mediaAccessTypes).size !== mediaAccessTypes.length
+      || mediaAccessTypes.some((value) => !allowedMediaAccessTypes.has(value))) {
+    throw new Error('Choose valid media access areas');
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: app, error: appError } = await supabase.from('campaign_applications')
+    .select('category, preferred_role_id, application_status, availability_match_ids, phone, email, idempotency_key, potential_duplicate')
+    .eq('id', applicationId).single();
+  if (appError || !app) throw new Error('Registration not found');
+  if (app.idempotency_key && !email) {
+    throw new Error('A registered email is required for new workforce submissions');
+  }
+  if (app.category === 'media' && mediaAccessTypes.length === 0) {
+    throw new Error('Select at least one access area for the media accreditation request');
+  }
+  const allowedMediaOrganisationTypes = new Set([
+    'kaki', 'print_media', 'press_media', 'broadcast_tv', 'digital_online_media', 'independent_freelance', 'other',
+  ]);
+  if (app.category === 'media' && !allowedMediaOrganisationTypes.has(mediaOrganisationType)) {
+    throw new Error('Choose a valid type of media organisation');
+  }
+  if (app.category === 'media' && (designation.length < 2 || designation.length > 255)) {
+    throw new Error('Enter a designation or role between 2 and 255 characters');
+  }
+  if (app.category !== 'media' && mediaAccessTypes.length > 0) {
+    throw new Error('Media access areas are only valid for Press and Media registrations');
+  }
+  if (app.category !== 'media' && mediaOrganisationType) {
+    throw new Error('Media organisation types are only valid for Press and Media registrations');
+  }
+
+  let role: { code: string; name: string } | null = null;
+  if (app.preferred_role_id) {
+    const { data, error: roleError } = await supabase.from('campaign_roles')
+      .select('code, name').eq('id', app.preferred_role_id).eq('category', app.category).eq('is_active', true).single();
+    if (roleError || !data) throw new Error('The registration role is unavailable');
+    role = data;
+  }
+  const requiresOtherRole = Boolean(role && (role.code.endsWith('_others') || role.name === 'Others'));
+  if (requiresOtherRole && (otherRole.length < 2 || otherRole.length > 255)) {
+    throw new Error('Specify the applicant role in 2 to 255 characters');
+  }
+  if (app.category === 'management' && (!organisation || organisation.length > 255
+      || designation.length < 2 || designation.length > 255)) {
+    throw new Error('Management registrations need an organisation and designation');
+  }
+
+  let portfolioUrl: string | null = null;
+  if (app.category === 'media') {
+    if (mediaOutlet.length < 2 || mediaOutlet.length > 255) {
+      throw new Error('Enter the name of the media organisation or publication (2 to 255 characters)');
+    }
+    if (portfolioUrlInput.length > 2048) throw new Error('Keep the public work link within 2,048 characters');
+    if (portfolioUrlInput) {
+      try {
+        const parsedUrl = new URL(portfolioUrlInput);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password) {
+          throw new Error('Portfolio links must use HTTP or HTTPS');
+        }
+        portfolioUrl = parsedUrl.toString();
+      } catch (error) {
+        throw error instanceof Error && error.message === 'Portfolio links must use HTTP or HTTPS'
+          ? error : new Error('Enter a valid public portfolio link');
+      }
+    }
+  }
+  if (app.category === 'officials'
+      && (professionalBody.length < 2 || professionalBody.length > 255
+        || professionalQualification.length < 2 || professionalQualification.length > 255
+        || professionalRegistrationNumber.length > 100
+        || professionalExperience.length > 2000
+        || !['', 'yes', 'no'].includes(conflictOfInterestAnswer)
+        || (conflictOfInterestAnswer === 'yes' && (conflictDetails.length < 2 || conflictDetails.length > 2000))
+        || (conflictOfInterestAnswer !== 'yes' && conflictDetails))) {
+    throw new Error('Check the association, qualification, experience, and conflict-of-interest details');
+  }
+  if (app.category !== 'officials' && (professionalExperience || conflictOfInterestAnswer || conflictDetails)) {
+    throw new Error('Match-official details are only valid for Match Officials registrations');
+  }
+  if (app.category === 'medical'
+      && (professionalQualification.length < 2 || professionalQualification.length > 255
+        || professionalBody.length > 255 || professionalRegistrationNumber.length > 100)) {
+    throw new Error('Medical team members need a professional qualification');
+  }
+  if (app.category === 'crew' && (technicalSpecialty.length > 255 || experience.length > 2000)) {
+    throw new Error('Crew details are too long');
+  }
+  if (app.category === 'crew'
+      && ((crewWorkArrangement && !['organisation', 'independent'].includes(crewWorkArrangement))
+        || (crewWorkArrangement === 'organisation'
+          && (crewOrganisation.length < 2 || crewOrganisation.length > 255
+            || crewLeadName.length < 2 || crewLeadName.length > 255
+            || !/^\d{10}$/.test(crewLeadPhone)))
+        || (crewWorkArrangement === 'independent' && (crewOrganisation || crewLeadName || crewLeadPhone))
+        || (!crewWorkArrangement && (crewOrganisation || crewLeadName || crewLeadPhone)))) {
+    throw new Error('Check the Crew work arrangement and organisation contact details');
+  }
+  if (app.category !== 'crew' && (crewWorkArrangement || crewOrganisation || crewLeadName || crewLeadPhone)) {
+    throw new Error('Crew affiliation details are only valid for Crew registrations');
+  }
+
+  if (availabilityMode === 'selected') {
+    const { data: activeMatches, error: matchError } = await supabase.from('campaign_events')
+      .select('id').eq('is_active', true).in('id', availabilityMatchIds);
+    if (matchError || !activeMatches) throw new Error('Unable to validate selected matches');
+    const activeIds = new Set(activeMatches.map((match) => match.id));
+    const existingIds = new Set(Array.isArray(app.availability_match_ids) ? app.availability_match_ids : []);
+    if (availabilityMatchIds.some((id) => !activeIds.has(id) && !existingIds.has(id))) {
+      throw new Error('One or more selected matches are unavailable');
+    }
+  }
+
+  const currentPhone = typeof app.phone === 'string' ? normalizeWorkforcePhone(app.phone) : '';
+  const currentEmail = typeof app.email === 'string' ? app.email.trim().toLowerCase() : '';
+  if (phone !== currentPhone) {
+    const phoneClaim = await supabase.from('workforce_registration_identity_claims').select('application_id')
+      .eq('identity_kind', 'phone').eq('normalized_value', phone).maybeSingle();
+    if (phoneClaim.error) throw new Error('Unable to check for duplicate registrations');
+    if (phoneClaim.data && phoneClaim.data.application_id !== applicationId) {
+      throw new Error('These contact details are already used by another registration');
+    }
+  }
+  if (email !== currentEmail) {
+    const emailClaim = await supabase.from('workforce_registration_identity_claims').select('application_id')
+      .eq('identity_kind', 'email').eq('normalized_value', email).maybeSingle();
+    if (emailClaim.error) throw new Error('Unable to check for duplicate registrations');
+    if (emailClaim.data && emailClaim.data.application_id !== applicationId) {
+      throw new Error('These contact details are already used by another registration');
+    }
+  }
+
+  const availabilitySummary = availabilityMode === 'all'
+    ? 'Available for all 10 NUSC home matches'
+    : 'Available for selected NUSC home matches';
+  let conflictOfInterest: boolean | null = null;
+  if (conflictOfInterestAnswer === 'yes') conflictOfInterest = true;
+  if (conflictOfInterestAnswer === 'no') conflictOfInterest = false;
+  const { error } = await supabase.from('campaign_applications').update({
+    full_name: fullName,
+    phone,
+    email: email || null,
+    other_role: requiresOtherRole ? otherRole : null,
+    organisation: app.category === 'management' ? organisation : null,
+    organisation_other: null,
+    designation: app.category === 'management' || app.category === 'media' ? designation : null,
+    availability: availabilitySummary,
+    availability_mode: availabilityMode,
+    availability_match_ids: availabilityMode === 'selected' ? availabilityMatchIds : [],
+    media_outlet: app.category === 'media' ? mediaOutlet || null : null,
+    media_organisation_type: app.category === 'media' ? mediaOrganisationType : null,
+    portfolio_url: app.category === 'media' ? portfolioUrl : null,
+    media_access_types: app.category === 'media' ? mediaAccessTypes : [],
+    professional_body: ['officials', 'medical'].includes(app.category) ? professionalBody || null : null,
+    professional_qualification: ['officials', 'medical'].includes(app.category) ? professionalQualification || null : null,
+    professional_registration_number: ['officials', 'medical'].includes(app.category)
+      ? professionalRegistrationNumber || null : null,
+    professional_experience: app.category === 'officials' ? professionalExperience || null : null,
+    conflict_of_interest: app.category === 'officials' ? conflictOfInterest : null,
+    conflict_details: app.category === 'officials' && conflictOfInterestAnswer === 'yes' ? conflictDetails : null,
+    technical_specialty: app.category === 'crew' ? technicalSpecialty || null : null,
+    experience: app.category === 'crew' ? experience || null : null,
+    crew_work_arrangement: app.category === 'crew' ? crewWorkArrangement || null : null,
+    crew_organisation: app.category === 'crew' && crewWorkArrangement === 'organisation' ? crewOrganisation : null,
+    crew_lead_name: app.category === 'crew' && crewWorkArrangement === 'organisation' ? crewLeadName : null,
+    crew_lead_phone: app.category === 'crew' && crewWorkArrangement === 'organisation' ? crewLeadPhone : null,
+    last_updated_by: staff.email,
+    updated_at: new Date().toISOString(),
+  }).eq('id', applicationId);
+  if (error?.code === '23505') throw new Error('These contact details are already used by another registration');
+  if (error) throw new Error('Unable to save registration details');
   return { success: true };
 }
 
@@ -397,17 +675,19 @@ export async function verifyAndCheckInGateScan(qrToken: string, gate: string, ev
  * 9. Attendance Logs Query (Audit History)
  */
 export async function getCampaignAttendanceHistory(page = 1, pageSize = 30, gateFilter?: string, actionFilter?: string, eventId?: string) {
-  await assertStaffRole(['super_admin', 'campaign_manager']);
-  const supabase = getSupabaseAdminClient();
-  page = Math.max(1, Math.floor(page) || 1);
-  pageSize = Math.min(100, Math.max(1, Math.floor(pageSize) || 30));
+  const trace = createPerformanceTrace('admin.campaign_attendance_list');
+  try {
+    await trace.measure('authorize', () => assertStaffRole(['super_admin', 'campaign_manager']));
+    const supabase = getSupabaseAdminClient();
+    page = Math.max(1, Math.floor(page) || 1);
+    pageSize = Math.min(100, Math.max(1, Math.floor(pageSize) || 30));
 
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-  let query = supabase
-    .from('campaign_attendance')
-    .select(`
+    let query = supabase
+      .from('campaign_attendance')
+      .select(`
       id,
       action,
       event:campaign_events!event_id (title, start_date),
@@ -428,30 +708,31 @@ export async function getCampaignAttendanceHistory(page = 1, pageSize = 30, gate
       )
     `, { count: 'exact' });
 
-  if (eventId && eventId !== 'all') query = query.eq('event_id', eventId);
+    if (eventId && eventId !== 'all') query = query.eq('event_id', eventId);
 
-  if (gateFilter && gateFilter !== 'all') {
-    query = query.eq('gate', gateFilter);
-  }
+    if (gateFilter && gateFilter !== 'all') {
+      query = query.eq('gate', gateFilter);
+    }
 
-  if (actionFilter && actionFilter !== 'all') {
-    query = query.eq('action', actionFilter);
-  }
+    if (actionFilter && actionFilter !== 'all') {
+      query = query.eq('action', actionFilter);
+    }
 
-  query = query.order('scanned_at', { ascending: false }).range(from, to);
+    query = query.order('scanned_at', { ascending: false }).range(from, to);
 
-  const { data, count, error } = await query;
-  if (error) {
-    throw new Error('Failed to retrieve attendance logs: ' + error.message);
-  }
+    const { data, count, error } = await trace.measure('query', () => query);
+    if (error) {
+      throw new Error('Failed to retrieve attendance logs: ' + error.message);
+    }
 
-  return {
-    logs: data || [],
-    totalCount: count || 0,
-    page,
-    pageSize,
-    totalPages: Math.ceil((count || 0) / pageSize),
-  };
+    return {
+      logs: data || [],
+      totalCount: count || 0,
+      page,
+      pageSize,
+      totalPages: Math.ceil((count || 0) / pageSize),
+    };
+  } finally { trace.finish(); }
 }
 
 /**
@@ -526,6 +807,25 @@ export async function getApprovedCandidatesForExport() {
       email,
       category,
       gender,
+      designation,
+      availability,
+      availability_match_ids,
+      media_outlet,
+      media_organisation_type,
+      portfolio_url,
+      media_access_types,
+      professional_body,
+      professional_qualification,
+      professional_registration_number,
+      professional_experience,
+      conflict_of_interest,
+      conflict_details,
+      technical_specialty,
+      experience,
+      crew_work_arrangement,
+      crew_organisation,
+      crew_lead_name,
+      crew_lead_phone,
       assigned_zone,
       assigned_shift,
       emergency_contact_name,
@@ -550,17 +850,22 @@ export async function getApprovedCandidatesForExport() {
 }
 
 export async function getCampaignMatches() {
-  await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer', 'gate_staff']);
-  const { data, error } = await getSupabaseAdminClient().from('campaign_events')
-    .select('id, title, venue, start_date, end_date, is_active').order('start_date', { ascending: false });
-  if (error) throw new Error('Unable to load matches');
-  return data || [];
+  const trace = createPerformanceTrace('admin.campaign_matches_list');
+  try {
+    await trace.measure('authorize', () => assertStaffRole(['super_admin', 'campaign_manager', 'reviewer', 'gate_staff']));
+    const { data, error } = await trace.measure('query', () => getSupabaseAdminClient().from('campaign_events')
+      .select('id, title, venue, start_date, end_date, is_active').order('start_date', { ascending: false }));
+    if (error) throw new Error('Unable to load matches');
+    return data || [];
+  } finally { trace.finish(); }
 }
 
 export async function getCampaignRoleOptions(category: string) {
   await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']);
-  const { data, error } = await getSupabaseAdminClient().from('campaign_roles')
-    .select('id, name, code').eq('category', category).eq('is_active', true).order('name');
+  let query = getSupabaseAdminClient().from('campaign_roles')
+    .select('id, name, code').eq('is_active', true).order('name');
+  if (category !== 'all') query = query.eq('category', category);
+  const { data, error } = await query;
   if (error) throw new Error('Unable to load roles');
   return data || [];
 }
@@ -568,19 +873,23 @@ export async function getCampaignRoleOptions(category: string) {
 export async function saveCampaignMatch(input: {
   id?: string; title: string; venue: string; startDate: string; endDate: string; isActive: boolean;
 }) {
-  await assertStaffRole(['super_admin', 'campaign_manager']);
-  if (!input || typeof input.title !== 'string' || typeof input.venue !== 'string'
-      || !input.title.trim() || !input.venue.trim() || input.title.length > 255 || input.venue.length > 255
-      || typeof input.isActive !== 'boolean') throw new Error('Enter a match name and venue');
-  const start = new Date(input.startDate), end = new Date(input.endDate);
-  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
-    throw new Error('Check-in closing time must be after opening time');
-  }
-  const supabase = getSupabaseAdminClient();
-  const values = { title: input.title.trim(), venue: input.venue.trim(), start_date: start.toISOString(),
-    end_date: end.toISOString(), is_active: input.isActive, updated_at: new Date().toISOString() };
-  const result = input.id ? await supabase.from('campaign_events').update(values).eq('id', input.id).select('id').single()
-    : await supabase.from('campaign_events').insert({ ...values, slug: 'match-' + crypto.randomBytes(8).toString('hex') }).select('id').single();
-  if (result.error || !result.data) throw new Error('Unable to save match');
-  return { success: true };
+  const trace = createPerformanceTrace('admin.campaign_match_save');
+  try {
+    await trace.measure('authorize', () => assertStaffRole(['super_admin', 'campaign_manager']));
+    if (!input || typeof input.title !== 'string' || typeof input.venue !== 'string'
+        || !input.title.trim() || !input.venue.trim() || input.title.length > 255 || input.venue.length > 255
+        || typeof input.isActive !== 'boolean') throw new Error('Enter a match name and venue');
+    const start = new Date(input.startDate), end = new Date(input.endDate);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+      throw new Error('Check-in closing time must be after opening time');
+    }
+    const supabase = getSupabaseAdminClient();
+    const values = { title: input.title.trim(), venue: input.venue.trim(), start_date: start.toISOString(),
+      end_date: end.toISOString(), is_active: input.isActive, updated_at: new Date().toISOString() };
+    const result = await trace.measure(input.id ? 'update' : 'insert', () => input.id
+      ? supabase.from('campaign_events').update(values).eq('id', input.id).select('id').single()
+      : supabase.from('campaign_events').insert({ ...values, slug: 'match-' + crypto.randomBytes(8).toString('hex') }).select('id').single());
+    if (result.error || !result.data) throw new Error('Unable to save match');
+    return { success: true };
+  } finally { trace.finish(); }
 }

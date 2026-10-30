@@ -6,6 +6,11 @@ import { campaignPassUrl } from '../../../utils/campaignPassUrl';
 import { getIssuedCampaignIds, revokeCampaignId } from '../../../actions/campaignAdminActions';
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  ahibi: 'Ahibi', volunteer: 'Volunteers', media: 'Press and Media', crew: 'Crew',
+  management: 'Management', officials: 'Match Officials', medical: 'Medical Team',
+};
+
 export const CampaignIdsView: React.FC = () => {
   const [ids, setIds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +136,7 @@ export const CampaignIdsView: React.FC = () => {
                       {app?.full_name || '—'}
                     </td>
                     <td style={{ padding: '12px 16px', textTransform: 'capitalize' }}>
-                      {app?.category || '—'}
+                      {DEPARTMENT_LABELS[app?.category] || app?.category || '—'}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '12px', color: '#475569' }}>
                       {app?.assigned_zone || 'General'} ({app?.assigned_shift || 'Matchday'})

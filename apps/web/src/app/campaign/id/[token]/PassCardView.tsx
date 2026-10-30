@@ -8,6 +8,16 @@ interface PassCardViewProps {
   pass: NonNullable<CampaignPassData['pass']>;
 }
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  ahibi: 'Ahibi',
+  volunteer: 'Volunteers',
+  media: 'Press and Media',
+  crew: 'Crew',
+  management: 'Management',
+  officials: 'Match Officials',
+  medical: 'Medical Team',
+};
+
 export default function PassCardView({ pass }: PassCardViewProps) {
   const [qrReady, setQrReady] = useState(false);
   const [qrError, setQrError] = useState(false);
@@ -101,19 +111,24 @@ export default function PassCardView({ pass }: PassCardViewProps) {
             )}
 
             <div className="id-pass-details" style={{ flex: 1, minWidth: 0 }}>
-              <div className="role-badge">{pass.category}</div>
+              <div className="role-badge">{DEPARTMENT_LABELS[pass.category] || pass.category} · {pass.accreditationType}</div>
               <h2>{pass.fullName}</h2>
               <div style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: 600, marginBottom: '6px' }}>
                 {pass.assignedRole}
               </div>
+              <div style={{ fontSize: '10px', color: '#cbd5e1', marginBottom: '2px' }}>Registration ID</div>
               <div style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--camp-gold)', fontWeight: 700 }}>
-                {pass.idNumber}
+                {pass.registrationId}
               </div>
             </div>
           </div>
 
           {/* Operational Meta Details */}
           <div className="id-pass-meta-grid">
+            <div className="id-pass-meta-item">
+              <div className="label">Match access</div>
+              <div className="val">{pass.assignedMatch}</div>
+            </div>
             <div className="id-pass-meta-item">
               <div className="label">Assigned Zone</div>
               <div className="val">{pass.assignedZone}</div>

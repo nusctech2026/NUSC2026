@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { loadSource, publicActions, query, submittedForm } from './fixtures/campaign-actions.mjs';
 
 const number = 'NUSC-CMP-2026-ABCDEF0123456789';
+const roleId = '11111111-1111-4111-8111-111111111112';
 const app = {id:'synthetic-app',application_number:number,email:'candidate@example.invalid',full_name:'Synthetic Candidate',
   category:'crew',application_status:'approved',preferred_role:{name:'Others',code:'crew_others'},other_role:'Camera operator'};
 const verified = {id:'synthetic-user',email:'candidate@example.invalid',email_confirmed_at:'2026-01-01'};
@@ -49,31 +51,107 @@ test('sign-in links target only the registered email and matching/nonmatching ap
 });
 
 test('registration allowlists fields, preserves Other specification and consent, and never creates a credential', async () => {
-  const {api,calls}=publicActions({role:{id:'synthetic-role',code:'crew_others',category:'crew'}});
+  const {api,calls}=publicActions({role:{id:roleId,code:'crew_others',category:'crew'}});
   const result=await api.submitCampaignApplication(submittedForm());
-  assert.equal(result.success,true);assert.match(result.applicationNumber,/^NUSC-CMP-\d{4}-[0-9A-F]{16}$/);
+  assert.equal(result.success,true);assert.equal(result.applicationNumber,'NUSC-CRW-123');
   const payload=calls.find(call=>call[0]==='insert'&&call[1]==='campaign_applications')[2];
   assert.equal(payload.application_status,'submitted');assert.equal(payload.other_role,'Camera operator');
+  assert.equal(payload.email,'candidate@example.invalid');assert.equal(payload.idempotency_key,'11111111-1111-4111-8111-111111111111');
+  assert.match(payload.idempotency_request_hash,/^[0-9a-f]{64}$/);assert.equal(payload.crew_work_arrangement,'independent');
   assert.ok(payload.terms_accepted_at);assert.equal(payload.assigned_role_id,undefined);assert.equal(payload.event_id,undefined);
   assert.equal(calls.some(call=>call[1]==='campaign_ids'),false);
 });
 
+test('registration normalizes email and Indian phone numbers before persistence', async () => {
+  const form=submittedForm({email:' Candidate@Example.Invalid ',phone:'+91 (900) 000-0000'});
+  const {api,calls}=publicActions({role:{id:roleId,code:'crew_others',category:'crew'}});
+  const result=await api.submitCampaignApplication(form);
+  assert.equal(result.success,true);
+  const payload=calls.find(call=>call[0]==='insert'&&call[1]==='campaign_applications')[2];
+  assert.equal(payload.email,'candidate@example.invalid');
+  assert.equal(payload.phone,'9000000000');
+});
+
+test('document upload rate limits use the same normalized phone and reject malformed numbers', async () => {
+  const valid=publicActions();
+  const uploaded=await valid.api.createMediaAuthorisationUploadUrl('authorisation.pdf',1024,'+91 (900) 000-0000');
+  assert.equal(uploaded.success,true);
+  const phoneBucket=`media-document-upload:${createHash('sha256').update('9000000000').digest('hex')}`;
+  assert.ok(valid.calls.some(call=>call[0]==='rpc'&&call[2].p_bucket===phoneBucket));
+
+  const invalid=publicActions();
+  const rejected=await invalid.api.createMediaAuthorisationUploadUrl('authorisation.pdf',1024,'abc9000000000');
+  assert.equal(rejected.success,false);
+  assert.equal(invalid.calls.some(call=>call[0]==='rpc'),false);
+});
+
 test('registration rejects category substitution, missing Other detail and non-image uploads', async () => {
   for(const [role,form] of [
-    [{id:'synthetic-role',code:'vol_security',category:'volunteer'},submittedForm()],
-    [{id:'synthetic-role',code:'crew_others',category:'crew'},submittedForm({otherRole:''})],
+    [{id:roleId,code:'vol_security',category:'volunteer'},submittedForm()],
+    [{id:roleId,code:'crew_others',category:'crew'},submittedForm({otherRole:''})],
   ]){
     const fixture=publicActions({role});assert.equal((await fixture.api.submitCampaignApplication(form)).success,false);
     assert.equal(fixture.calls.some(call=>call[0]==='upload'),false);
   }
   const form=submittedForm();form.set('photo',new File(['<script>attack</script>'],'photo.jpg',{type:'image/jpeg'}));
-  const fixture=publicActions({role:{id:'synthetic-role',code:'crew_others',category:'crew'}});
+  const fixture=publicActions({role:{id:roleId,code:'crew_others',category:'crew'}});
   assert.equal((await fixture.api.submitCampaignApplication(form)).success,false);
   assert.equal(fixture.calls.some(call=>call[0]==='upload'),false);
 });
 
+test('registration validates required normalized contacts, rejects unsupported fields and duplicate identities before upload', async () => {
+  for (const form of [
+    submittedForm({email:''}),
+    submittedForm({email:'not-an-email'}),
+    submittedForm({fullName:'   '}),
+  ]) {
+    const fixture=publicActions({role:{id:roleId,code:'crew_others',category:'crew'}});
+    assert.equal((await fixture.api.submitCampaignApplication(form)).success,false);
+    assert.equal(fixture.calls.some(call=>['upload','insert'].includes(call[0])),false);
+  }
+
+  const unsupported=submittedForm();unsupported.set('application_status','approved');
+  const invalid=publicActions({role:{id:roleId,code:'crew_others',category:'crew'}});
+  assert.equal((await invalid.api.submitCampaignApplication(unsupported)).success,false);
+  assert.equal(invalid.calls.some(call=>['upload','insert'].includes(call[0])),false);
+
+  const duplicate=publicActions({role:{id:roleId,code:'crew_others',category:'crew'},identityClaims:[
+    {identity_kind:'phone',normalized_value:'9000000000',application_id:'existing-application'},
+  ]});
+  const result=await duplicate.api.submitCampaignApplication(submittedForm());
+  assert.equal(result.success,false);assert.match(result.error,/already been submitted/);
+  assert.equal(duplicate.calls.some(call=>['upload','insert'].includes(call[0])),false);
+});
+
+test('registration retries with the same idempotency key return the prior result without another upload or insert', async () => {
+  const form=submittedForm();
+  const role={id:roleId,code:'crew_others',category:'crew'};
+  const first=publicActions({role});
+  const created=await first.api.submitCampaignApplication(form);
+  const payload=first.calls.find(call=>call[0]==='insert'&&call[1]==='campaign_applications')[2];
+  const replay=publicActions({role,idempotencyApplication:{
+    idempotency_key:'11111111-1111-4111-8111-111111111111',
+    application_number:created.applicationNumber,full_name:created.fullName,category:created.category,
+    phone:payload.phone,email:payload.email,idempotency_request_hash:payload.idempotency_request_hash,
+  }});
+  const result=await replay.api.submitCampaignApplication(form);
+  assert.equal(result.success,true);assert.equal(result.applicationNumber,created.applicationNumber);
+  assert.equal(replay.calls.some(call=>call[0]==='insert'||call[0]==='upload'),false);
+});
+
+test('registration does not misreport unrelated unique-key conflicts as duplicate contact details', async () => {
+  const fixture=publicActions({
+    role:{id:roleId,code:'crew_others',category:'crew'},
+    insertError:{code:'23505',message:'duplicate key value violates unique constraint "campaign_applications_application_number_key"'},
+  });
+  const result=await fixture.api.submitCampaignApplication(submittedForm());
+  assert.equal(result.success,false);
+  assert.match(result.error,/could not be saved/i);
+  assert.doesNotMatch(result.error,/contact details/i);
+});
+
 test('failed registration removes its uploaded photograph', async () => {
-  const fixture=publicActions({role:{id:'synthetic-role',code:'crew_others',category:'crew'},insertError:{code:'synthetic-failure'}});
+  const fixture=publicActions({role:{id:roleId,code:'crew_others',category:'crew'},insertError:{code:'synthetic-failure'}});
   assert.equal((await fixture.api.submitCampaignApplication(submittedForm())).success,false);
   assert.equal(fixture.calls.filter(call=>call[0]==='remove').length,1);
 });

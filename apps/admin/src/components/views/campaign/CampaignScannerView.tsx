@@ -64,7 +64,7 @@ export const CampaignScannerView = () => {
   const verify = async (value: string) => {
     if (busyRef.current || !value.trim()) return;
     if (!eventId) { setError('Select a match first.'); return; }
-    busyRef.current = true; setBusy(true); setError('');
+    busyRef.current = true; setBusy(true); setError(''); setResult(null);
     try {
       const response = await verifyAndCheckInGateScan(value.trim(), gate, eventId);
       setResult(response);
@@ -123,7 +123,8 @@ export const CampaignScannerView = () => {
     setManualId('');
     manualInput.current?.focus();
   };
-  const resultClass = !result?.success && /already|duplicate|previously/i.test(result?.message || '')
+  const duplicateResult = !result?.success && /already|duplicate|previously/i.test(result?.message || '');
+  const resultClass = duplicateResult
     ? 'campaign-result-warning' : result?.success ? 'campaign-result-success' : 'campaign-result-failure';
 
   return <main className="campaign-page campaign-scanner-layout">
@@ -156,6 +157,10 @@ export const CampaignScannerView = () => {
       <div className="campaign-camera-frame">
         <video ref={video} playsInline muted aria-label="Live QR scanner camera" style={{ display: scanning ? 'block' : 'none' }} />
         {!scanning && <div className="campaign-camera-idle"><strong>{eventId ? 'Ready to scan' : 'Select a match to begin'}</strong><span>{eventId ? 'Use the camera or enter the pass ID below.' : 'Your match and gate will appear above.'}</span></div>}
+        {result && <div className={`campaign-scan-feedback ${resultClass}`} role={result.success ? 'status' : 'alert'} aria-live={result.success ? 'polite' : 'assertive'}>
+          <strong>{result.success ? 'CHECK-IN RECORDED' : duplicateResult ? 'ALREADY CHECKED IN' : 'SCAN DENIED'}</strong>
+          <span>{result.candidate?.full_name ? `${result.candidate.full_name} · ` : ''}{result.success ? 'Attendance recorded successfully' : result.message || 'Pass not admitted'}</span>
+        </div>}
       </div>
       <div className="campaign-scanner-actions">
         <button className="campaign-primary-button" type="button" onClick={() => scanning ? stopCamera() : void startCamera()} disabled={!eventId || busy}>
@@ -173,7 +178,7 @@ export const CampaignScannerView = () => {
     </form>
 
     {error && <div className="campaign-error-banner" role="alert">{error}</div>}
-    {result && <section className={`campaign-scan-result ${resultClass}`} role={result.success ? 'status' : 'alert'} aria-live="polite">
+    {result && <section className={`campaign-scan-result ${resultClass}`} aria-label="Latest scan details">
       <h2>{result.success ? 'Check-in recorded' : result.message || 'Pass not admitted'}</h2>
       {result.match_title && <p className="campaign-result-match">{result.match_title}</p>}
       {result.candidate && <div className="campaign-scanned-candidate">

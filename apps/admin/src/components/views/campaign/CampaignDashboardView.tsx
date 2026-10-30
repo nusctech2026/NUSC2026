@@ -44,7 +44,7 @@ export const CampaignDashboardView: React.FC = () => {
             Nagaland United SC
           </div>
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#050f24', margin: 0 }}>
-            Campaign Operations Dashboard
+            Workforce Operations Dashboard
           </h1>
           <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0' }}>
             Matchday event staffing, volunteer recruitment, credentialing, and gate access control.
@@ -209,6 +209,28 @@ export const CampaignDashboardView: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#050f24', marginBottom: '16px' }}>
+                Other Departments
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+                {[
+                  ['Press and Media', stats.media_count],
+                  ['Management', stats.management_count],
+                  ['Match Officials', stats.officials_count],
+                  ['Medical Team', stats.medical_count],
+                ].map(([label, count]) => (
+                  <div key={String(label)} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <span style={{ color: '#475569' }}>{label}</span>
+                    <strong style={{ color: '#050f24' }}>{Number(count) || 0}</strong>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: '12px', color: '#92400e', margin: '16px 0 0' }}>
+                Possible duplicate registrations flagged for review: {stats.potential_duplicate_count || 0}
+              </p>
             </div>
 
             {/* Quick Actions Panel */}

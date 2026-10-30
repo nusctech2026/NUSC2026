@@ -27,7 +27,9 @@ export const CampaignMatchesView = () => {
         startDate: new Date(`${form.startDate}+05:30`).toISOString(),
         endDate: new Date(`${form.endDate}+05:30`).toISOString(),
       });
-      setForm(empty); setMessage('Match saved. It is now available in the gate scanner.'); await load();
+      setForm(empty); setMessage('Match saved. It is now available in the gate scanner.');
+      // The database has confirmed the save; refresh the list without delaying success feedback.
+      void load();
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to save match'); }
     finally { setSaving(false); }
   };

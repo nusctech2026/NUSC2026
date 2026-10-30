@@ -276,7 +276,7 @@ export default function ApplicationSuccessClient() {
       </div>
 
       <div className="campaign-badge no-print" style={{ marginBottom: '12px' }}>
-        Application Received
+        Registration Successful!
       </div>
 
       <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--camp-navy-950)', marginBottom: '8px' }}>
@@ -284,7 +284,7 @@ export default function ApplicationSuccessClient() {
       </h1>
 
       <p style={{ color: 'var(--camp-muted)', fontSize: '1rem', lineHeight: 1.5, marginBottom: '28px' }}>
-        Your registration for <strong>{category.toUpperCase()}</strong> matchday operations has been recorded in the NUSC database.
+        Your registration for NUSC IFL 2026–27 has been received and is pending verification.
       </p>
 
       {/* Prominent Application Number Box & Actions */}
@@ -299,7 +299,7 @@ export default function ApplicationSuccessClient() {
         }}
       >
         <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--camp-muted)', marginBottom: '6px', fontWeight: 700 }}>
-          Your Official Application Number
+          Your Registration ID
         </div>
         <div
           style={{
@@ -315,7 +315,7 @@ export default function ApplicationSuccessClient() {
           {applicationNumber}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--camp-muted)', marginBottom: '18px' }}>
-          Please save or download this number to check your application and access status.
+          Please keep this ID for future reference. NUSC administrators will review your registration before any accreditation is issued.
         </div>
 
         {/* Quick Utility Actions */}
@@ -325,7 +325,7 @@ export default function ApplicationSuccessClient() {
             onClick={handleCopy}
             className="btn-outline"
             style={{ fontSize: '13px', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            title="Copy application number to clipboard"
+            title="Copy registration ID to clipboard"
           >
             {copied ? '✓ Copied!' : '📋 Copy Number'}
           </button>
@@ -369,7 +369,7 @@ export default function ApplicationSuccessClient() {
             <strong>Department Review:</strong> The operations team reviews your credentials and role preferences.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Status Updates:</strong> Check back anytime using your application number.
+            <strong>Status updates:</strong> If you provided an email, use your registration ID and that email to check your status.
           </li>
           <li>
             <strong>Event ID Issuance:</strong> Once approved, your digital Event Pass with a secure QR code will be generated for gate access.
@@ -382,7 +382,7 @@ export default function ApplicationSuccessClient() {
         <Link href={`/campaign/status?num=${encodeURIComponent(applicationNumber)}`} className="btn-primary">
           Track Application Status
         </Link>
-        <Link href="/campaign" className="btn-outline">
+        <Link href="/registrations" className="btn-outline">
           Back to Campaign Hub
         </Link>
       </div>

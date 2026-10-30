@@ -41,7 +41,7 @@ export default async function CampaignIdPage({
                 <Link href="/campaign/status" className="btn-primary">
                   Check Application Status
                 </Link>
-                <Link href="/campaign" className="btn-outline">
+                <Link href="/registrations" className="btn-outline">
                   Return to Campaign Hub
                 </Link>
               </div>

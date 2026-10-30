@@ -4,9 +4,19 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { campaignRoleLabel } from '../../../utils/campaignRoleLabel';
-import { getCampaignApplicationsList } from '../../../actions/campaignAdminActions';
+import { getCampaignApplicationsList, getCampaignRoleOptions } from '../../../actions/campaignAdminActions';
 import { CampaignApplicationDetailView } from './CampaignApplicationDetailView';
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ahibi: 'Ahibi',
+  volunteer: 'Volunteers',
+  media: 'Press and Media',
+  crew: 'Crew',
+  management: 'Management',
+  officials: 'Match Officials',
+  medical: 'Medical Team',
+};
 
 export const CampaignApplicationsView: React.FC = () => {
   const searchParams = useSearchParams();
@@ -16,6 +26,8 @@ export const CampaignApplicationsView: React.FC = () => {
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [roleOptions, setRoleOptions] = useState<{ id: string; name: string; code: string }[]>([]);
   const allowedStatuses = ['submitted', 'under_review', 'approved', 'waitlisted', 'rejected'];
   const requestedStatus = searchParams.get('status');
   const [statusFilter, setStatusFilter] = useState(allowedStatuses.includes(requestedStatus || '') ? requestedStatus! : 'all');
@@ -33,7 +45,7 @@ export const CampaignApplicationsView: React.FC = () => {
     let active = true;
     Promise.resolve().then(() => {
       if (active) setError(null);
-      return getCampaignApplicationsList({ category: categoryFilter, status: statusFilter, search: appliedSearch, page, pageSize: 20 });
+      return getCampaignApplicationsList({ category: categoryFilter, roleId: roleFilter, status: statusFilter, search: appliedSearch, page, pageSize: 20 });
     })
       .then(res => {
         if (!active) return;
@@ -42,7 +54,16 @@ export const CampaignApplicationsView: React.FC = () => {
       .catch(err => { if (active) setError(err instanceof Error ? err.message : 'Failed to load applications'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [categoryFilter, statusFilter, page, appliedSearch, refreshKey]);
+  }, [categoryFilter, roleFilter, statusFilter, page, appliedSearch, refreshKey]);
+
+  useEffect(() => {
+    let active = true;
+    setRoleFilter('all');
+    getCampaignRoleOptions(categoryFilter)
+      .then(options => { if (active) setRoleOptions(options); })
+      .catch(() => { if (active) setRoleOptions([]); });
+    return () => { active = false; };
+  }, [categoryFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,12 +110,27 @@ export const CampaignApplicationsView: React.FC = () => {
             Campaign Operations
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#050f24', margin: 0 }}>
-            Applications
+            Workforce registrations
           </h1>
           <p style={{ margin: '6px 0 0', color: '#667085', fontSize: '14px' }}>{totalCount} applications · {statusFilter === 'submitted' ? 'Showing new submissions' : 'Review and assign campaign applicants'}</p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
+          <a
+            href="/api/campaign/export-registrations"
+            style={{
+              background: '#fff',
+              border: '1px solid #cbd5e1',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              textDecoration: 'none',
+              color: '#0f172a',
+            }}
+          >
+            Export all registrations CSV
+          </a>
           <Link
             href="/admin/campaign/approved"
             style={{
@@ -132,7 +168,7 @@ export const CampaignApplicationsView: React.FC = () => {
           <input
             type="search"
             aria-label="Search applications"
-            placeholder="Name, phone, email, or application number"
+            placeholder="Name, phone, email, or registration ID"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -171,9 +207,27 @@ export const CampaignApplicationsView: React.FC = () => {
             style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
           >
             <option value="all">All Categories</option>
-            <option value="volunteer">Volunteers</option>
-            <option value="crew">Crew</option>
             <option value="ahibi">Ahibi</option>
+          <option value="volunteer">Volunteers</option>
+          <option value="media">Press and Media</option>
+          <option value="crew">Crew</option>
+          <option value="management">Management</option>
+          <option value="officials">Match Officials</option>
+          <option value="medical">Medical Team</option>
+          </select>
+
+          <select
+            value={roleFilter}
+            aria-label="Filter by role"
+            onChange={(e) => {
+              setLoading(true);
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+          >
+            <option value="all">All Roles</option>
+            {roleOptions.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
           </select>
 
           <select
@@ -206,7 +260,7 @@ export const CampaignApplicationsView: React.FC = () => {
         <table className="campaign-application-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Application #</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Registration ID</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Full Name</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Category</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Preferred Role</th>
@@ -239,10 +293,15 @@ export const CampaignApplicationsView: React.FC = () => {
                   </td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>
                     {row.full_name}
+                    {row.potential_duplicate && (
+                      <span style={{ display: 'block', marginTop: '4px', color: '#b45309', fontSize: '11px', fontWeight: 700 }}>
+                        Possible duplicate · review
+                      </span>
+                    )}
                     <a href={`tel:${row.phone}`} style={{ display: 'inline-block', marginTop: 3, fontSize: '12px', color: '#526071', fontWeight: 400 }}>{row.phone}</a>
                   </td>
                   <td style={{ padding: '12px 16px', textTransform: 'capitalize', color: '#334155' }}>
-                    {row.category}
+                    {CATEGORY_LABELS[row.category] || row.category}
                   </td>
                   <td style={{ padding: '12px 16px', color: '#334155' }}>
                     {campaignRoleLabel(row.preferred_role, row.other_role)}
