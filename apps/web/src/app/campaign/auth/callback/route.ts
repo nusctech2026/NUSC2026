@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const incoming = new URL(request.url);
   const destination = new URL('/campaign/status', campaignSiteOrigin());
   const number = incoming.searchParams.get('num');
-  if (number && /^NUSC-CMP-\d{4}-[A-Z0-9]{5,32}$/i.test(number)) destination.searchParams.set('num', number);
+  if (number && /^NUSC-(?:CMP-\d{4}-[A-Z0-9]{5,32}|(?:AHB|VOL|MED|CRW|MGT|OFC|HLT)-\d{3,})$/i.test(number)) destination.searchParams.set('num', number);
   const code = incoming.searchParams.get('code');
   if (code) {
     const supabase = await createServerClient();

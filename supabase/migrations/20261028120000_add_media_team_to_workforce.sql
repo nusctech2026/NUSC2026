@@ -48,7 +48,7 @@ BEGIN
     SET last_number = counters.last_number + 1
   RETURNING last_number INTO v_number;
 
-  RETURN 'NUSC-' || v_prefix || '-' || lpad(v_number::TEXT, 3, '0');
+  RETURN 'NUSC-' || v_prefix || '-' || lpad(v_number::TEXT, GREATEST(3, length(v_number::TEXT)), '0');
 END;
 $$;
 REVOKE ALL ON FUNCTION public.next_workforce_registration_id(TEXT) FROM PUBLIC, anon, authenticated;

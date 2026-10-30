@@ -1,6 +1,7 @@
 'use server';
 
 import { createHash, randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { headers } from 'next/headers';
 import { createAdminClient, createServerClient } from '@nusc/db';
 import { campaignRateLimit, campaignRoleLabel, campaignSiteOrigin, CampaignRateLimitError, CampaignServiceError } from './server';
@@ -24,6 +25,8 @@ const MEDIA_ORGANISATION_TYPE_CODES = [
 ] as const;
 const MEDIA_AUTHORISATION_PATH_PATTERN = /^media-authorisation\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(pdf|jpeg|png)$/i;
 const OFFICIAL_CREDENTIAL_PATH_PATTERN = /^official-credential\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(pdf|jpeg|png)$/i;
+const WORKFORCE_PHOTO_PATH_PATTERN = /^NUSC-(?:AHB|VOL|MED|CRW|MGT|OFC|HLT)-\d{3,}\/photo\.(jpeg|png)$/i;
+const WORKFORCE_DOCUMENT_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
 const SUBMISSION_SCALAR_FIELDS = [
   'idempotencyKey', 'fullName', 'phone', 'email', 'category', 'preferredRoleId', 'otherRole',
   'organisation', 'organisationOther', 'designation', 'availabilityMode', 'mediaOutlet',
@@ -72,13 +75,49 @@ function validateSubmissionFormData(formData: FormData): string | null {
   return null;
 }
 
+async function isRecentWorkforceDocument(
+  supabase: ReturnType<typeof createAdminClient>,
+  path: string
+) {
+  const { data, error } = await supabase.storage.from('campaign_documents').info(path);
+  if (error || !data?.createdAt) return false;
+
+  const createdAt = Date.parse(data.createdAt);
+  return Number.isFinite(createdAt) && createdAt > Date.now() - WORKFORCE_DOCUMENT_MAX_AGE_MS;
+}
+
+async function removeUnlinkedWorkforcePhotos(
+  supabase: ReturnType<typeof createAdminClient>,
+  paths: string[]
+) {
+  const photoPaths = [...new Set(paths)].filter((path) => WORKFORCE_PHOTO_PATH_PATTERN.test(path));
+  if (photoPaths.length === 0) return true;
+
+  const { data, error: lookupError } = await supabase.from('campaign_applications')
+    .select('photo_storage_path').in('photo_storage_path', photoPaths);
+  if (lookupError || !data) return false;
+
+  const linkedPaths = new Set(data.map((application) => application.photo_storage_path).filter(Boolean));
+  const unlinkedPaths = photoPaths.filter((path) => !linkedPaths.has(path));
+  if (unlinkedPaths.length === 0) return true;
+
+  const { error } = await supabase.storage.from('campaign_documents').remove(unlinkedPaths);
+  return !error;
+}
+
 async function rateLimitCampaignRequestIp(purpose: string, limit: number) {
   const requestHeaders = await headers();
-  const forwarded = requestHeaders.get('x-real-ip')
-    || requestHeaders.get('cf-connecting-ip')
-    || requestHeaders.get('x-forwarded-for')?.split(',')[0];
-  const identity = forwarded?.trim().toLowerCase();
-  if (identity) await campaignRateLimit(purpose, identity, limit);
+  const forwarded = requestHeaders.get('x-vercel-forwarded-for')
+    || requestHeaders.get('x-real-ip')
+    || requestHeaders.get('x-forwarded-for');
+  const identity = forwarded?.split(',').at(-1)?.trim().toLowerCase();
+  if (!identity || isIP(identity) === 0) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new CampaignServiceError('Campaign services are temporarily unavailable. Please try again later.');
+    }
+    return;
+  }
+  await campaignRateLimit(purpose, identity, limit);
 }
 
 function normalizeWorkforcePhone(value: string) {
@@ -104,7 +143,8 @@ export async function createMediaAuthorisationUploadUrl(fileName: string, fileSi
       return { success: false as const, error: 'Check the file type, 10 MB size limit, and 10-digit phone number.' };
     }
 
-    await rateLimitCampaignRequestIp('media-document-upload-ip', 10);
+    await rateLimitCampaignRequestIp('workforce-document-upload-ip', 10);
+    await campaignRateLimit('workforce-document-upload-global', 'all', 50, 3600);
     await campaignRateLimit('media-document-upload', phone, 5);
     const path = `media-authorisation/${randomUUID()}.${fileType.extension}`;
     const { data, error } = await createAdminClient().storage
@@ -129,16 +169,8 @@ export async function discardCampaignMediaAuthorisationUpload(pathValue: string)
   if (typeof pathValue !== 'string' || !MEDIA_AUTHORISATION_PATH_PATTERN.test(pathValue)) {
     return { success: false as const };
   }
-  try {
-    const supabase = createAdminClient();
-    const { data: linkedApplication, error: lookupError } = await supabase.from('campaign_applications')
-      .select('id').eq('media_authorisation_storage_path', pathValue).maybeSingle();
-    if (lookupError || linkedApplication) return { success: false as const };
-    const { error } = await supabase.storage.from('campaign_documents').remove([pathValue]);
-    return { success: !error };
-  } catch {
-    return { success: false as const };
-  }
+  // Document cleanup is age-gated and deferred so an in-flight submission cannot lose its file.
+  return { success: true as const };
 }
 
 export async function createOfficialCredentialUploadUrl(fileName: string, fileSize: number, phoneValue: string) {
@@ -159,7 +191,8 @@ export async function createOfficialCredentialUploadUrl(fileName: string, fileSi
       return { success: false as const, error: 'Check the file type, 10 MB size limit, and 10-digit phone number.' };
     }
 
-    await rateLimitCampaignRequestIp('official-credential-upload-ip', 10);
+    await rateLimitCampaignRequestIp('workforce-document-upload-ip', 10);
+    await campaignRateLimit('workforce-document-upload-global', 'all', 50, 3600);
     await campaignRateLimit('official-credential-upload', phone, 5);
     const path = `official-credential/${randomUUID()}.${fileType.extension}`;
     const { data, error } = await createAdminClient().storage
@@ -184,16 +217,8 @@ export async function discardOfficialCredentialUpload(pathValue: string) {
   if (typeof pathValue !== 'string' || !OFFICIAL_CREDENTIAL_PATH_PATTERN.test(pathValue)) {
     return { success: false as const };
   }
-  try {
-    const supabase = createAdminClient();
-    const { data: linkedApplication, error: lookupError } = await supabase.from('campaign_applications')
-      .select('id').eq('official_credential_storage_path', pathValue).maybeSingle();
-    if (lookupError || linkedApplication) return { success: false as const };
-    const { error } = await supabase.storage.from('campaign_documents').remove([pathValue]);
-    return { success: !error };
-  } catch {
-    return { success: false as const };
-  }
+  // Document cleanup is age-gated and deferred so an in-flight submission cannot lose its file.
+  return { success: true as const };
 }
 
 export interface CampaignSubmissionResult {
@@ -621,6 +646,9 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       if (existingDocumentError || (existingDocument && existingDocument.idempotency_key !== idempotencyKey)) {
         return { success: false, error: 'Choose a new media ID card or authorisation letter upload.' };
       }
+      if (!existingDocument && !(await isRecentWorkforceDocument(supabase, mediaAuthorisationPath))) {
+        return { success: false, error: 'This media document upload has expired. Upload a new document.' };
+      }
       const { data: documentBlob, error: documentDownloadError } = await supabase.storage
         .from('campaign_documents').download(mediaAuthorisationPath);
       if (documentDownloadError || !documentBlob || documentBlob.size < 1 || documentBlob.size > 10 * 1024 * 1024) {
@@ -645,6 +673,9 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
         .select('id, idempotency_key').eq('official_credential_storage_path', officialCredentialPath).maybeSingle();
       if (existingDocumentError || (existingDocument && existingDocument.idempotency_key !== idempotencyKey)) {
         return { success: false, error: 'Choose a new qualification document upload.' };
+      }
+      if (!existingDocument && !(await isRecentWorkforceDocument(supabase, officialCredentialPath))) {
+        return { success: false, error: 'This qualification document upload has expired. Upload a new document.' };
       }
       const { data: documentBlob, error: documentDownloadError } = await supabase.storage
         .from('campaign_documents').download(officialCredentialPath);
@@ -797,8 +828,8 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
     }));
 
     if (dbError) {
-      const { error: cleanupError } = await supabase.storage.from('campaign_documents').remove(uploadedStoragePaths);
-      if (cleanupError) throw new Error('Unable to clean up workforce uploads after registration failure');
+      const cleanupSucceeded = await removeUnlinkedWorkforcePhotos(supabase, uploadedStoragePaths);
+      if (!cleanupSucceeded) console.error('Unlinked workforce photo cleanup was deferred');
       uploadedStoragePaths = [];
       photoStoragePath = null;
       mediaAuthorisationStoragePath = null;
@@ -847,7 +878,7 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
   } catch (error) {
     if (uploadedStoragePaths.length > 0) {
       try {
-        await createAdminClient().storage.from('campaign_documents').remove(uploadedStoragePaths);
+        await removeUnlinkedWorkforcePhotos(createAdminClient(), uploadedStoragePaths);
       } catch {
         // A storage cleanup failure does not expose private upload details.
       }
@@ -876,7 +907,7 @@ export async function requestCampaignAccess(applicationNumber: string, email: st
   try {
     const number = typeof applicationNumber === 'string' ? applicationNumber.trim().toUpperCase() : '';
     const contact = typeof email === 'string' ? email.trim().toLowerCase() : '';
-    if (!/^NUSC-(?:CMP-\d{4}-[A-Z0-9]{5,32}|(?:AHB|VOL|CRW|MGT|OFC|HLT)-\d{3,})$/.test(number) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
+    if (!/^NUSC-(?:CMP-\d{4}-[A-Z0-9]{5,32}|(?:AHB|VOL|MED|CRW|MGT|OFC|HLT)-\d{3,})$/.test(number) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
       return { success: false, error: 'Enter your application number and registered email.' };
     }
     await campaignRateLimit('access-application', number, 3);
@@ -911,7 +942,7 @@ export async function checkCampaignStatus(
     if (!email) return { success: false, requiresSignIn: true, error: 'Verify your registered email to view this application.' };
     await campaignRateLimit('status-email', email, 30);
 
-    if (!/^NUSC-(?:CMP-\d{4}-[A-Z0-9]{5,32}|(?:AHB|VOL|CRW|MGT|OFC|HLT)-\d{3,})$/.test(cleanAppNum)) {
+    if (!/^NUSC-(?:CMP-\d{4}-[A-Z0-9]{5,32}|(?:AHB|VOL|MED|CRW|MGT|OFC|HLT)-\d{3,})$/.test(cleanAppNum)) {
       return { success: false, error: 'Please enter your application number.' };
     }
 

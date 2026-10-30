@@ -12,6 +12,12 @@
 
 The scanner decodes camera frames with jsQR, including browsers without native BarcodeDetector support. Camera denial has a manual printed-ID fallback. Physical camera performance still needs a real device rehearsal.
 
+## Workforce registration extension
+
+The `/registrations` page is the direct department-aware application form for the IFL 2026–27 workforce. It supports Ahibi, Volunteer, Media, Crew, Management, Officials and Medical applications with department-specific fields and server-side validation. The dedicated Press Accreditation flow remains separate. The role selector is shown only when roles are available for the selected department; Management roles are assigned by the server.
+
+Workforce application IDs use department prefixes `AHB`, `VOL`, `MED`, `CRW`, `MGT`, `OFC` and `HLT`. Applicants request email access with their application ID and registered email. Status and pass lookups require a verified email session bound to the application. The request and status validators must accept every issued department prefix.
+
 ## Database changes
 
 Apply these in order, to the intended environment:
@@ -21,6 +27,19 @@ Apply these in order, to the intended environment:
 - `20261027120000_campaign_issue_crypto_search_path.sql` (qualifies Supabase's `extensions.gen_random_bytes` dependency for ID issuance and replacement).
 
 The repair adds the 7 missing Ahibi roles, campaign staff roles, private rate-limit storage, atomic approval/issuance and match-bound check-in functions. The final migration fixes pass issuance for Supabase's pgcrypto schema. The migrations preserve existing applications and pass tokens. Existing approved applications get their preferred active role if assignment is missing, and receive an ID if missing. Revoked/expired IDs are not silently renewed. Legacy attendance with no match remains visible as **Legacy: match not recorded**; no historical match is guessed.
+
+Apply these additional workforce migrations, in order, after the campaign tables and workflow migrations above:
+
+- `20261028110000_unified_workforce_registration.sql`
+- `20261028120000_add_media_team_to_workforce.sql`
+- `20261028130000_workforce_department_details.sql`
+- `20261028140000_workforce_media_authorisation_document.sql`
+- `20261028150000_workforce_match_official_review_details.sql`
+- `20261028160000_workforce_crew_affiliation.sql`
+- `20261028170000_workforce_registration_integrity.sql`
+- `20261028180000_workforce_registration_counter_backfill.sql`
+
+The integrity migration requires the first six workforce migrations. The counter backfill belongs last; it seeds each department's counter from existing IDs without moving a counter backwards. Do not open workforce registration until these migrations are applied to the target database.
 
 Before applying, privately check that existing `user_roles.role` values are within the supported staff roles and that there are no duplicate successful check-ins for the same non-null match and credential. The migration fails rather than deleting conflicting history. Existing approvals whose roles are inactive or in the wrong category need manager review.
 
@@ -36,6 +55,8 @@ That helper applies all three campaign migrations in one transaction. It does no
 ## Email and environment configuration
 
 Both web and admin need the public website origin in `NEXT_PUBLIC_SITE_URL` (HTTPS in production), plus their existing Supabase URL and keys. The admin also needs a Resend API key and verified sender in `RESEND_API_KEY` and `CAMPAIGN_EMAIL_FROM` to send pass emails. WhatsApp uses a staff-reviewed `wa.me` share link; direct Business API delivery is not configured. Use private environment settings, never source files, for privileged keys and connection strings.
+
+The public web Vercel project must also have a random `CRON_SECRET` of at least 16 characters before deployment. The scheduled `/api/cron/campaign-document-cleanup` route uses it to authorize daily cleanup of unlinked workforce documents older than seven days. Applicants must attach document uploads within six days; older uploads require a fresh upload so an active submission cannot race with cleanup. Vercel sends the secret as a bearer token for the configured cron job. If it is absent, cleanup requests fail closed; do not open document uploads until the production setting and scheduled job are confirmed.
 
 In Supabase Auth, enable email sign-in and allow the exact deployed callback URL:
 
