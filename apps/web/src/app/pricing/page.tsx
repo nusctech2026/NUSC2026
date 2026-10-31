@@ -30,7 +30,7 @@ export default function PricingPage() {
 
               <div className="terms-intro-card">
                 <p>
-                  All prices are listed in <strong>Indian Rupees (₹)</strong> and are inclusive of applicable taxes unless stated otherwise. Prices are for a single season (<strong>Season 2026</strong>) unless specified.
+                  Membership prices below show the base amount. The Sports Development Fund and GST are shown separately before payment. Prices are for a single season (<strong>Season 2026</strong>) unless specified.
                 </p>
               </div>
 
@@ -58,7 +58,7 @@ export default function PricingPage() {
                       </tr>
                       <tr>
                         <td><strong>Rise Premium</strong></td>
-                        <td style={{ fontWeight: 700, color: 'var(--navy-900)' }}>₹10,000</td>
+                        <td style={{ fontWeight: 700, color: 'var(--navy-900)' }}>₹12,500</td>
                         <td>Premium gallery seating for 10 home matches, official NUSC scarf/collectible, 10% merchandise discount &amp; early access, draw entries for player meet-and-greets</td>
                       </tr>
                       <tr>
