@@ -26,16 +26,24 @@ type KitConfig = {
 }
 
 const SIZE_CHART = [
-  { size: 'XS / 34', chest: 36, length: 25 },
-  { size: 'S / 36', chest: 38, length: 26 },
-  { size: 'M / 38', chest: 40, length: 27 },
-  { size: 'L / 40', chest: 42, length: 28 },
-  { size: 'XL / 42', chest: 44, length: 29 },
-  { size: 'XXL / 44', chest: 46, length: 30 },
-  { size: '3XL / 46', chest: 48, length: 31 },
+  { value: 'XS', size: 'XS / 34', chest: 36, length: 25 },
+  { value: 'S', size: 'S / 36', chest: 38, length: 26 },
+  { value: 'M', size: 'M / 38', chest: 40, length: 27 },
+  { value: 'L', size: 'L / 40', chest: 42, length: 28 },
+  { value: 'XL', size: 'XL / 42', chest: 44, length: 29 },
+  { value: 'XXL', size: 'XXL / 44', chest: 46, length: 30 },
+  { value: '3XL', size: '3XL / 46', chest: 48, length: 31 },
 ] as const
 
-function JerseySizeTable() {
+function JerseySizeTable({
+  kitName,
+  selectedSize,
+  onSelectSize,
+}: {
+  kitName: string
+  selectedSize: JerseySize
+  onSelectSize: (size: JerseySize) => void
+}) {
   return (
     <table className="identity-size-guide-table">
       <caption className="identity-visually-hidden">
@@ -51,7 +59,17 @@ function JerseySizeTable() {
       <tbody>
         {SIZE_CHART.map((measurement) => (
           <tr key={measurement.size}>
-            <th scope="row">{measurement.size}</th>
+            <th scope="row">
+              <button
+                type="button"
+                className="identity-size-option"
+                aria-label={`Select ${measurement.size} for ${kitName}`}
+                aria-pressed={selectedSize === measurement.value}
+                onClick={() => onSelectSize(measurement.value)}
+              >
+                {measurement.size}
+              </button>
+            </th>
             <td>{measurement.chest}</td>
             <td>{measurement.length}</td>
           </tr>
@@ -120,6 +138,8 @@ const KITS: KitConfig[] = [
 
 export default function JerseyShowcaseClient() {
   const sizeChartDialogRef = useRef<HTMLDialogElement>(null)
+  const [sizeChartKit, setSizeChartKit] = useState<KitId>('official')
+  const [sizeChartSelectionMessage, setSizeChartSelectionMessage] = useState('')
 
   const [kitViews, setKitViews] = useState<Record<KitId, 'front' | 'back'>>({
     official: 'front',
@@ -147,6 +167,7 @@ export default function JerseyShowcaseClient() {
   const [isPending, startTransition] = useTransition()
 
   const selectedCount = Object.values(selectedKits).filter(Boolean).length
+  const sizeChartKitName = KITS.find((kit) => kit.id === sizeChartKit)?.name ?? 'Official Home Kit'
 
   const toggleKitSelection = (id: KitId) => {
     setSelectedKits((prev) => {
@@ -166,6 +187,17 @@ export default function JerseyShowcaseClient() {
 
   const setSize = (id: KitId, size: JerseySize) => {
     setKitSizes((prev) => ({ ...prev, [id]: size }))
+  }
+
+  const setSizeChartTarget = (kitId: KitId) => {
+    setSizeChartKit(kitId)
+    setSizeChartSelectionMessage('')
+  }
+
+  const applyChartSize = (size: JerseySize) => {
+    setSize(sizeChartKit, size)
+    const chartLabel = SIZE_CHART.find((measurement) => measurement.value === size)?.size ?? size
+    setSizeChartSelectionMessage(`${chartLabel} selected for ${sizeChartKitName}.`)
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -289,7 +321,9 @@ export default function JerseyShowcaseClient() {
                   <div className="identity-size-block" aria-label={`Select estimated size for ${kit.name}`}>
                     <div className="identity-size-header">
                       <span className="identity-size-label">SIZE</span>
-                      <span className="identity-size-selected-val">{currentSize}</span>
+                      <span className="identity-size-selected-val" aria-live="polite" aria-atomic="true">
+                        {currentSize}
+                      </span>
                     </div>
                     <div className="identity-size-pills">
                       {JERSEY_SIZES.map((size) => (
@@ -308,7 +342,11 @@ export default function JerseyShowcaseClient() {
                       className="identity-size-chart-trigger"
                       aria-haspopup="dialog"
                       aria-controls="jersey-size-chart-dialog"
-                      onClick={() => sizeChartDialogRef.current?.showModal()}
+                      aria-label={`View size chart for ${kit.name}`}
+                      onClick={() => {
+                        setSizeChartTarget(kit.id)
+                        sizeChartDialogRef.current?.showModal()
+                      }}
                     >
                       View size chart
                     </button>
@@ -579,12 +617,34 @@ export default function JerseyShowcaseClient() {
                     <h2 id="size-chart-heading" className="identity-size-guide-title">Find your size</h2>
                   </div>
                   <p id="size-chart-note" className="identity-size-guide-note">
-                    Size labels show the letter and number together, such as XS / 34. Measurements are in inches.
+                    Measurements are in inches. Choose a kit to update, then tap its size in the table.
                   </p>
                 </div>
 
-                <JerseySizeTable />
-                <p className="identity-size-guide-footnote">Choose the matching letter size on a kit card above.</p>
+                <div className="identity-size-guide-target">
+                  <label htmlFor="identity-size-guide-target">Apply sizes to</label>
+                  <select
+                    id="identity-size-guide-target"
+                    value={sizeChartKit}
+                    onChange={(event) => {
+                      const selectedKit = KITS.find((kit) => kit.id === event.currentTarget.value)
+                      if (selectedKit) setSizeChartTarget(selectedKit.id)
+                    }}
+                  >
+                    {KITS.map((kit) => (
+                      <option key={kit.id} value={kit.id}>{kit.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <JerseySizeTable
+                  kitName={sizeChartKitName}
+                  selectedSize={kitSizes[sizeChartKit]}
+                  onSelectSize={applyChartSize}
+                />
+                <p className="identity-size-guide-footnote" role="status" aria-live="polite">
+                  {sizeChartSelectionMessage || 'Selecting a size updates this kit. Use its card button to add it to your interest list.'}
+                </p>
               </aside>
             </div>
           )}
@@ -618,11 +678,18 @@ export default function JerseyShowcaseClient() {
             </button>
           </div>
           <p className="identity-size-guide-note">
-            Match the letter and number on the size buttons. All measurements are in inches.
+            For {sizeChartKitName}. Tap a size label below to apply it to this jersey. Measurements are in inches.
           </p>
-          <JerseySizeTable />
+          <JerseySizeTable
+            kitName={sizeChartKitName}
+            selectedSize={kitSizes[sizeChartKit]}
+            onSelectSize={(size) => {
+              applyChartSize(size)
+              sizeChartDialogRef.current?.close()
+            }}
+          />
           <p className="identity-size-guide-footnote">
-            Choose the matching letter size on the jersey card.
+            Use “Select this kit” on its card to add it to your interest list.
           </p>
         </div>
       </dialog>

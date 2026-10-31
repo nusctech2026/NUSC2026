@@ -353,6 +353,32 @@
   line-height: 1.5;
 }
 
+.identity-size-guide-target {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.identity-size-guide-target label {
+  color: #475569;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.identity-size-guide-target select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--id-line-dark);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--id-ink);
+  font: inherit;
+  font-size: 12px;
+}
+
 .identity-size-guide-table {
   width: 100%;
   border-collapse: collapse;
@@ -385,6 +411,39 @@
 
 .identity-size-guide-table tbody th {
   font-weight: 700;
+}
+
+.identity-size-guide-table tbody th,
+.identity-size-guide-table tbody td {
+  padding: 4px 8px;
+}
+
+.identity-size-option {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.identity-size-option:hover,
+.identity-size-option[aria-pressed='true'] {
+  background: #e2e8f0;
+  color: var(--id-ink);
+}
+
+.identity-size-option:focus-visible,
+.identity-size-guide-target select:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .identity-size-guide-table tbody tr:nth-child(even) {
@@ -1707,6 +1766,10 @@
   .identity-size-chart-trigger {
     min-height: 46px;
     margin-top: 12px;
+  }
+  .identity-size-guide-target select,
+  .identity-size-option {
+    min-height: 46px;
   }
   .identity-select-cta {
     min-height: 48px;
