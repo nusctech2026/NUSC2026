@@ -78,7 +78,13 @@ export function GoogleAnalytics() {
     }
 
     window.dataLayer = window.dataLayer || [];
-    window.gtag = window.gtag || ((...args: unknown[]) => window.dataLayer?.push(args));
+    window.gtag =
+      window.gtag ||
+      function gtag() {
+        // The Google tag consumes native Arguments objects from dataLayer.
+        // eslint-disable-next-line prefer-rest-params
+        window.dataLayer?.push(arguments);
+      };
 
     const pageLocation = `${window.location.origin}${pathname}`;
     const pageTitle = document.title;
