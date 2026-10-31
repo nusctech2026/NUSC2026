@@ -2716,3 +2716,193 @@ noscript .reveal { opacity: 1 !important; transform: none !important; transition
   margin: 18px 0 0;
   line-height: 1.6;
 }
+
+/* ---------- Sponsor partnership feature ---------- */
+.sponsor-partnership {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 600px;
+  overflow: hidden;
+  padding: clamp(90px, 10vw, 136px) 0 clamp(86px, 9vw, 124px);
+  color: var(--white);
+  background: var(--navy-950);
+}
+
+.sponsor-partnership__backdrop {
+  z-index: -2;
+  object-fit: cover;
+  object-position: center 58%;
+}
+
+.sponsor-partnership__shade {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(2, 8, 22, 0.7) 0%, rgba(3, 10, 25, 0.52) 52%, rgba(3, 8, 20, 0.45) 100%),
+    linear-gradient(0deg, rgba(2, 7, 18, 0.36) 0%, transparent 62%);
+}
+
+.sponsor-partnership__content {
+  position: relative;
+  z-index: 1;
+}
+
+.sponsor-partnership__club-name {
+  margin: 0 0 24px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.sponsor-partnership__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  color: var(--red-bright);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.sponsor-partnership__eyebrow span {
+  width: 48px;
+  height: 3px;
+  background: var(--red-bright);
+}
+
+.sponsor-partnership__feature {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.82fr) 1px minmax(0, 1.18fr);
+  align-items: center;
+  gap: clamp(36px, 5vw, 76px);
+  margin-top: clamp(24px, 3vw, 38px);
+}
+
+.sponsor-partnership__identity {
+  min-width: 0;
+}
+
+.sponsor-partnership__role {
+  margin: 18px 0 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.sponsor-partnership__logo-link {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.sponsor-partnership__logo-link img {
+  display: block;
+  width: clamp(260px, 29vw, 370px);
+  height: auto;
+}
+
+.sponsor-partnership__divider {
+  width: 1px;
+  min-height: 190px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.sponsor-partnership__copy h2 {
+  max-width: 700px;
+  margin: 0;
+  color: var(--white);
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: clamp(2.1rem, 3.3vw, 3.1rem);
+  font-weight: 700;
+  line-height: 1.04;
+}
+
+.sponsor-partnership__accent {
+  display: block;
+  width: 54px;
+  height: 4px;
+  margin: 20px 0 16px;
+  background: var(--red-bright);
+}
+
+.sponsor-partnership__copy p {
+  max-width: 650px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: clamp(0.98rem, 1.12vw, 1.1rem);
+  line-height: 1.62;
+}
+
+.sponsor-partnership__logo-link:focus-visible {
+  outline: 3px solid var(--red-bright);
+  outline-offset: 5px;
+}
+
+@media (max-width: 760px) {
+  .sponsor-partnership {
+    min-height: 660px;
+    padding: 86px 0 92px;
+  }
+
+  .sponsor-partnership__backdrop {
+    object-position: 72% center;
+  }
+
+  .sponsor-partnership__shade {
+    background:
+      linear-gradient(90deg, rgba(2, 8, 22, 0.76), rgba(2, 8, 22, 0.64)),
+      linear-gradient(0deg, rgba(2, 7, 18, 0.72), rgba(2, 7, 18, 0.2));
+  }
+
+  .sponsor-partnership__club-name {
+    max-width: 280px;
+    margin-bottom: 22px;
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+  }
+
+  .sponsor-partnership__eyebrow {
+    gap: 10px;
+    font-size: 0.82rem;
+    letter-spacing: 0.16em;
+  }
+
+  .sponsor-partnership__eyebrow span {
+    width: 30px;
+  }
+
+  .sponsor-partnership__feature {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    margin-top: 30px;
+  }
+
+  .sponsor-partnership__divider {
+    width: min(100%, 380px);
+    min-height: 1px;
+    background: rgba(255, 255, 255, 0.48);
+  }
+
+  .sponsor-partnership__logo-link img {
+    width: min(74vw, 350px);
+  }
+
+  .sponsor-partnership__copy h2 {
+    font-size: clamp(2rem, 8vw, 2.7rem);
+  }
+
+  .sponsor-partnership__accent {
+    margin: 17px 0 13px;
+  }
+}

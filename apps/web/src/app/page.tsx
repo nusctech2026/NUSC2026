@@ -4,6 +4,7 @@ import { Hero } from '@/components/sections/Hero';
 import { Club } from '@/components/sections/Club';
 import { Journey } from '@/components/sections/Journey';
 import { Honours } from '@/components/sections/Honours';
+import { Sponsors } from '@/components/sections/Sponsors';
 import { Footer } from '@/components/sections/Footer';
 
 export default function Home() {
@@ -16,6 +17,7 @@ export default function Home() {
         <Club />
         <Journey />
         <Honours />
+        <Sponsors />
       </main>
       <Footer />
     </>
