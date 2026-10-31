@@ -1,4 +1,4 @@
-export const JERSEY_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure'] as const
+export const JERSEY_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Not sure'] as const
 export type JerseySize = (typeof JERSEY_SIZES)[number]
 
 export type JerseyInterestInput = {

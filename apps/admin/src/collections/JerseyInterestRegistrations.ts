@@ -136,7 +136,7 @@ export const JerseyInterestRegistrations: CollectionConfig = {
             SELECT
               kit,
               CASE
-                WHEN requested_size IN ('XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure') THEN requested_size
+                WHEN requested_size IN ('XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Not sure') THEN requested_size
                 ELSE 'Not sure'
               END AS bucket
             FROM (
@@ -155,7 +155,7 @@ export const JerseyInterestRegistrations: CollectionConfig = {
             GROUP BY kit, bucket
           ),
           size_buckets(bucket) AS (
-            VALUES ('XS'::text), ('S'), ('M'), ('L'), ('XL'), ('XXL'), ('Not sure')
+            VALUES ('XS'::text), ('S'), ('M'), ('L'), ('XL'), ('XXL'), ('3XL'), ('Not sure')
           ),
           size_breakdown_rows AS (
             SELECT
@@ -337,7 +337,7 @@ export const JerseyInterestRegistrations: CollectionConfig = {
           name: 'officialKitSize',
           label: 'Official Kit Size',
           type: 'select',
-          options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure'],
+          options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Not sure'],
         },
       ],
     },
@@ -354,7 +354,7 @@ export const JerseyInterestRegistrations: CollectionConfig = {
           name: 'awayKitSize',
           label: 'Away Kit Size',
           type: 'select',
-          options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure'],
+          options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Not sure'],
         },
       ],
     },
@@ -371,7 +371,7 @@ export const JerseyInterestRegistrations: CollectionConfig = {
           name: 'reserveKitSize',
           label: 'Reserve Kit Size',
           type: 'select',
-          options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure'],
+          options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Not sure'],
         },
       ],
     },

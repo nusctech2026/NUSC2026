@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, type FormEvent } from 'react'
+import { useRef, useState, useTransition, type FormEvent } from 'react'
 import Link from 'next/link'
 import { submitJerseyInterest } from './actions'
 import { JERSEY_SIZES, type JerseySize } from './validation'
@@ -23,6 +23,42 @@ type KitConfig = {
   frontImage: string
   backImage: string
   description: string
+}
+
+const SIZE_CHART = [
+  { size: 'XS / 34', chest: 36, length: 25 },
+  { size: 'S / 36', chest: 38, length: 26 },
+  { size: 'M / 38', chest: 40, length: 27 },
+  { size: 'L / 40', chest: 42, length: 28 },
+  { size: 'XL / 42', chest: 44, length: 29 },
+  { size: 'XXL / 44', chest: 46, length: 30 },
+  { size: '3XL / 46', chest: 48, length: 31 },
+] as const
+
+function JerseySizeTable() {
+  return (
+    <table className="identity-size-guide-table">
+      <caption className="identity-visually-hidden">
+        NUSC jersey size chart with chest and length measurements in inches.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Size</th>
+          <th scope="col">Chest (in)</th>
+          <th scope="col">Length (in)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {SIZE_CHART.map((measurement) => (
+          <tr key={measurement.size}>
+            <th scope="row">{measurement.size}</th>
+            <td>{measurement.chest}</td>
+            <td>{measurement.length}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 }
 
 const KITS: KitConfig[] = [
@@ -83,6 +119,8 @@ const KITS: KitConfig[] = [
 ]
 
 export default function JerseyShowcaseClient() {
+  const sizeChartDialogRef = useRef<HTMLDialogElement>(null)
+
   const [kitViews, setKitViews] = useState<Record<KitId, 'front' | 'back'>>({
     official: 'front',
     away: 'front',
@@ -265,6 +303,15 @@ export default function JerseyShowcaseClient() {
                         </button>
                       ))}
                     </div>
+                    <button
+                      type="button"
+                      className="identity-size-chart-trigger"
+                      aria-haspopup="dialog"
+                      aria-controls="jersey-size-chart-dialog"
+                      onClick={() => sizeChartDialogRef.current?.showModal()}
+                    >
+                      View size chart
+                    </button>
                   </div>
 
                   {/* Action Button: Pill CTA */}
@@ -320,7 +367,7 @@ export default function JerseyShowcaseClient() {
 
       {/* Registration Form Section */}
       <section id="registration-section" className="identity-registration-section" aria-labelledby="form-heading">
-        <div className="identity-form-container">
+        <div className={`identity-form-container ${submitted ? 'is-submitted' : ''}`}>
           {submitted ? (
             <div className="identity-success-panel" role="status" aria-live="polite">
               <div className="identity-success-icon-wrap" aria-hidden="true">
@@ -369,163 +416,216 @@ export default function JerseyShowcaseClient() {
               </div>
             </div>
           ) : (
-            <div className="identity-form-card">
-              <div className="identity-form-header">
-                <h2 id="form-heading" className="identity-form-title">
-                  Register Your Pre-Order Interest
-                </h2>
-                <p className="identity-form-subtitle">
-                  No payment required today &mdash; submitting ensures priority early-bird notification when official orders open.
-                </p>
-              </div>
-
-              {/* Selected Kits Overview Inside Form */}
-              <div className="identity-form-kits-summary">
-                <span className="identity-form-summary-label">SELECTED KITS:</span>
-                {selectedCount === 0 ? (
-                  <div className="identity-no-kit-warning">
-                    <span>No kits selected yet.</span>
-                    <a href="#kits-showcase" className="identity-choose-link">
-                      Select kits above &uarr;
-                    </a>
-                  </div>
-                ) : (
-                  <div className="identity-chips-wrap">
-                    {KITS.filter((k) => selectedKits[k.id]).map((k) => (
-                      <div key={k.id} className="identity-selected-chip">
-                        <span className="identity-color-dot" style={{ backgroundColor: k.dotColor }} />
-                        <span className="identity-chip-text">
-                          <strong>{k.name}</strong> &bull; Size {kitSizes[k.id]}
-                        </span>
-                        <button
-                          type="button"
-                          className="identity-chip-remove"
-                          onClick={() => toggleKitSelection(k.id)}
-                          aria-label={`Remove ${k.name}`}
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <form onSubmit={handleSubmit} className="identity-main-form" noValidate>
-                {/* Honeypot anti-spam trap */}
-                <div className="identity-trap" aria-hidden="true">
-                  <label htmlFor="jersey-website">Website (leave empty)</label>
-                  <input id="jersey-website" name="website" tabIndex={-1} autoComplete="off" />
+            <div className="identity-registration-layout">
+              <div className="identity-form-card">
+                <div className="identity-form-header">
+                  <h2 id="form-heading" className="identity-form-title">
+                    Register Your Pre-Order Interest
+                  </h2>
+                  <p className="identity-form-subtitle">
+                    No payment required today &mdash; submitting ensures priority early-bird notification when official orders open.
+                  </p>
                 </div>
 
-                <div className="identity-field-grid">
-                  {/* Full Name */}
-                  <div className="identity-field">
-                    <label htmlFor="jersey-fullname">
-                      FULL NAME <span className="identity-required">*</span>
-                    </label>
-                    <input
-                      id="jersey-fullname"
-                      name="fullName"
-                      type="text"
-                      autoComplete="name"
-                      placeholder="e.g. Temsu Ao"
-                      minLength={2}
-                      maxLength={100}
-                      required
-                    />
-                  </div>
-
-                  {/* Email */}
-                  <div className="identity-field">
-                    <label htmlFor="jersey-email">
-                      EMAIL ADDRESS <span className="identity-required">*</span>
-                    </label>
-                    <input
-                      id="jersey-email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="e.g. temsu@nagalandunited.com"
-                      maxLength={254}
-                      required
-                    />
-                  </div>
-
-                  {/* Phone / WhatsApp */}
-                  <div className="identity-field">
-                    <label htmlFor="jersey-phone">
-                      WHATSAPP / PHONE <span className="identity-sublabel">(Optional)</span>
-                    </label>
-                    <input
-                      id="jersey-phone"
-                      name="phone"
-                      type="tel"
-                      autoComplete="tel"
-                      placeholder="+91 98765 43210"
-                      maxLength={30}
-                    />
-                  </div>
-
-                  {/* Quantity estimate */}
-                  <div className="identity-field">
-                    <label htmlFor="jersey-quantity">
-                      LIKELY QUANTITY
-                    </label>
-                    <select
-                      id="jersey-quantity"
-                      name="quantity"
-                      value={quantity}
-                      onChange={(e) => setQuantity(Number(e.target.value))}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                        <option key={num} value={num}>
-                          {num} {num === 1 ? 'jersey' : 'jerseys'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="identity-form-error" role="alert">
-                    <span className="identity-error-icon">!</span>
-                    <span>{error}</span>
-                  </div>
-                )}
-
-                {/* Consent Checkbox */}
-                <label className="identity-consent-row">
-                  <input type="checkbox" name="contactConsent" required defaultChecked />
-                  <span>
-                    No order just yet. We’re still working out the details. Signing up lets us know you’re interested; it doesn’t reserve a jersey or commit you to buy.
-                  </span>
-                </label>
-
-                {/* Submit CTA */}
-                <button
-                  type="submit"
-                  className="identity-submit-btn"
-                  disabled={isPending || selectedCount === 0}
-                >
-                  {isPending ? (
-                    <span className="identity-btn-spinner-wrap">
-                      <span className="identity-spinner" />
-                      <span>RECORDING INTEREST...</span>
-                    </span>
+                {/* Selected Kits Overview Inside Form */}
+                <div className="identity-form-kits-summary">
+                  <span className="identity-form-summary-label">SELECTED KITS:</span>
+                  {selectedCount === 0 ? (
+                    <div className="identity-no-kit-warning">
+                      <span>No kits selected yet.</span>
+                      <a href="#kits-showcase" className="identity-choose-link">
+                        Select kits above &uarr;
+                      </a>
+                    </div>
                   ) : (
-                    <span>SUBMIT PRE-ORDER INTEREST &rarr;</span>
+                    <div className="identity-chips-wrap">
+                      {KITS.filter((k) => selectedKits[k.id]).map((k) => (
+                        <div key={k.id} className="identity-selected-chip">
+                          <span className="identity-color-dot" style={{ backgroundColor: k.dotColor }} />
+                          <span className="identity-chip-text">
+                            <strong>{k.name}</strong> &bull; Size {kitSizes[k.id]}
+                          </span>
+                          <button
+                            type="button"
+                            className="identity-chip-remove"
+                            onClick={() => toggleKitSelection(k.id)}
+                            aria-label={`Remove ${k.name}`}
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
 
-                <p className="identity-privacy-note">
-                  Official Nagaland United Sports Club communication &bull; Society Reg. No. HOME/SRC-7926 &bull; Rise Together
-                </p>
-              </form>
+                <form onSubmit={handleSubmit} className="identity-main-form" noValidate>
+                  {/* Honeypot anti-spam trap */}
+                  <div className="identity-trap" aria-hidden="true">
+                    <label htmlFor="jersey-website">Website (leave empty)</label>
+                    <input id="jersey-website" name="website" tabIndex={-1} autoComplete="off" />
+                  </div>
+
+                  <div className="identity-field-grid">
+                    {/* Full Name */}
+                    <div className="identity-field">
+                      <label htmlFor="jersey-fullname">
+                        FULL NAME <span className="identity-required">*</span>
+                      </label>
+                      <input
+                        id="jersey-fullname"
+                        name="fullName"
+                        type="text"
+                        autoComplete="name"
+                        placeholder="e.g. Temsu Ao"
+                        minLength={2}
+                        maxLength={100}
+                        required
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div className="identity-field">
+                      <label htmlFor="jersey-email">
+                        EMAIL ADDRESS <span className="identity-required">*</span>
+                      </label>
+                      <input
+                        id="jersey-email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="e.g. temsu@nagalandunited.com"
+                        maxLength={254}
+                        required
+                      />
+                    </div>
+
+                    {/* Phone / WhatsApp */}
+                    <div className="identity-field">
+                      <label htmlFor="jersey-phone">
+                        WHATSAPP / PHONE <span className="identity-sublabel">(Optional)</span>
+                      </label>
+                      <input
+                        id="jersey-phone"
+                        name="phone"
+                        type="tel"
+                        autoComplete="tel"
+                        placeholder="+91 98765 43210"
+                        maxLength={30}
+                      />
+                    </div>
+
+                    {/* Quantity estimate */}
+                    <div className="identity-field">
+                      <label htmlFor="jersey-quantity">
+                        LIKELY QUANTITY
+                      </label>
+                      <select
+                        id="jersey-quantity"
+                        name="quantity"
+                        value={quantity}
+                        onChange={(e) => setQuantity(Number(e.target.value))}
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <option key={num} value={num}>
+                            {num} {num === 1 ? 'jersey' : 'jerseys'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="identity-form-error" role="alert">
+                      <span className="identity-error-icon">!</span>
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  {/* Consent Checkbox */}
+                  <label className="identity-consent-row">
+                    <input type="checkbox" name="contactConsent" required defaultChecked />
+                    <span>
+                      No order just yet. We’re still working out the details. Signing up lets us know you’re interested; it doesn’t reserve a jersey or commit you to buy.
+                    </span>
+                  </label>
+
+                  {/* Submit CTA */}
+                  <button
+                    type="submit"
+                    className="identity-submit-btn"
+                    disabled={isPending || selectedCount === 0}
+                  >
+                    {isPending ? (
+                      <span className="identity-btn-spinner-wrap">
+                        <span className="identity-spinner" />
+                        <span>RECORDING INTEREST...</span>
+                      </span>
+                    ) : (
+                      <span>SUBMIT PRE-ORDER INTEREST &rarr;</span>
+                    )}
+                  </button>
+
+                  <p className="identity-privacy-note">
+                    Official Nagaland United Sports Club communication &bull; Society Reg. No. HOME/SRC-7926 &bull; Rise Together
+                  </p>
+                </form>
+                </div>
+
+              <aside className="identity-size-guide" aria-labelledby="size-chart-heading">
+                <div className="identity-size-guide-header">
+                  <div>
+                    <span className="identity-size-guide-kicker">SIZE GUIDE</span>
+                    <h2 id="size-chart-heading" className="identity-size-guide-title">Find your size</h2>
+                  </div>
+                  <p id="size-chart-note" className="identity-size-guide-note">
+                    Size labels show the letter and number together, such as XS / 34. Measurements are in inches.
+                  </p>
+                </div>
+
+                <JerseySizeTable />
+                <p className="identity-size-guide-footnote">Choose the matching letter size on a kit card above.</p>
+              </aside>
             </div>
           )}
         </div>
       </section>
+
+      <dialog
+        ref={sizeChartDialogRef}
+        id="jersey-size-chart-dialog"
+        className="identity-size-dialog"
+        aria-labelledby="jersey-size-chart-dialog-title"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) event.currentTarget.close()
+        }}
+      >
+        <div className="identity-size-dialog-inner">
+          <div className="identity-size-dialog-header">
+            <div>
+              <span className="identity-size-guide-kicker">SIZE GUIDE</span>
+              <h2 id="jersey-size-chart-dialog-title" className="identity-size-guide-title">
+                Find your size
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="identity-size-dialog-close"
+              aria-label="Close size chart"
+              onClick={() => sizeChartDialogRef.current?.close()}
+            >
+              Close
+            </button>
+          </div>
+          <p className="identity-size-guide-note">
+            Match the letter and number on the size buttons. All measurements are in inches.
+          </p>
+          <JerseySizeTable />
+          <p className="identity-size-guide-footnote">
+            Choose the matching letter size on the jersey card.
+          </p>
+        </div>
+      </dialog>
     </div>
   )
 }

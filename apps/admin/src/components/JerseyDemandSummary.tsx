@@ -11,7 +11,7 @@ type DemandStats = {
   sizeBreakdown: Record<string, { official: number; away: number; reserve: number }>;
 };
 
-const JERSEY_SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Not sure'] as const;
+const JERSEY_SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Not sure'] as const;
 
 export const JerseyDemandSummary: React.FC = () => {
   const [stats, setStats] = useState<DemandStats | null>(null);
