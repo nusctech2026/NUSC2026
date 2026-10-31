@@ -62,6 +62,26 @@ test('registration allowlists fields, preserves Other specification and consent,
   assert.equal(calls.some(call=>call[1]==='campaign_ids'),false);
 });
 
+test('management registration keeps Others as the organisation and stores the custom name separately', async () => {
+  const role = {id:roleId,code:'management_role',category:'management',is_active:true};
+  const {api,calls} = publicActions({role});
+  const form = new FormData();
+  for (const [key,value] of Object.entries({
+    idempotencyKey:'22222222-2222-4222-8222-222222222222',
+    fullName:'Synthetic Manager',phone:'9000000044',email:'manager@example.invalid',
+    category:'management',preferredRoleId:'',organisation:'Others',
+    organisationOther:'Nagaland United Example Organisation',designation:'Operations Director',
+    availabilityMode:'all',termsAccepted:'true',
+  })) form.set(key,value);
+  form.set('photo',new File([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])],'synthetic.png',{type:'image/png'}));
+
+  const result = await api.submitCampaignApplication(form);
+  assert.equal(result.success,true);
+  const payload = calls.find(call=>call[0]==='insert'&&call[1]==='campaign_applications')[2];
+  assert.equal(payload.organisation,'Others');
+  assert.equal(payload.organisation_other,'Nagaland United Example Organisation');
+});
+
 test('registration normalizes email and Indian phone numbers before persistence', async () => {
   const form=submittedForm({email:' Candidate@Example.Invalid ',phone:'+91 (900) 000-0000'});
   const {api,calls}=publicActions({role:{id:roleId,code:'crew_others',category:'crew'}});

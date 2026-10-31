@@ -51,7 +51,7 @@ export async function GET() {
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
       const { data, error } = await supabase.from('campaign_applications')
-        .select('application_number, full_name, phone, email, category, other_role, organisation, designation, availability, availability_mode, availability_match_ids, media_outlet, media_organisation_type, portfolio_url, media_access_types, professional_body, professional_qualification, professional_registration_number, technical_specialty, experience, application_status, event_id, assigned_zone, assigned_shift, potential_duplicate, submitted_at, preferred_role:campaign_roles!preferred_role_id (name, code), event:campaign_events!event_id (title)')
+        .select('application_number, full_name, phone, email, category, other_role, organisation, organisation_other, designation, availability, availability_mode, availability_match_ids, media_outlet, media_organisation_type, portfolio_url, media_access_types, professional_body, professional_qualification, professional_registration_number, technical_specialty, experience, application_status, event_id, assigned_zone, assigned_shift, potential_duplicate, submitted_at, preferred_role:campaign_roles!preferred_role_id (name, code), event:campaign_events!event_id (title)')
         .order('submitted_at', { ascending: true })
         .range(offset, offset + pageSize - 1);
       if (error) throw new Error('Registration export query failed');
@@ -72,6 +72,9 @@ export async function GET() {
       for (const registration of data || []) {
         const role = Array.isArray(registration.preferred_role) ? registration.preferred_role[0] : registration.preferred_role;
         const event = Array.isArray(registration.event) ? registration.event[0] : registration.event;
+        const organisation = registration.organisation === 'Others'
+          ? registration.organisation_other || registration.organisation
+          : registration.organisation;
         const availableMatches = Array.isArray(registration.availability_match_ids)
           ? registration.availability_match_ids.map((id) => availabilityTitles.get(id) || 'Match details unavailable').join('; ')
           : '';
@@ -82,7 +85,7 @@ export async function GET() {
           registration.email,
           DEPARTMENT_LABELS[registration.category] || registration.category,
           campaignRoleLabel(role as any, registration.other_role),
-          registration.organisation,
+          organisation,
           registration.designation,
           registration.availability,
           availableMatches,

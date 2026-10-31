@@ -97,6 +97,10 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   const [editCrewLeadName, setEditCrewLeadName] = useState('');
   const [editCrewLeadPhone, setEditCrewLeadPhone] = useState('');
 
+  const displayOrganisation = app?.organisation === 'Others'
+    ? app.organisation_other || app.organisation
+    : app?.organisation;
+
   const safePortfolioUrl = (() => {
     if (!app?.portfolio_url) return null;
     try {
@@ -113,7 +117,10 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     setEventId(data.event_id || ''); setAssignedZone(data.assigned_zone || '');
     setAssignedShift(data.assigned_shift || ''); setAdminNotes(data.admin_notes || '');
     setEditFullName(data.full_name || ''); setEditPhone(data.phone || ''); setEditEmail(data.email || '');
-    setEditOtherRole(data.other_role || ''); setEditOrganisation(data.organisation || '');
+    setEditOtherRole(data.other_role || '');
+    setEditOrganisation(data.organisation === 'Others'
+      ? data.organisation_other || ''
+      : data.organisation || '');
     setEditDesignation(data.designation || '');
     setEditAvailabilityMode(data.availability_mode === 'all' || data.availability_mode === 'selected'
       ? data.availability_mode : '');
@@ -379,7 +386,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
           <div style={{ fontSize: '13px', lineHeight: 1.6, borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
             <div><strong>Phone:</strong> {app.phone}</div>
             {app.email && <div><strong>Email:</strong> {app.email}</div>}
-            {app.organisation && <div style={{ marginTop: '6px' }}><strong>Organisation / affiliation:</strong> {app.organisation}</div>}
+            {displayOrganisation && <div style={{ marginTop: '6px' }}><strong>Organisation / affiliation:</strong> {displayOrganisation}</div>}
             {app.designation && <div style={{ marginTop: '6px' }}><strong>{app.category === 'media' ? 'Designation / Role:' : 'Designation / position:'}</strong> {app.designation}</div>}
             {app.address && <div style={{ marginTop: '6px' }}><strong>Residential Address:</strong> {app.address}</div>}
             {app.availability && <div style={{ marginTop: '6px' }}><strong>Availability:</strong> {app.availability}</div>}

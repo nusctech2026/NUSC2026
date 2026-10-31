@@ -777,7 +777,6 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
     }
     uploadedStoragePaths.push(photoStoragePath);
 
-    const effectiveOrganisation = organisation === 'Others' ? organisationOther : organisation;
     const availabilitySummary = availabilityMode === 'all'
       ? 'Available for all 10 NUSC home matches'
       : 'Available for selected NUSC home matches';
@@ -797,7 +796,7 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       category,
       preferred_role_id: roleRecord?.id ?? null,
       other_role: isOtherRole ? otherRole : null,
-      organisation: category === 'management' ? effectiveOrganisation : null,
+      organisation: category === 'management' ? organisation : null,
       organisation_other: category === 'management' && organisation === 'Others' ? organisationOther : null,
       designation: category === 'management' ? designation : category === 'media' ? mediaDesignation : null,
       media_outlet: category === 'media' ? mediaOutlet || null : null,
