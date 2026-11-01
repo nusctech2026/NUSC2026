@@ -13,7 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ boo
 
   const admin = createAdminClient();
   const { data: ticket, error: ticketError } = await admin.from('membership_season_pass_tickets')
-    .select('payment_order_id,member_id,user_id,status')
+    .select('payment_order_id,manual_order_id,member_id,user_id,status')
     .eq('ahibi_booking_id', bookingId).eq('user_id', user.id).maybeSingle();
   if (ticketError) {
     console.error('Ahibi ticket ownership lookup failed.');
@@ -24,15 +24,29 @@ export async function GET(_request: Request, { params }: { params: Promise<{ boo
     return new Response('Ticket not found', { status: 404 });
   }
 
-  const { data: order, error: orderError } = await admin.from('membership_payment_orders')
-    .select('ahibi_reservation_id')
-    .eq('id', ticket.payment_order_id).eq('member_id', ticket.member_id).eq('user_id', user.id)
-    .eq('status', 'paid').eq('ahibi_pass_status', 'issued').maybeSingle();
-  if (orderError) {
-    console.error('Ahibi ticket order lookup failed.');
-    return new Response('Unable to retrieve this ticket', { status: 500 });
+  let reservationId: string | null = null;
+  if (ticket.manual_order_id) {
+    const { data: manualOrder, error: manualOrderError } = await admin.from('membership_ahibi_manual_pass_orders')
+      .select('ahibi_reservation_id')
+      .eq('id', ticket.manual_order_id).eq('member_id', ticket.member_id).eq('user_id', user.id)
+      .eq('status', 'issued').eq('ahibi_pass_status', 'issued').not('settlement_hash', 'is', null).maybeSingle();
+    if (manualOrderError) {
+      console.error('Manual Ahibi ticket order lookup failed.');
+      return new Response('Unable to retrieve this ticket', { status: 500 });
+    }
+    reservationId = manualOrder?.ahibi_reservation_id || null;
+  } else if (ticket.payment_order_id) {
+    const { data: paidOrder, error: orderError } = await admin.from('membership_payment_orders')
+      .select('ahibi_reservation_id')
+      .eq('id', ticket.payment_order_id).eq('member_id', ticket.member_id).eq('user_id', user.id)
+      .eq('status', 'paid').eq('ahibi_pass_status', 'issued').maybeSingle();
+    if (orderError) {
+      console.error('Ahibi ticket order lookup failed.');
+      return new Response('Unable to retrieve this ticket', { status: 500 });
+    }
+    reservationId = paidOrder?.ahibi_reservation_id || null;
   }
-  if (!order?.ahibi_reservation_id) {
+  if (!reservationId) {
     console.warn('Ahibi ticket PDF request denied:', 'paid_issued_order_missing');
     return new Response('Ticket not found', { status: 404 });
   }
@@ -57,7 +71,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ boo
   }
 
   try {
-    const pdf = await getAhibiSeasonPassTicketPdf(order.ahibi_reservation_id, bookingId, attendee);
+    const pdf = await getAhibiSeasonPassTicketPdf(reservationId, bookingId, attendee);
     return new Response(pdf, {
       headers: {
         'Content-Type': 'application/pdf',
