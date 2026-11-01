@@ -253,7 +253,8 @@ export async function confirmAhibiSeasonPass(
   paymentId: string,
   expected: { partnerOrderId: string; passId: AhibiSeasonPassId; zone: AhibiSeasonPassZone | null },
 ): Promise<AhibiSeasonPassIssuance> {
-  if (!/^nsp_[a-f0-9]{40}$/.test(reservationId) || !/^pay_[A-Za-z0-9]+$/.test(paymentId)) {
+  if (!/^nsp_[a-f0-9]{40}$/.test(reservationId)
+      || (!/^pay_[A-Za-z0-9]+$/.test(paymentId) && !/^manual_[a-f0-9-]{36}$/i.test(paymentId))) {
     throw new AhibiSeasonPassError(400, 'AHIBI_REQUEST_INVALID');
   }
   const payload = await request('POST', `/api/nusc-partner/v1/reservations/${reservationId}/confirm`, { paymentId });
