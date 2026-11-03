@@ -836,7 +836,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
               <button
                 type="button"
-                disabled={actionLoading}
+                disabled={actionLoading || (!canManage && app.application_status === 'approved')}
                 onClick={() => handleStatusChange('under_review')}
                 style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #d97706', background: '#fef3c7', color: '#92400e', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               >
@@ -844,7 +844,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
               </button>
               <button
                 type="button"
-                disabled={actionLoading}
+                disabled={actionLoading || (!canManage && app.application_status === 'approved')}
                 onClick={() => handleStatusChange('waitlisted')}
                 style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #9333ea', background: '#f3e8ff', color: '#6b21a8', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               >
@@ -860,7 +860,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
               </button>
               <button
                 type="button"
-                disabled={actionLoading}
+                disabled={actionLoading || (!canManage && app.application_status === 'approved')}
                 onClick={() => handleStatusChange('rejected')}
                 style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #dc2626', background: '#fee2e2', color: '#991b1b', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               >

@@ -263,6 +263,9 @@ export interface CampaignPassData {
     assignedMatch: string;
     assignedZone: string;
     assignedShift: string;
+    affiliation: string | null;
+    mediaOutlet: string | null;
+    mediaOrganisationType: string | null;
     validFrom: string;
     validUntil: string;
     signedPhotoUrl: string | null;
@@ -1056,8 +1059,12 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
           event_id,
           assigned_zone,
           assigned_shift,
+          organisation,
+          organisation_other,
           other_role,
           designation,
+          media_outlet,
+          media_organisation_type,
           application_status,
           assigned_role:campaign_roles!assigned_role_id (name, code),
           event:campaign_events!event_id (title, venue)
@@ -1095,6 +1102,10 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
     const baseRole = campaignRoleLabel(app.assigned_role, app.other_role);
     const assignedRole = app.designation ? baseRole + ' · ' + app.designation : baseRole;
     const event = Array.isArray(app.event) ? app.event[0] : app.event;
+    const mediaOrganisationLabels: Record<string, string> = {
+      kaki: 'Kaki', print_media: 'Print Media', press_media: 'Press Media', broadcast_tv: 'Broadcast / TV',
+      digital_online_media: 'Digital / Online Media', independent_freelance: 'Independent / Freelance', other: 'Other',
+    };
     const eventVenue = event?.venue || 'ChÃ¼moukedima Football Stadium, Nagaland';
 
     return {
@@ -1110,6 +1121,13 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
         assignedMatch: event?.title || 'All 10 NUSC home matches',
         assignedZone: app.assigned_zone || 'Awaiting staff assignment',
         assignedShift: app.assigned_shift || 'Awaiting staff assignment',
+        affiliation: app.category === 'management'
+          ? (app.organisation === 'Others' ? app.organisation_other : app.organisation) || null
+          : null,
+        mediaOutlet: app.category === 'media' ? app.media_outlet || null : null,
+        mediaOrganisationType: app.category === 'media'
+          ? mediaOrganisationLabels[app.media_organisation_type] || app.media_organisation_type || null
+          : null,
         validFrom: idRecord.valid_from,
         validUntil: idRecord.valid_until,
         signedPhotoUrl,

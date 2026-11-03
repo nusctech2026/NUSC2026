@@ -132,13 +132,13 @@ test('status requires a verified server session; application number, email and p
   }
 });
 
-test('verified users see only their own application and its issued pass; Others description remains visible', async () => {
+test('verified users see only their own application and its issued pass; Other description remains visible', async () => {
   const foreign=publicActions({user:{...verified,email:'other@example.invalid'},application:app});
   assert.equal((await foreign.api.checkCampaignStatus(number)).success,false);
   const own=publicActions({user:verified,application:app,pass:{pass_slug:'synthetic-pass',valid_from:'2026-01-01',valid_until:'2099-01-01'}});
   const result=await own.api.checkCampaignStatus(number);
   assert.equal(result.success,true);assert.equal(result.data.passSlug,'synthetic-pass');
-  assert.equal(result.data.preferredRoleName,'Others: Camera operator');
+  assert.equal(result.data.preferredRoleName,'Other: Camera operator');
   assert.ok(own.calls.some(call=>call[0]==='eq'&&call[1]==='campaign_applications'&&call[2]==='email'&&call[3]===verified.email));
 });
 
@@ -629,6 +629,13 @@ test('campaign source scripts contain no embedded JWTs or database passwords', (
   }
 });
 
+test('retired Press form action cannot insert or upload legacy applicant records', async () => {
+  const api = loadSource('apps/web/src/app/press-accreditation/actions.ts', {});
+  const result = await api.submitPressAccreditation(new FormData());
+  assert.equal(result.success, false);
+  assert.match(result.error, /unified registration form/);
+});
+
 test('QR endpoint serves approved active credentials before match day and rejects expired or revoked passes', async () => {
   const token='a'.repeat(64),now=Date.now();
   const valid={qr_token:token,is_active:true,revoked_at:null,valid_from:new Date(now-3600000).toISOString(),
@@ -667,6 +674,41 @@ test('public pass presentation can be previewed before the first valid match day
   assert.equal(result.pass.validUntil,pass.valid_until);
 });
 
+test('pass presentation includes management affiliation and Press and Media details', async () => {
+  for (const { category, application, expected } of [
+    {
+      category: 'management',
+      application: { organisation: 'Others', organisation_other: 'Nagaland United Example Organisation' },
+      expected: { affiliation: 'Nagaland United Example Organisation', mediaOutlet: null, mediaOrganisationType: null },
+    },
+    {
+      category: 'media',
+      application: { media_outlet: 'The Naga Chronicle', media_organisation_type: 'broadcast_tv' },
+      expected: { affiliation: null, mediaOutlet: 'The Naga Chronicle', mediaOrganisationType: 'Broadcast / TV' },
+    },
+  ]) {
+    const pass = {
+      id: 'credential', id_number: 'NUSC-ID-2026-AAAAAAAAAAAAAAAA', pass_slug: 'synthetic-pass',
+      valid_from: '2026-01-01T00:00:00.000Z', valid_until: '2099-01-01T00:00:00.000Z',
+      issued_at: '2026-01-01T00:00:00.000Z', is_active: true, revoked_at: null,
+      application: {
+        application_number: 'NUSC-MED-001', full_name: 'Synthetic Candidate', category,
+        photo_storage_path: null, event_id: null, assigned_zone: null, assigned_shift: null,
+        other_role: 'Camera Operator', designation: null, application_status: 'approved',
+        assigned_role: { name: 'Other', code: `${category}_others` }, event: null, ...application,
+      },
+    };
+    const { api } = publicActions({ pass });
+    const result = await api.getCampaignPass('synthetic-pass');
+    assert.equal(result.success, true);
+    assert.deepEqual({
+      affiliation: result.pass.affiliation,
+      mediaOutlet: result.pass.mediaOutlet,
+      mediaOrganisationType: result.pass.mediaOrganisationType,
+    }, expected);
+  }
+});
+
 test('camera decoder can read the actual QR library output for a campaign token', () => {
   const token='abc123'.repeat(10)+'abcd';
   const {modules}=QRCode.create(token);const scale=6,margin=4,width=(modules.size+margin*2)*scale;
@@ -684,18 +726,20 @@ test('camera decoder can read the actual QR library output for a campaign token'
 test('email callback preserves SDK PKCE flow binding, ignores open redirects and rejects a reused code', async () => {
   const previous=process.env.NEXT_PUBLIC_SITE_URL;process.env.NEXT_PUBLIC_SITE_URL='https://campaign.example.invalid';
   try {
-    let used=false;const calls=[];
+    const used=new Set();const calls=[];
     const server=loadSource('apps/web/src/app/campaign/server.ts',{'@nusc/db':{createAdminClient:()=>{throw new Error('Unexpected database access');}}});
     const api=loadSource('apps/web/src/app/campaign/auth/callback/route.ts',{
       '@nusc/db':{createServerClient:async()=>({auth:{exchangeCodeForSession:async(code,options)=>{
-        calls.push([code,options]);if(used)return{error:{message:'Already consumed'}};used=true;return{error:null};
+        calls.push([code,options]);if(used.has(code))return{error:{message:'Already consumed'}};used.add(code);return{error:null};
       }}})},
       '../../server':server,
       'next/server':{NextResponse:{redirect:(destination,options)=>new Response(null,{status:307,headers:{...options.headers,location:destination.toString()}})}},
     });
     const request=new Request(`https://campaign.example.invalid/campaign/auth/callback?code=synthetic-code&sb_flow_id=synthetic-flow&num=${number}&next=https://evil.invalid`);
     const first=await api.GET(request),second=await api.GET(request);
+    const media=await api.GET(new Request('https://campaign.example.invalid/campaign/auth/callback?code=media-code&sb_flow_id=media-flow&num=nusc-med-003'));
     assert.equal(first.headers.get('location'),`https://campaign.example.invalid/campaign/status?num=${number}`);
+    assert.equal(media.headers.get('location'),'https://campaign.example.invalid/campaign/status?num=NUSC-MED-003');
     assert.deepEqual(calls[0],['synthetic-code',{flowId:'synthetic-flow'}]);
     assert.match(second.headers.get('location'),/access=expired/);
     assert.equal(first.headers.get('cache-control'),'no-store');

@@ -1,10 +1,32 @@
 import { CollectionConfig } from 'payload'
+import { createAdminClient } from '@nusc/db'
+
+function isSuperAdmin(user: unknown) {
+  const value = user as { roles?: string[]; display_roles?: { role: string }[] } | null
+  const roles = [...(value?.roles ?? []), ...(value?.display_roles?.map(({ role }) => role) ?? [])]
+  return roles.includes('super_admin')
+}
+
+function pressObjectPath(urlValue: unknown, accreditationId: unknown) {
+  if (typeof urlValue !== 'string' || typeof accreditationId !== 'string' || !accreditationId) return null
+  try {
+    const pathname = new URL(urlValue).pathname
+    const prefix = '/storage/v1/object/public/press_documents/'
+    const marker = pathname.indexOf(prefix)
+    if (marker < 0) return null
+    const path = decodeURIComponent(pathname.slice(marker + prefix.length))
+    return path.startsWith(`${accreditationId}/`) ? path : null
+  } catch {
+    return null
+  }
+}
 
 export const PressAccreditations: CollectionConfig = {
   slug: 'press-accreditations',
   admin: {
     useAsTitle: 'fullName',
     group: 'Registrations',
+    hidden: ({ user }) => !isSuperAdmin(user),
     components: {
       beforeListTable: ['./components/ExportPressAccreditationButton#ExportPressAccreditationButton'],
     },
@@ -19,20 +41,50 @@ export const PressAccreditations: CollectionConfig = {
     ],
   },
   access: {
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
+    read: ({ req }) => isSuperAdmin(req.user),
+    create: () => false,
+    update: () => false,
+    delete: () => false,
+    readVersions: () => false,
+    unlock: () => false,
+  },
+  hooks: {
+    beforeRead: [async ({ doc, req }) => {
+      if (!isSuperAdmin(req.user) || req.routeParams?.id === undefined) return doc
+      const record = doc as Record<string, unknown>
+      const accreditationId = record.accreditationId
+      const supabase = createAdminClient()
+      const signedUrls: Record<string, string | null> = {}
+      for (const [urlField, filenameField] of [
+        ['photoUrl', 'photoFilename'],
+        ['govtIdUrl', 'govtIdFilename'],
+        ['mediaIdLetterUrl', 'mediaIdLetterFilename'],
+      ]) {
+        if (typeof record[filenameField] !== 'string' || !record[urlField]) continue
+        const path = pressObjectPath(record[urlField], accreditationId)
+        if (!path) {
+          signedUrls[urlField] = null
+          continue
+        }
+        const { data, error } = await supabase.storage.from('press_documents').createSignedUrl(path, 900)
+        signedUrls[urlField] = error ? null : data?.signedUrl || null
+      }
+      return { ...record, ...signedUrls }
+    }],
   },
   endpoints: [
     {
       path: '/export-csv',
       method: 'get',
       handler: async (req) => {
+        if (!isSuperAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
         const { payload } = req;
         const result = await payload.find({
           collection: 'press-accreditations',
           limit: 5000,
+          overrideAccess: false,
+          user: req.user,
+          req,
         });
 
         const fieldMap: Record<string, string> = {

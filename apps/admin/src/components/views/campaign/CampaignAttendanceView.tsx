@@ -3,7 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { campaignRoleLabel } from '../../../utils/campaignRoleLabel';
-import { getCampaignAttendanceHistory, getCampaignMatches } from '../../../actions/campaignAdminActions';
+import {
+  exportCampaignAttendanceCsv,
+  getCampaignAttendanceHistory,
+  getCampaignMatches,
+  getCampaignRoleOptions,
+} from '../../../actions/campaignAdminActions';
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
 
 export const CampaignAttendanceView: React.FC = () => {
@@ -13,25 +18,66 @@ export const CampaignAttendanceView: React.FC = () => {
   const [gateFilter, setGateFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
   const [matchFilter, setMatchFilter] = useState('all');
+  const [checkpointTypeFilter, setCheckpointTypeFilter] = useState('all');
+  const [personInput, setPersonInput] = useState('');
+  const [personFilter, setPersonFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [roleOptions, setRoleOptions] = useState<any[]>([]);
+  const [exporting, setExporting] = useState(false);
   const [matches, setMatches] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  const fetchLogs = () => getCampaignAttendanceHistory(page, 25, gateFilter, actionFilter, matchFilter).then(res => {
+  const fetchLogs = () => getCampaignAttendanceHistory(
+    page, 25, gateFilter, actionFilter, matchFilter, checkpointTypeFilter,
+    personFilter, departmentFilter, roleFilter,
+  ).then(res => {
     setError(null); setLogs(res.logs || []); setTotalPages(res.totalPages || 1); setTotalCount(res.totalCount || 0);
   }).catch(err => { setError(err instanceof Error ? err.message : 'Failed to load attendance'); })
     .finally(() => setLoading(false));
 
   useEffect(() => {
     fetchLogs();
-  }, [page, gateFilter, actionFilter, matchFilter]);
+  }, [page, gateFilter, actionFilter, matchFilter, checkpointTypeFilter, personFilter, departmentFilter, roleFilter]);
   useEffect(() => { getCampaignMatches().then(setMatches).catch(() => setError('Unable to load match filters')); }, []);
+  useEffect(() => {
+    getCampaignRoleOptions(departmentFilter).then(setRoleOptions).catch(() => setError('Unable to load role filters'));
+  }, [departmentFilter]);
 
   const handleFilterChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLSelectElement>) => {
     setLoading(true);
     setter(e.target.value);
     setPage(1);
+  };
+
+  const applyPersonFilter = () => {
+    setLoading(true);
+    setPersonFilter(personInput.trim());
+    setPage(1);
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      const csv = await exportCampaignAttendanceCsv({
+        gate: gateFilter, action: actionFilter, eventId: matchFilter,
+        checkpointType: checkpointTypeFilter, person: personFilter,
+        department: departmentFilter, roleId: roleFilter,
+      });
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nusc-campaign-attendance-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to export attendance records');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -52,6 +98,13 @@ export const CampaignAttendanceView: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => void exportCsv()}
+            disabled={exporting}
+            style={{ padding: '8px 14px', backgroundColor: '#0f766e', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: exporting ? 'not-allowed' : 'pointer' }}
+          >
+            {exporting ? 'Preparing CSV…' : 'Export CSV'}
+          </button>
           <button
             onClick={() => { setLoading(true); void fetchLogs(); }}
             disabled={loading}
@@ -95,6 +148,19 @@ export const CampaignAttendanceView: React.FC = () => {
         <option value="all">All matches (includes legacy records)</option>
         {matches.map(match => <option key={match.id} value={match.id}>{match.title}</option>)}
       </select></div>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '12px 0' }}>
+        <label htmlFor="campaign-attendance-person">Person</label>
+        <input
+          id="campaign-attendance-person"
+          value={personInput}
+          maxLength={100}
+          placeholder="Name or registration ID"
+          onChange={event => setPersonInput(event.target.value)}
+          onKeyDown={event => { if (event.key === 'Enter') applyPersonFilter(); }}
+        />
+        <button type="button" onClick={applyPersonFilter}>Search</button>
+        {personFilter && <button type="button" onClick={() => { setPersonInput(''); setPersonFilter(''); setPage(1); setLoading(true); }}>Clear person</button>}
+      </div>
       {/* Filter Toolbar */}
       <div style={{
         display: 'flex',
@@ -108,6 +174,43 @@ export const CampaignAttendanceView: React.FC = () => {
         flexWrap: 'wrap'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label htmlFor="campaign-attendance-department" style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Department:</label>
+          <select
+            id="campaign-attendance-department"
+            value={departmentFilter}
+            onChange={event => {
+              setLoading(true);
+              setDepartmentFilter(event.target.value);
+              setRoleFilter('all');
+              setPage(1);
+            }}
+            style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff' }}
+          >
+            <option value="all">All departments</option>
+            <option value="ahibi">AHIBI</option>
+            <option value="volunteer">Volunteers</option>
+            <option value="media">Press and Media</option>
+            <option value="crew">Crew</option>
+            <option value="management">Management</option>
+            <option value="officials">Match Officials</option>
+            <option value="medical">Medical Team</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label htmlFor="campaign-attendance-role" style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Role:</label>
+          <select
+            id="campaign-attendance-role"
+            value={roleFilter}
+            onChange={handleFilterChange(setRoleFilter)}
+            style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff' }}
+          >
+            <option value="all">All roles</option>
+            {roleOptions.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Filter Gate:</label>
           <select
             value={gateFilter}
@@ -116,6 +219,20 @@ export const CampaignAttendanceView: React.FC = () => {
           >
             <option value="all">All Gates</option>
             {['Gate 1', 'Gate 2', 'Gate 3', 'Gate 4'].map(gate => <option key={gate}>{gate}</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label htmlFor="campaign-attendance-checkpoint" style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Checkpoint type:</label>
+          <select
+            id="campaign-attendance-checkpoint"
+            value={checkpointTypeFilter}
+            onChange={handleFilterChange(setCheckpointTypeFilter)}
+            style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff' }}
+          >
+            <option value="all">All checkpoints</option>
+            <option value="gate">Gate</option>
+            <option value="booth">Booth</option>
           </select>
         </div>
 
