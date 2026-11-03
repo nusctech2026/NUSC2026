@@ -377,6 +377,81 @@ test('reviewers cannot approve or issue IDs, and gate staff cannot review applic
   }
 });
 
+test('campaign pass preview is manager-only, allows advance delivery, and never returns the QR token', async () => {
+  const oldUrl=process.env.NEXT_PUBLIC_SITE_URL;
+  process.env.NEXT_PUBLIC_SITE_URL='https://campaign.example.invalid';
+  const token='a'.repeat(64);
+  const pass={id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',qr_token:token,
+    valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
+    is_active:true,revoked_at:null,application:{full_name:'Synthetic Candidate',email:'candidate@example.invalid',
+      application_status:'approved',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
+  try {
+    const calls=[];
+    const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
+      assertStaffRole:async roles=>{assert.deepEqual(roles,['super_admin','campaign_manager']);return {email:'manager@example.invalid'};},
+      getSupabaseAdminClient:()=>({from:table=>{calls.push(['from',table]);return query(pass,calls,table);}}),
+    }});
+    const preview=await api.prepareCampaignPassPreview('application-id');
+    assert.equal(preview.success,true);
+    assert.equal(preview.idNumber,'NUSC-AHB-011');
+    assert.equal(preview.passUrl,'https://campaign.example.invalid/campaign/id/synthetic-pass');
+    assert.match(preview.qrImageBase64,/^[A-Za-z0-9+/]+=*$/);
+    assert.equal(JSON.stringify(preview).includes(token),false);
+    assert.equal(calls.some(call=>call[0]==='from'&&call[1]==='campaign_ids'),true);
+
+    const denied=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
+      assertStaffRole:async()=>{throw new Error('Access denied');},
+      getSupabaseAdminClient:()=>{throw new Error('Unauthorized preview must not query the database');},
+    }});
+    const deniedPreview=await denied.prepareCampaignPassPreview('application-id');
+    assert.equal(deniedPreview.success,false);
+    assert.match(deniedPreview.message,/Access denied/);
+  } finally {
+    if(oldUrl===undefined)delete process.env.NEXT_PUBLIC_SITE_URL;else process.env.NEXT_PUBLIC_SITE_URL=oldUrl;
+  }
+});
+
+test('pass email reports setup or provider errors as a visible result and can send a future-dated QR', async () => {
+  const keys=['NEXT_PUBLIC_SITE_URL','RESEND_API_KEY','CAMPAIGN_EMAIL_FROM'];
+  const previous=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
+  const originalFetch=globalThis.fetch;
+  const token='b'.repeat(64);
+  const pass={id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',qr_token:token,
+    valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
+    is_active:true,revoked_at:null,application:{full_name:'Synthetic Candidate',email:'candidate@example.invalid',
+      application_status:'approved',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
+  try {
+    process.env.NEXT_PUBLIC_SITE_URL='https://campaign.example.invalid';
+    process.env.RESEND_API_KEY='synthetic-resend-key';
+    process.env.CAMPAIGN_EMAIL_FROM='NUSC Campaign <campaign@example.invalid>';
+    const requests=[];
+    globalThis.fetch=async(url,init)=>{requests.push([url,JSON.parse(init.body)]);return new Response('{}',{status:200});};
+    const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
+      assertStaffRole:async()=>({email:'manager@example.invalid'}),
+      getSupabaseAdminClient:()=>({from:table=>query(pass,[],table)}),
+    }});
+    const sent=await api.emailCampaignPass('application-id');
+    assert.deepEqual(sent,{success:true,recipient:'candidate@example.invalid'});
+    assert.equal(requests.length,1);
+    assert.equal(requests[0][0],'https://api.resend.com/emails');
+    assert.equal(requests[0][1].to[0],'candidate@example.invalid');
+    assert.equal(requests[0][1].attachments.some(file=>file.filename==='NUSC-AHB-011-QR.png'),true);
+
+    globalThis.fetch=async()=>new Response(JSON.stringify({name:'restricted_api_key'}),{status:401});
+    const providerFailure=await api.emailCampaignPass('application-id');
+    assert.equal(providerFailure.success,false);
+    assert.match(providerFailure.message,/Resend rejected the API key or sender domain/i);
+
+    delete process.env.RESEND_API_KEY;
+    const setupFailure=await api.emailCampaignPass('application-id');
+    assert.equal(setupFailure.success,false);
+    assert.match(setupFailure.message,/not configured/i);
+  } finally {
+    globalThis.fetch=originalFetch;
+    for(const key of keys){if(previous[key]===undefined)delete process.env[key];else process.env[key]=previous[key];}
+  }
+});
+
 test('application deletion is super-admin-only and requires the exact registration ID', async () => {
   for(const role of ['campaign_manager','reviewer','gate_staff']){
     const {api,calls}=campaignDeletionActions({staffRoles:[role]});
@@ -537,7 +612,7 @@ test('campaign source scripts contain no embedded JWTs or database passwords', (
   }
 });
 
-test('QR endpoint serves only approved active credentials in their validity window and disables caching', async () => {
+test('QR endpoint serves approved active credentials before match day and rejects expired or revoked passes', async () => {
   const token='a'.repeat(64),now=Date.now();
   const valid={qr_token:token,is_active:true,revoked_at:null,valid_from:new Date(now-3600000).toISOString(),
     valid_until:new Date(now+3600000).toISOString(),application:{application_status:'approved'}};
@@ -550,9 +625,29 @@ test('QR endpoint serves only approved active credentials in their validity wind
     });
     const response=await api.GET(new Request('https://campaign.example.invalid/api/campaign/id/pass/qr'),{params:Promise.resolve({token:'synthetic-pass'})});
     assert.match(response.headers.get('cache-control'),/no-store/);
-    assert.equal(rendered.length,Object.keys(change).length===0?1:0);
+    const scheduledPass=Object.hasOwn(change,'valid_from');
+    assert.equal(rendered.length,Object.keys(change).length===0||scheduledPass?1:0);
     if(rendered.length)assert.equal(rendered[0],token);
   }
+});
+
+test('public pass presentation can be previewed before the first valid match day', async () => {
+  const pass={id:'credential',id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',
+    valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
+    issued_at:new Date().toISOString(),is_active:true,revoked_at:null,
+    application:{application_number:'NUSC-AHB-011',full_name:'Synthetic Candidate',category:'ahibi',
+      photo_storage_path:null,event_id:null,assigned_zone:'Gate 1',assigned_shift:'Morning',other_role:null,designation:null,
+      application_status:'approved',assigned_role:{name:'Gate 1 Scanning',code:'ahibi_gate_1_scanning'},event:null}};
+  const api=loadSource('apps/web/src/app/campaign/actions.ts',{
+    '@nusc/db':{createAdminClient:()=>({from:()=>query(pass),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://photo.example.invalid/signed'}})})}})},
+    './server':{campaignRateLimit:async()=>{},campaignRoleLabel:(role,other)=>other||role?.name||'Not assigned',campaignSiteOrigin:()=> 'https://campaign.example.invalid',CampaignRateLimitError:class extends Error{},CampaignServiceError:class extends Error{}},
+    'next/headers':{headers:async()=>new Headers()},
+  });
+  const result=await api.getCampaignPass('synthetic-pass');
+  assert.equal(result.success,true);
+  assert.equal(result.pass.passSlug,'synthetic-pass');
+  assert.equal(result.pass.validFrom,pass.valid_from);
+  assert.equal(result.pass.validUntil,pass.valid_until);
 });
 
 test('camera decoder can read the actual QR library output for a campaign token', () => {

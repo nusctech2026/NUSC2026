@@ -24,8 +24,10 @@ export async function GET(
       .maybeSingle();
 
     const app = idRecord?.application as unknown as { application_status: string } | null;
+    // Approved passes may be previewed and delivered before match day. The scanner
+    // still enforces valid_from and valid_until when it records attendance.
     if (error || !idRecord || !idRecord.is_active || idRecord.revoked_at || app?.application_status !== 'approved'
-        || Date.now() < new Date(idRecord.valid_from).getTime() || Date.now() > new Date(idRecord.valid_until).getTime()) {
+        || Date.now() > new Date(idRecord.valid_until).getTime()) {
       // Return clean placeholder SVG showing revoked/invalid state
       const invalidSvg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">

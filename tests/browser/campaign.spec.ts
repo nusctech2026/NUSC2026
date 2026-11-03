@@ -13,41 +13,67 @@ async function mount(page: Page, screen: string, options: object = {}) {
 
 test('all requested Ahibi roles are selectable and Crew Others requires a specification',async({page})=>{
   await mount(page,'registration');
-  await expect(page.locator('#preferredRoleId option')).toHaveCount(8);
+  await expect(page.locator('#preferredRoleId option[value]:not([value=""])')).toHaveCount(8);
   await page.selectOption('#preferredRoleId','ahibi_gate_3_scanning');
   await expect(page.locator('#preferredRoleId')).toHaveValue('ahibi_gate_3_scanning');
   await page.evaluate("window.mountFixture('registration',{roles:window.fixture.roles,category:'crew'})");
   await page.selectOption('#preferredRoleId','crew_others');
-  await expect(page.getByLabel('Specify Role / Specialisation')).toBeVisible();
-  await expect(page.getByLabel('Specify Role / Specialisation')).toHaveAttribute('required','');
+  await expect(page.getByLabel('Specify role')).toBeVisible();
+  await expect(page.getByLabel('Specify role')).toHaveAttribute('required','');
 });
 
 test('status uses verified email access and reveals a pass only in the signed-in flow',async({page})=>{
   await mount(page,'status');
-  await page.getByRole('textbox',{name:'Application Number',exact:true}).fill('NUSC-CMP-2026-ABCDEF0123456789');
-  await page.getByRole('textbox',{name:'Registered Email',exact:true}).fill('candidate@example.invalid');
+  await page.getByRole('textbox',{name:'Registration ID',exact:true}).fill('NUSC-CMP-2026-ABCDEF0123456789');
+  await page.getByRole('textbox',{name:'Registered email',exact:true}).fill('candidate@example.invalid');
   await page.getByRole('button',{name:'Send sign-in link',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('sign-in link');
   await expect(page.getByRole('link',{name:/View & Download/})).toHaveCount(0);
   await page.evaluate("window.mountFixture('status',{verifiedEmail:'candidate@example.invalid'})");
-  await page.getByRole('textbox',{name:'Application Number',exact:true}).fill('NUSC-CMP-2026-ABCDEF0123456789');
+  await page.getByRole('textbox',{name:'Registration ID',exact:true}).fill('NUSC-CMP-2026-ABCDEF0123456789');
   await page.getByRole('button',{name:'View application status',exact:true}).click();
   await expect(page.getByText('Others: Camera operator').first()).toBeVisible();
   await expect(page.getByRole('link',{name:/View & Download/})).toHaveAttribute('href','/campaign/id/fixture-pass');
 });
 
-test('manager sees custom role details and approval produces a credential without a second action',async({page})=>{
+test('approval issues a pass without sending it; manager can preview, download and choose delivery',async({page})=>{
   await mount(page,'detail');
   await expect(page.getByText('Others: Camera operator').first()).toBeVisible();
-  await page.getByRole('button',{name:'Approve, issue ID & email pass',exact:true}).click();
+  await page.getByRole('button',{name:'Approve & issue ID',exact:true}).click();
   await expect(page.getByText('NUSC-ID-2026-ABCDEF',{exact:true})).toBeVisible();
-  await expect(page.getByRole('link',{name:'View / print pass'})).toHaveAttribute('href','https://campaign.example.invalid/campaign/id/pass');
+  await expect(page.getByRole('button',{name:'Preview ID & delivery options',exact:true})).toBeVisible();
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='issue').length")).toBe(0);
+  expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='email-pass').length")).toBe(0);
+  await page.getByRole('button',{name:'Preview ID & delivery options',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Preview and send workforce ID'});
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTitle('Full pass preview for Synthetic Candidate')).toHaveAttribute('src','https://campaign.example.invalid/campaign/id/pass');
+  await expect(dialog.getByRole('link',{name:'Open full pass to print / save as PDF'})).toHaveAttribute('href','https://campaign.example.invalid/campaign/id/pass');
+  const [qrDownload]=await Promise.all([
+    page.waitForEvent('download'),
+    dialog.getByRole('link',{name:'Download QR image (PNG)'}).click(),
+  ]);
+  expect(qrDownload.suggestedFilename()).toBe('NUSC-ID-2026-ABCDEF-QR.png');
+  await expect(dialog.getByRole('link',{name:'Open WhatsApp draft for 9000000000'})).toHaveAttribute('href',/wa\.me\/919000000000\?/);
+  await expect(dialog.getByText(/WhatsApp is not connected as an automatic sender/)).toBeVisible();
+  expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='preview-pass').length")).toBe(1);
+  await dialog.getByRole('button',{name:'Send pass and QR to candidate@example.invalid'}).click();
+  await expect(dialog.getByRole('status')).toContainText('accepted by the email provider');
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='email-pass').length")).toBe(1);
+  await dialog.getByRole('button',{name:'Close pass preview'}).click();
   await page.getByLabel('Assigned role',{exact:true}).selectOption('crew_sound');
   await page.getByLabel('Match access',{exact:true}).selectOption('match-two');
   await page.getByRole('button',{name:'Save Assignment',exact:true}).click();
   expect(await page.evaluate("window.fixture.calls.findLast(call=>call[0]==='assign')")).toEqual(['assign','app','crew_sound','','','match-two']);
+});
+
+test('email setup failures are shown clearly inside the pass preview',async({page})=>{
+  await mount(page,'detail',{emailResult:{success:false,message:'Resend rejected the sender domain.'}});
+  await page.getByRole('button',{name:'Approve & issue ID',exact:true}).click();
+  await page.getByRole('button',{name:'Preview ID & delivery options',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Preview and send workforce ID'});
+  await dialog.getByRole('button',{name:'Send pass and QR to candidate@example.invalid'}).click();
+  await expect(dialog.getByRole('alert')).toContainText('Resend rejected the sender domain.');
 });
 
 test('applicant list respects the Manage search link and opens the selected candidate for review',async({page})=>{
@@ -56,12 +82,12 @@ test('applicant list respects the Manage search link and opens the selected cand
   expect(await page.evaluate("window.fixture.calls.find(call=>call[0]==='applications')[1].search")).toBe('NUSC-CMP-2026-ABCDEF0123456789');
   await page.getByRole('button',{name:'Open application',exact:true}).last().click();
   await expect(page.getByRole('heading',{name:'Synthetic Candidate',exact:true}).last()).toBeVisible();
-  await expect(page.getByRole('button',{name:'Approve, issue ID & email pass',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Approve & issue ID',exact:true})).toBeEnabled();
 });
 
 test('reviewers can review but approval and assignment controls are unavailable',async({page})=>{
   await mount(page,'detail',{staffRole:'reviewer'});
-  await expect(page.getByRole('button',{name:'Approve, issue ID & email pass',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Approve & issue ID',exact:true})).toBeDisabled();
   await expect(page.getByRole('button',{name:'Save Assignment',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Mark Under Review'}).click();
   expect(await page.evaluate("window.fixture.calls[0][2]")).toBe('under_review');
@@ -89,7 +115,7 @@ test('scanner requires a match, uses the latest gate and match, and offers manua
   await expect(page.getByRole('alert')).toContainText('Camera unavailable');
   await page.getByLabel('QR value or printed pass ID').fill('NUSC-ID-2026-ABCDEF');
   await page.getByRole('button',{name:'Verify and check in',exact:true}).click();
-  await expect(page.getByRole('status')).toContainText('NUSC vs Team B');
+  await expect(page.getByRole('status')).toContainText('Attendance recorded successfully');
   expect(await page.evaluate("window.fixture.calls.find(call=>call[0]==='scan')")).toEqual(['scan','NUSC-ID-2026-ABCDEF','Gate 3','match-two']);
 });
 

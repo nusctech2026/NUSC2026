@@ -45,6 +45,11 @@ async function browserBundle() {
         path==='@payloadcms/ui'?`export const useAuth=()=>({user:{roles:[window.fixture.staffRole]}});`:
         path==='public'?`
           export async function getCampaignRoles(category){return window.fixture.roles.filter(role=>role.category===category)}
+          export async function getCampaignAvailabilityMatches(){return window.fixture.matches}
+          export async function createMediaAuthorisationUploadUrl(...args){window.fixture.calls.push(['media-upload-url',...args]);return {success:true,path:'synthetic/media.pdf',token:'synthetic-token',contentType:'application/pdf'}}
+          export async function discardCampaignMediaAuthorisationUpload(path){window.fixture.calls.push(['discard-media',path]);return {success:true}}
+          export async function createOfficialCredentialUploadUrl(...args){window.fixture.calls.push(['official-upload-url',...args]);return {success:true,path:'synthetic/official.pdf',token:'synthetic-token',contentType:'application/pdf'}}
+          export async function discardOfficialCredentialUpload(path){window.fixture.calls.push(['discard-official',path]);return {success:true}}
           export async function submitCampaignApplication(form){window.fixture.calls.push(['submit',Object.fromEntries(form)]);return {success:true,applicationNumber:'NUSC-CMP-2026-ABCDEF0123456789'}}
           export async function requestCampaignAccess(number,email){window.fixture.calls.push(['email',number,email]);return {success:true,message:'If these details match an application, a sign-in link will arrive in the registered email.'}}
           export async function checkCampaignStatus(number){window.fixture.calls.push(['status',number]);return {success:true,data:{applicationNumber:number,fullName:'Synthetic Candidate',category:'crew',preferredRoleName:'Others: Camera operator',assignedRoleName:'Others: Camera operator',status:'approved',submittedAt:new Date().toISOString(),passSlug:'fixture-pass'}}}
@@ -52,10 +57,14 @@ async function browserBundle() {
           export async function getCampaignMatches(){return window.fixture.matches}
           export async function getCampaignRoleOptions(category){return window.fixture.roles.filter(role=>role.category===category)}
           export async function getCampaignApplicationDetail(){return {...window.fixture.app,roleOptions:window.fixture.roles.filter(role=>role.category===window.fixture.app.category),matches:window.fixture.matches}}
+          export async function updateCampaignRegistrationDetails(...args){window.fixture.calls.push(['registration-details',...args]);return {success:true}}
           export async function getCampaignApplicationsList(filters){window.fixture.calls.push(['applications',filters]);return {applications:[window.fixture.app],totalCount:1,totalPages:1}}
-          export async function updateApplicationStatus(id,status,notes){window.fixture.calls.push(['review',id,status,notes]);window.fixture.app={...window.fixture.app,application_status:status,...(status==='approved'?{issuedId:{id:'credential',id_number:'NUSC-ID-2026-ABCDEF',pass_slug:'pass',is_active:true,valid_until:'2099-01-01'}}:{})};return {success:true}}
+          export async function deleteCampaignApplication(...args){window.fixture.calls.push(['delete-application',...args]);return {success:true,applicationNumber:args[1]}}
+          export async function deleteCampaignApplications(...args){window.fixture.calls.push(['delete-applications',...args]);return {success:true,deletedCount:args[0].length}}
+          export async function updateApplicationStatus(id,status,notes){window.fixture.calls.push(['review',id,status,notes]);window.fixture.app={...window.fixture.app,application_status:status,...(status==='approved'?{issuedId:{id:'credential',id_number:'NUSC-ID-2026-ABCDEF',pass_slug:'pass',is_active:true,revoked_at:null,valid_from:'2026-01-01T00:00:00.000Z',valid_until:'2099-01-01T00:00:00.000Z',isExpired:false,isNotYetValid:false}}:{})};return {success:true}}
           export async function issueCampaignId(...args){window.fixture.calls.push(['issue',...args]);return {success:true,idNumber:'NUSC-ID-2026-ABCDEF'}}
-          export async function emailCampaignPass(...args){window.fixture.calls.push(['email-pass',...args]);return {success:true}}
+          export async function emailCampaignPass(...args){window.fixture.calls.push(['email-pass',...args]);return window.fixture.emailResult||{success:true,recipient:'candidate@example.invalid'}}
+          export async function prepareCampaignPassPreview(...args){window.fixture.calls.push(['preview-pass',...args]);return {success:true,idNumber:'NUSC-ID-2026-ABCDEF',passUrl:'https://campaign.example.invalid/campaign/id/pass',qrImageBase64:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jfQ0AAAAASUVORK5CYII='}}
           export async function assignRoleZoneShift(...args){window.fixture.calls.push(['assign',...args]);return {success:true}}
           export async function saveCampaignMatch(input){window.fixture.calls.push(['match',input]);return {success:true}}
           export async function getCampaignAttendanceHistory(...args){window.fixture.calls.push(['attendance',...args]);return {logs:[{id:'log',action:'check_in',event:{title:'NUSC vs Team A'},gate:'Gate 3',scanned_at:new Date().toISOString(),application:{full_name:'Synthetic Candidate',category:'crew',assigned_role:{name:'Others',code:'crew_others'},other_role:'Camera operator'},campaign_id_record:{id_number:'NUSC-ID-2026-ABCDEF'}}],totalCount:1,totalPages:1}}

@@ -1079,8 +1079,8 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
       return { success: false, error: 'This credential is not in approved status.' };
     }
     const now = Date.now();
-    if (now < new Date(idRecord.valid_from).getTime() || now > new Date(idRecord.valid_until).getTime()) {
-      return { success: false, error: 'This credential is outside its validity dates.' };
+    if (now > new Date(idRecord.valid_until).getTime()) {
+      return { success: false, error: 'This credential has expired.' };
     }
 
     // Generate short-lived signed photo URL (15-minute expiration)

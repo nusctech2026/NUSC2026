@@ -171,7 +171,11 @@ export async function getCampaignApplicationDetail(applicationId: string) {
       roleOptions: roles.data || [],
       matches: matches.data || [],
       changeHistory: changeHistory.data || [],
-      issuedId: idRecord ? { ...idRecord, isExpired: new Date(idRecord.valid_until).getTime() < Date.now() } : null,
+      issuedId: idRecord ? {
+        ...idRecord,
+        isExpired: new Date(idRecord.valid_until).getTime() < Date.now(),
+        isNotYetValid: new Date(idRecord.valid_from).getTime() > Date.now(),
+      } : null,
     };
   } finally { trace.finish(); }
 }
@@ -657,99 +661,142 @@ export async function issueCampaignId(applicationId: string, reissue = false) {
   return data as { success: boolean; idNumber: string; passSlug: string };
 }
 
-/** Send the approved candidate their private pass and scannable QR by email. */
-export async function emailCampaignPass(applicationId: string) {
-  await assertStaffRole(['super_admin', 'campaign_manager']);
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.CAMPAIGN_EMAIL_FROM?.trim();
+type CampaignPassContext = {
+  applicant: {
+    full_name: string;
+    email: string;
+    assigned_role: { name: string } | null;
+    assigned_zone: string | null;
+    assigned_shift: string | null;
+  };
+  idNumber: string;
+  passUrl: string;
+  qrImage: Buffer;
+};
+
+async function loadCampaignPassContext(applicationId: string): Promise<CampaignPassContext> {
   const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!apiKey || !from || !siteOrigin) {
-    throw new Error('Pass email is not configured. Set RESEND_API_KEY, CAMPAIGN_EMAIL_FROM and NEXT_PUBLIC_SITE_URL for the admin app.');
-  }
-  const bracketSender = from.match(/^(.*?)\s*<([^<>\s]+@[^<>\s]+)>$/);
-  const namedSender = from.match(/^(.*?)\s+([^<>\s]+@[^<>\s]+)$/);
-  const bareSender = from.match(/^([^<>\s]+@[^<>\s]+)$/);
-  const senderMatch = bracketSender || namedSender || bareSender;
-  const senderAddress = bracketSender?.[2] || namedSender?.[2] || bareSender?.[1] || '';
-  const senderName = bracketSender?.[1]?.trim() || namedSender?.[1]?.trim() || '';
-  const senderDomain = senderAddress.split('@')[1] || '';
-  if (!senderMatch || !senderDomain.includes('.')) {
-    throw new Error('CAMPAIGN_EMAIL_FROM must be an email address, such as "NUSC Campaign <campaign@your-domain.com>".');
-  }
-  if (['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com'].includes(senderDomain.toLowerCase())) {
-    throw new Error('Resend requires a sender address on a domain verified in your Resend account. A personal mailbox address cannot be used as the sender.');
-  }
-  const resendFrom = senderName ? `${senderName} <${senderAddress}>` : senderAddress;
+  if (!siteOrigin) throw new Error('Campaign site URL is not configured.');
   let origin: URL;
-  try { origin = new URL(siteOrigin); } catch { throw new Error('Campaign site URL is invalid'); }
+  try { origin = new URL(siteOrigin); } catch { throw new Error('Campaign site URL is invalid.'); }
   if (origin.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
-    throw new Error('Campaign pass email requires an HTTPS site URL');
+    throw new Error('Campaign pass delivery requires an HTTPS site URL.');
   }
 
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase.from('campaign_ids').select(`
+  const { data, error } = await getSupabaseAdminClient().from('campaign_ids').select(`
     id_number, pass_slug, qr_token, valid_from, valid_until, is_active, revoked_at,
     application:campaign_applications!application_id (full_name, email, application_status,
       assigned_role:campaign_roles!assigned_role_id (name), assigned_zone, assigned_shift)
   `).eq('application_id', applicationId).maybeSingle();
-  const app = Array.isArray(data?.application) ? data.application[0] : data?.application;
-  const assignedRole = Array.isArray(app?.assigned_role) ? app.assigned_role[0] : app?.assigned_role;
-  const now = Date.now();
-  if (error || !data || !app || app.application_status !== 'approved' || !data.is_active || data.revoked_at
-    || now < new Date(data.valid_from).getTime() || now > new Date(data.valid_until).getTime()) {
-    throw new Error('Only approved candidates with an active, valid pass can receive it.');
+  const applicant = Array.isArray(data?.application) ? data.application[0] : data?.application;
+  const assignedRole = Array.isArray(applicant?.assigned_role) ? applicant.assigned_role[0] : applicant?.assigned_role;
+  const validFrom = data ? new Date(data.valid_from).getTime() : Number.NaN;
+  const validUntil = data ? new Date(data.valid_until).getTime() : Number.NaN;
+  if (error || !data || !applicant || applicant.application_status !== 'approved' || !data.is_active || data.revoked_at
+    || !Number.isFinite(validFrom) || !Number.isFinite(validUntil) || Date.now() > validUntil
+    || typeof data.qr_token !== 'string' || !/^[0-9a-f]{64}$/i.test(data.qr_token)
+    || typeof data.pass_slug !== 'string' || !assignedRole?.name) {
+    throw new Error('Only approved candidates with an active, unexpired pass can receive it.');
   }
-
-  const passUrl = new URL(`/campaign/id/${encodeURIComponent(data.pass_slug)}`, origin).toString();
   const qrImage = await QRCode.toBuffer(data.qr_token, {
-    type: 'png',
-    errorCorrectionLevel: 'H',
-    margin: 2,
-    width: 480,
+    type: 'png', errorCorrectionLevel: 'H', margin: 2, width: 480,
     color: { dark: '#050f24', light: '#ffffff' },
   });
-  const qrImageBase64 = qrImage.toString('base64');
-  const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[char]!));
-  const text = `Your NUSC campaign pass is ready.\n\nPass ID: ${data.id_number}\n${passUrl}\n\nYour QR code is embedded below and attached as a PNG. Show it at the gate for each match. Keep this private; it grants event access.`;
-  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC campaign pass</h1><p>Hello ${escapeHtml(app.full_name)}, your registration has been approved.</p><p><strong>Pass ID:</strong> ${escapeHtml(data.id_number)}<br><strong>Role:</strong> ${escapeHtml(assignedRole?.name)}<br><strong>Zone:</strong> ${escapeHtml(app.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(app.assigned_shift || 'To be assigned')}</p><p>Show this QR at the gate for each match. If it does not display, open the attached PNG image.</p><p><a href="${escapeHtml(passUrl)}"><img src="cid:nusc-campaign-pass-qr" alt="Your secure NUSC campaign QR pass" width="240" height="240" style="display:block;border:1px solid #ddd;padding:8px;background:#fff"></a></p><p><a href="${escapeHtml(passUrl)}">Open or print your pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
+  return {
+    applicant: { ...applicant, assigned_role: assignedRole },
+    idNumber: data.id_number,
+    passUrl: new URL(`/campaign/id/${encodeURIComponent(data.pass_slug)}`, origin).toString(),
+    qrImage,
+  };
+}
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: resendFrom,
-      to: [app.email],
-      subject: 'Your NUSC Campaign Pass',
-      text,
-      html,
-      attachments: [{
-        filename: 'nusc-campaign-pass-qr.png',
-        content: qrImageBase64,
-        content_type: 'image/png',
-        content_id: 'nusc-campaign-pass-qr',
-      }, {
-        filename: 'NUSC-Campaign-QR.png',
-        content: qrImageBase64,
-        content_type: 'image/png',
-      }],
-    }),
-    cache: 'no-store',
-  });
-  if (!response.ok) {
-    const providerError = await response.json().catch(() => null) as { name?: unknown } | null;
-    const providerCode = typeof providerError?.name === 'string' ? providerError.name : 'unknown';
-    console.error('Campaign pass email delivery failed', { status: response.status, providerCode });
-    if (response.status === 401 || response.status === 403 || providerCode === 'restricted_api_key') {
-      throw new Error('Resend rejected the API key or sender domain. Confirm the key has Sending access for the same verified domain used in CAMPAIGN_EMAIL_FROM.');
-    }
-    if (response.status === 422 || providerCode === 'validation_error' || providerCode === 'domain_not_found') {
-      throw new Error('Resend rejected the sender or recipient. Verify the sender domain and make sure this recipient is allowed by your Resend account.');
-    }
-    throw new Error(`Resend could not send this message (HTTP ${response.status}, ${providerCode}). Check the admin server log and Resend email logs.`);
+/** Prepare a manager-only preview/download payload without exposing the QR token. */
+export async function prepareCampaignPassPreview(applicationId: string) {
+  try {
+    await assertStaffRole(['super_admin', 'campaign_manager']);
+    const context = await loadCampaignPassContext(applicationId);
+    return {
+      success: true as const,
+      idNumber: context.idNumber,
+      passUrl: context.passUrl,
+      qrImageBase64: context.qrImage.toString('base64'),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'The pass preview could not be prepared.';
+    console.error('Campaign pass preview preparation failed', {
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return { success: false as const, message };
   }
-  return { success: true, recipient: app.email };
+}
+
+/** Send the approved candidate their private pass and scannable QR by email. */
+export async function emailCampaignPass(applicationId: string) {
+  try {
+    await assertStaffRole(['super_admin', 'campaign_manager']);
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.CAMPAIGN_EMAIL_FROM?.trim();
+    if (!apiKey || !from) {
+      throw new Error('Pass email is not configured. Check the Admin Resend key and verified sender settings.');
+    }
+    const bracketSender = from.match(/^(.*?)\s*<([^<>\s]+@[^<>\s]+)>$/);
+    const namedSender = from.match(/^(.*?)\s+([^<>\s]+@[^<>\s]+)$/);
+    const bareSender = from.match(/^([^<>\s]+@[^<>\s]+)$/);
+    const senderMatch = bracketSender || namedSender || bareSender;
+    const senderAddress = bracketSender?.[2] || namedSender?.[2] || bareSender?.[1] || '';
+    const senderName = bracketSender?.[1]?.trim() || namedSender?.[1]?.trim() || '';
+    const senderDomain = senderAddress.split('@')[1] || '';
+    if (!senderMatch || !senderDomain.includes('.')) {
+      throw new Error('The campaign sender address is invalid.');
+    }
+    if (['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com'].includes(senderDomain.toLowerCase())) {
+      throw new Error('Resend requires a sender address on a verified domain, not a personal mailbox.');
+    }
+    const context = await loadCampaignPassContext(applicationId);
+    const recipient = context.applicant.email?.trim();
+    if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      throw new Error('This applicant does not have a valid email address.');
+    }
+    const resendFrom = senderName ? `${senderName} <${senderAddress}>` : senderAddress;
+    const qrImageBase64 = context.qrImage.toString('base64');
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[char]!));
+    const passUrl = escapeHtml(context.passUrl);
+    const text = `Your NUSC campaign pass is ready.\n\nPass ID: ${context.idNumber}\n${context.passUrl}\n\nYour QR code is embedded below and attached as a PNG. Show it at the gate or your assigned booth for each match day. Keep this private; it grants event access.`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC campaign pass</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your registration has been approved.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.applicant.assigned_role?.name)}<br><strong>Zone:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}</p><p>Show this QR at the gate or your assigned booth for each match day. If it does not display, open the attached PNG image.</p><p><a href="${passUrl}"><img src="cid:nusc-campaign-pass-qr" alt="Your secure NUSC campaign QR pass" width="240" height="240" style="display:block;border:1px solid #ddd;padding:8px;background:#fff"></a></p><p><a href="${passUrl}">Open or print your pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: resendFrom, to: [recipient], subject: 'Your NUSC Campaign Pass', text, html,
+        attachments: [{
+          filename: 'nusc-campaign-pass-qr.png', content: qrImageBase64,
+          content_type: 'image/png', content_id: 'nusc-campaign-pass-qr',
+        }, {
+          filename: `${context.idNumber}-QR.png`, content: qrImageBase64, content_type: 'image/png',
+        }],
+      }),
+      cache: 'no-store',
+    });
+    if (!response.ok) {
+      const providerError = await response.json().catch(() => null) as { name?: unknown } | null;
+      const providerCode = typeof providerError?.name === 'string' ? providerError.name : 'unknown';
+      console.error('Campaign pass email provider rejected request', { status: response.status, providerCode });
+      if (response.status === 401 || response.status === 403 || providerCode === 'restricted_api_key') {
+        throw new Error('Resend rejected the API key or sender domain. Check the key has Sending access for the verified domain.');
+      }
+      if (response.status === 422 || providerCode === 'validation_error' || providerCode === 'domain_not_found') {
+        throw new Error('Resend rejected the sender or recipient. Check the verified sender domain and recipient address.');
+      }
+      throw new Error(`Resend could not accept the pass email (HTTP ${response.status}). Check the Admin server and Resend logs.`);
+    }
+    return { success: true as const, recipient };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Pass email could not be sent. Check the Admin server and Resend logs.';
+    console.error('Campaign pass email action failed', { errorName: error instanceof Error ? error.name : 'UnknownError' });
+    return { success: false as const, message };
+  }
 }
 
 /**
