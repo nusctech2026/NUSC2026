@@ -30,6 +30,10 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   medical: 'Medical Team',
 };
 
+const formatPassDate = (value: string) => new Date(value).toLocaleDateString('en-IN', {
+  day: 'numeric', month: 'short', year: 'numeric',
+});
+
 const MEDIA_ACCESS_OPTIONS = [
   { value: 'media_press_seating', label: 'Media / Press Seating', description: 'Reserved covered press bench with desk space and power outlet' },
   { value: 'photography_area', label: 'Photography Area', description: 'Designated pitchside photographer bib zones behind goal lines' },
@@ -78,6 +82,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   const [passPreviewUrl, setPassPreviewUrl] = useState<string | null>(null);
   const [passPreviewIdNumber, setPassPreviewIdNumber] = useState<string | null>(null);
   const [passQrImage, setPassQrImage] = useState<string | null>(null);
+  const [passPreviewDetails, setPassPreviewDetails] = useState<any>(null);
   const [deliveryNotice, setDeliveryNotice] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
   const [editFullName, setEditFullName] = useState('');
@@ -111,12 +116,15 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
 
   const issuedPassUrl = app?.issuedId?.pass_slug ? campaignPassUrl(app.issuedId.pass_slug) : null;
   const previewLinkUrl = passPreviewUrl || (!passPreviewOpen ? issuedPassUrl : null);
-  const passCanBeShared = Boolean(app?.issuedId?.is_active && !app.issuedId.revoked_at && !app.issuedId.isExpired);
+  const passCanBePreviewed = Boolean(app?.application_status === 'approved' && app?.issuedId?.is_active && !app.issuedId.revoked_at);
+  const passCanBeShared = Boolean(passCanBePreviewed && !app.issuedId.isExpired);
+  const previewPassIsExpired = Boolean(passPreviewDetails?.isExpired);
+  const previewPassIsNotYetValid = Boolean(passPreviewDetails?.validFrom && new Date(passPreviewDetails.validFrom).getTime() > Date.now());
   const whatsappDigits = typeof app?.phone === 'string' ? app.phone.replace(/\D/g, '') : '';
   const whatsappRecipient = whatsappDigits.length === 10
     ? `91${whatsappDigits}`
     : whatsappDigits.length === 12 && whatsappDigits.startsWith('91') ? whatsappDigits : null;
-  const whatsappDraftUrl = previewLinkUrl && whatsappRecipient && (passPreviewIdNumber || app?.issuedId?.id_number)
+  const whatsappDraftUrl = passCanBeShared && previewLinkUrl && whatsappRecipient && (passPreviewIdNumber || app?.issuedId?.id_number)
     ? `https://wa.me/${whatsappRecipient}?text=${encodeURIComponent(`Your NUSC workforce ID ${passPreviewIdNumber || app.issuedId.id_number} is ready. View your pass and QR: ${previewLinkUrl}. Keep this private and show it at your assigned gate or booth.`)}`
     : null;
 
@@ -285,6 +293,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
       setPassPreviewUrl(null);
       setPassPreviewIdNumber(null);
       setPassQrImage(null);
+      setPassPreviewDetails(null);
       await loadDetail();
       onStatusUpdated?.();
     } catch (err: any) {
@@ -320,6 +329,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     setPassPreviewUrl(null);
     setPassPreviewIdNumber(null);
     setPassQrImage(null);
+    setPassPreviewDetails(null);
     setDeliveryNotice(null);
     try {
       const result = await prepareCampaignPassPreview(applicationId);
@@ -330,6 +340,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
       setPassPreviewUrl(result.passUrl);
       setPassPreviewIdNumber(result.idNumber);
       setPassQrImage(`data:image/png;base64,${result.qrImageBase64}`);
+      setPassPreviewDetails({ ...result.pass, isExpired: result.isExpired });
     } catch {
       setPassPreviewError('The pass preview could not be prepared. Try again or contact a campaign manager.');
     } finally {
@@ -338,13 +349,17 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   };
 
   const handleCopyPassLink = async () => {
-    if (!issuedPassUrl) return;
+    if (!issuedPassUrl || !passCanBeShared) return;
     try {
       await navigator.clipboard.writeText(issuedPassUrl);
       setDeliveryNotice({ kind: 'success', message: 'Private pass link copied. Share it only with this applicant.' });
     } catch {
       setDeliveryNotice({ kind: 'error', message: 'Clipboard access is unavailable. Open the full pass and copy its address from the browser.' });
     }
+  };
+
+  const handlePrintPassCard = () => {
+    if (passPreviewDetails && passQrImage) window.print();
   };
 
   if (loading) {
@@ -862,18 +877,23 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                           ? 'Expired'
                           : app.issuedId.isNotYetValid ? 'Scheduled · not yet valid for entry' : 'Active Pass'}
                     </div>
+                    {app.issuedId.isExpired && app.issuedId.is_active && !app.issuedId.revoked_at && (
+                      <div role="status" style={{ fontSize: '11px', color: '#9a3412', marginTop: '5px' }}>
+                        This pass has expired. You can still preview and save the complete ID for records, but its QR will not grant entry or be sent to the applicant.
+                      </div>
+                    )}
                     {app.issuedId.isNotYetValid && !app.issuedId.isExpired && (
                       <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>
                         You can preview and send this pass now. Entry scans will be accepted from {new Date(app.issuedId.valid_from).toLocaleString()}.
                       </div>
                     )}
-                    {passCanBeShared && canManage && issuedPassUrl && <button
+                    {passCanBePreviewed && canManage && issuedPassUrl && <button
                       type="button"
                       onClick={handleOpenPassPreview}
                       disabled={passPreviewLoading}
                       style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, border: '1px solid #14532d', background: '#14532d', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
                     >
-                      Preview ID & delivery options
+                      Preview & download ID
                     </button>}
                     {(!app.issuedId.is_active || app.issuedId.revoked_at || app.issuedId.isExpired) && canManage && (
                       <button className="campaign-secondary-button" type="button" onClick={handleIssueId} disabled={actionLoading}>Replace expired or revoked pass</button>
@@ -936,9 +956,9 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
             onClick={event => event.stopPropagation()}
             style={{ width: 'min(1100px, calc(100vw - 32px))', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 24px 70px rgba(2, 6, 23, 0.35)' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14 }}>
+            <div className="campaign-pass-preview-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14 }}>
               <div>
-                <h2 id="campaign-pass-preview-title" style={{ margin: 0, color: '#050f24', fontSize: 20 }}>Preview and send workforce ID</h2>
+                <h2 id="campaign-pass-preview-title" style={{ margin: 0, color: '#050f24', fontSize: 20 }}>Workforce ID preview</h2>
                 <div style={{ marginTop: 4, color: '#475569', fontSize: 13 }}>
                   {passPreviewIdNumber || app.issuedId.id_number} · {app.full_name} · {app.email || 'No email on file'}
                 </div>
@@ -953,80 +973,142 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 16, alignItems: 'start' }}>
-              <iframe
-                title={`Full pass preview for ${app.full_name}`}
-                src={previewLinkUrl || undefined}
-                referrerPolicy="no-referrer"
-                loading="lazy"
-                style={{ width: '100%', height: '65vh', minHeight: 440, border: '1px solid #cbd5e1', borderRadius: 8, background: '#f8fafc' }}
-              />
+            <style>{`
+              @page { size: landscape; margin: 10mm; }
+              @media print {
+                html, body { background: #fff !important; min-height: 0 !important; overflow: visible !important; }
+                body * { visibility: hidden !important; }
+                #campaign-workforce-id-print, #campaign-workforce-id-print * { visibility: visible !important; }
+                .campaign-pass-preview-header, .campaign-pass-preview-actions { display: none !important; }
+                #campaign-workforce-id-print { position: fixed !important; left: 0 !important; top: 0 !important; width: 100% !important; max-width: 10.5in !important; margin: 0 !important; box-shadow: none !important; }
+              }
+            `}</style>
 
-              <div style={{ display: 'grid', gap: 10, color: '#0f172a', fontSize: 13 }}>
-                {passPreviewLoading && <p role="status" style={{ margin: 0, color: '#475569' }}>Preparing the current pass and QR…</p>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 18, alignItems: 'start' }}>
+              <div>
+                {passPreviewLoading && <p role="status" style={{ margin: 0, color: '#475569' }}>Preparing the complete ID and QR…</p>}
                 {passPreviewError && <p role="alert" style={{ margin: 0, background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 6, padding: 10 }}>{passPreviewError}</p>}
-                {passQrImage && <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 10, border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                  <img src={passQrImage} alt={`QR code for ${app.issuedId.id_number}`} style={{ width: 104, height: 104, objectFit: 'contain', background: '#fff' }} />
-                  <div><strong>QR code preview</strong><div style={{ color: '#475569', marginTop: 4 }}>This QR stays the same across the pass validity period.</div></div>
-                </div>}
+                {passPreviewDetails && passQrImage && <article
+                  id="campaign-workforce-id-print"
+                  className="campaign-pass-printable"
+                  aria-label="Complete workforce ID card with QR code"
+                  style={{ maxWidth: 760, margin: '0 auto', overflow: 'hidden', background: '#fff', color: '#0f172a', border: '2px solid #173f35', borderRadius: 12, boxShadow: '0 10px 28px rgba(15, 23, 42, 0.12)' }}
+                >
+                  <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '16px 20px', background: '#173f35', color: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 8, background: '#be1e2d', color: '#fff', fontSize: 14, fontWeight: 900 }}>NU</span>
+                      <span><strong style={{ display: 'block', fontSize: 14, letterSpacing: '.05em' }}>NAGALAND UNITED SC</strong><small style={{ color: '#d1e6d9' }}>Official matchday workforce ID</small></span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 800, textAlign: 'right' }}>{previewPassIsExpired ? 'EXPIRED' : previewPassIsNotYetValid ? 'SCHEDULED' : 'APPROVED'}</span>
+                  </header>
 
-                <a
-                  href={passPreviewUrl || undefined}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))', gap: 18, alignItems: 'start', padding: 20 }}>
+                    <section>
+                      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
+                        {passPreviewDetails.signedPhotoUrl
+                          ? <img src={passPreviewDetails.signedPhotoUrl} alt={`${passPreviewDetails.fullName} ID photo`} style={{ width: 92, height: 116, objectFit: 'cover', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                          : <div aria-hidden="true" style={{ display: 'grid', placeItems: 'center', width: 92, height: 116, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, color: '#64748b', fontSize: 30 }}>ID</div>}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ marginBottom: 5, color: '#b91c1c', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' }}>{DEPARTMENT_LABELS[passPreviewDetails.category] || passPreviewDetails.category}</div>
+                          <h3 style={{ margin: '0 0 5px', color: '#071b17', fontSize: 21, lineHeight: 1.15 }}>{passPreviewDetails.fullName}</h3>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{passPreviewDetails.assignedRole}</div>
+                          <div style={{ marginTop: 9, color: '#475569', fontSize: 10, textTransform: 'uppercase' }}>Registration ID</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 800 }}>{passPreviewDetails.registrationId}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                        {[
+                          ['Match access', passPreviewDetails.assignedMatch],
+                          ['Assigned zone', passPreviewDetails.assignedZone || 'To be assigned'],
+                          ['Shift', passPreviewDetails.assignedShift || 'To be assigned'],
+                          ['Valid from', formatPassDate(passPreviewDetails.validFrom)],
+                          ['Valid until', formatPassDate(passPreviewDetails.validUntil)],
+                          ['Venue', passPreviewDetails.eventVenue],
+                        ].map(([label, value]) => <div key={label} style={{ padding: '8px 9px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+                          <div style={{ marginBottom: 3, color: '#64748b', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
+                          <div style={{ color: '#0f172a', fontSize: 11, fontWeight: 700, overflowWrap: 'anywhere' }}>{value}</div>
+                        </div>)}
+                      </div>
+                    </section>
+
+                    <aside style={{ display: 'grid', justifyItems: 'center', gap: 8, padding: 12, border: '1px solid #cbd5e1', borderRadius: 10 }}>
+                      <img src={passQrImage} alt={`Entry QR code for ${passPreviewDetails.registrationId}`} style={{ width: 200, height: 200, objectFit: 'contain', background: '#fff' }} />
+                      <strong style={{ fontSize: 11, letterSpacing: '.04em', textTransform: 'uppercase' }}>Matchday entry QR</strong>
+                      <span style={{ color: '#475569', fontSize: 10, textAlign: 'center' }}>The entry system checks approval, pass validity, and match access when scanned.</span>
+                    </aside>
+                  </div>
+
+                  <footer style={{ padding: '10px 20px', borderTop: '1px solid #e2e8f0', color: '#475569', fontSize: 10 }}>
+                    {previewPassIsExpired ? 'EXPIRED - this QR cannot be used for entry.' : 'Non-transferable. Show this ID at your assigned gate or booth.'}
+                  </footer>
+                </article>}
+              </div>
+
+              <div className="campaign-pass-preview-actions" style={{ display: 'grid', gap: 10, color: '#0f172a', fontSize: 13 }}>
+                {previewPassIsExpired && <div role="alert" style={{ padding: 12, borderRadius: 7, background: '#fff7ed', border: '1px solid #fdba74', color: '#9a3412', lineHeight: 1.5 }}>
+                  This ID is expired. You can preview or save it for records, but do not send it to the applicant. Its QR will be rejected at the gate. Update the match schedule and replace the pass before delivery.
+                </div>}
+                {previewPassIsNotYetValid && <div role="status" style={{ padding: 12, borderRadius: 7, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', lineHeight: 1.5 }}>
+                  This ID is scheduled for future matches. You can preview, save, and send it now; gate scans will work from {formatPassDate(passPreviewDetails.validFrom)}.
+                </div>}
+                <button
+                  type="button"
+                  onClick={handlePrintPassCard}
+                  disabled={!passPreviewDetails || !passQrImage}
+                  style={{ padding: '11px 12px', borderRadius: 6, border: '1px solid #14532d', background: '#14532d', color: '#fff', fontWeight: 800, cursor: passPreviewDetails && passQrImage ? 'pointer' : 'not-allowed', opacity: passPreviewDetails && passQrImage ? 1 : 0.6 }}
+                >
+                  Download complete ID with QR (PDF)
+                </button>
+                <p style={{ margin: '-4px 0 0', color: '#475569', fontSize: 12, lineHeight: 1.45 }}>
+                  The print dialog will open. Choose “Save as PDF” to download the complete ID card, including the photo, assignment details, validity dates, and QR.
+                </p>
+
+                {passCanBeShared && passPreviewUrl && <a
+                  href={passPreviewUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-disabled={!passPreviewUrl}
-                  onClick={event => { if (!passPreviewUrl) event.preventDefault(); }}
-                  style={{ display: 'block', textAlign: 'center', padding: '10px 12px', borderRadius: 6, background: passPreviewUrl ? '#0f172a' : '#64748b', color: '#fff', textDecoration: 'none', fontWeight: 700, cursor: passPreviewUrl ? 'pointer' : 'not-allowed' }}
+                  style={{ display: 'block', textAlign: 'center', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', textDecoration: 'none', fontWeight: 700 }}
                 >
-                  Open full pass to print / save as PDF
-                </a>
-                <p style={{ margin: '-4px 0 0', color: '#475569', fontSize: 12, lineHeight: 1.45 }}>
-                  On the pass page, click “Print / Save Pass” and choose “Save as PDF” to download the complete ID card with its QR.
-                </p>
-                <a
-                  href={passQrImage || undefined}
-                  download={`${passPreviewIdNumber || app.issuedId.id_number}-QR.png`}
-                  aria-disabled={!passQrImage}
-                  onClick={event => { if (!passQrImage) event.preventDefault(); }}
-                  style={{ display: 'block', textAlign: 'center', padding: '10px 12px', borderRadius: 6, border: '1px solid #15803d', background: passQrImage ? '#f0fdf4' : '#f1f5f9', color: passQrImage ? '#166534' : '#64748b', textDecoration: 'none', fontWeight: 700, cursor: passQrImage ? 'pointer' : 'not-allowed' }}
-                >
-                  Download QR image (PNG)
-                </a>
-                <button
+                  Open applicant pass page
+                </a>}
+                {passCanBeShared && <button
                   type="button"
                   onClick={handleCopyPassLink}
                   style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Copy private pass link
-                </button>
+                </button>}
 
                 <button
                   type="button"
                   onClick={handleEmailPass}
-                  disabled={actionLoading || !app.email || !passQrImage}
-                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #15803d', background: '#15803d', color: '#fff', fontWeight: 700, cursor: actionLoading || !app.email || !passQrImage ? 'not-allowed' : 'pointer', opacity: actionLoading || !app.email || !passQrImage ? 0.6 : 1 }}
+                  disabled={actionLoading || !app.email || !passQrImage || !passCanBeShared}
+                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #15803d', background: '#15803d', color: '#fff', fontWeight: 700, cursor: actionLoading || !app.email || !passQrImage || !passCanBeShared ? 'not-allowed' : 'pointer', opacity: actionLoading || !app.email || !passQrImage || !passCanBeShared ? 0.6 : 1 }}
                 >
-                  {actionLoading ? 'Sending email…' : `Send pass and QR to ${app.email || 'applicant email'}`}
+                  {actionLoading ? 'Sending email…' : `Email pass link and QR to ${app.email || 'applicant email'}`}
                 </button>
 
-                {passPreviewLoading ? (
-                  <p role="status" style={{ margin: 0, color: '#475569' }}>Preparing WhatsApp draft…</p>
-                ) : whatsappDraftUrl ? (
+                {passCanBeShared && whatsappDraftUrl ? (
                   <a
-                  href={passQrImage ? whatsappDraftUrl || undefined : undefined}
+                    href={whatsappDraftUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'block', textAlign: 'center', padding: '10px 12px', borderRadius: 6, background: '#16a34a', color: '#fff', textDecoration: 'none', fontWeight: 700 }}
                   >
                     Open WhatsApp draft for {app.phone}
                   </a>
-                ) : (
-                    <div style={{ padding: 10, borderRadius: 6, background: '#fff7ed', color: '#9a3412' }}>
+                ) : passCanBeShared ? (
+                  <div style={{ padding: 10, borderRadius: 6, background: '#fff7ed', color: '#9a3412' }}>
                     {whatsappRecipient ? 'The pass link could not be prepared for WhatsApp. Close this preview and try again.' : 'Add a valid 10-digit Indian phone number to open a WhatsApp draft.'}
+                  </div>
+                ) : !previewPassIsExpired && (
+                  <div style={{ padding: 10, borderRadius: 6, background: '#f8fafc', color: '#475569' }}>
+                    Email and WhatsApp delivery will be available when this pass is active and unexpired.
                   </div>
                 )}
                 <div style={{ padding: 10, borderRadius: 6, background: '#f8fafc', color: '#475569', lineHeight: 1.5 }}>
-                  WhatsApp is not connected as an automatic sender. This opens a message draft; attach the downloaded pass or QR image and press Send in WhatsApp.
+                  WhatsApp has no automatic sender configured. For manual sending, download the complete ID PDF above, attach it to the draft, and press Send in WhatsApp.
                 </div>
                 {deliveryNotice && <p
                   role={deliveryNotice.kind === 'error' ? 'alert' : 'status'}

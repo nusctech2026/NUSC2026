@@ -663,18 +663,29 @@ export async function issueCampaignId(applicationId: string, reissue = false) {
 
 type CampaignPassContext = {
   applicant: {
+    application_number: string;
     full_name: string;
     email: string;
+    category: string;
+    photo_storage_path: string | null;
     assigned_role: { name: string } | null;
     assigned_zone: string | null;
     assigned_shift: string | null;
+    event: { title: string; venue: string } | null;
   };
   idNumber: string;
   passUrl: string;
   qrImage: Buffer;
+  qrImageBase64: string;
+  validFrom: string;
+  validUntil: string;
+  isExpired: boolean;
+  signedPhotoUrl: string | null;
+  assignedMatch: string;
+  eventVenue: string;
 };
 
-async function loadCampaignPassContext(applicationId: string): Promise<CampaignPassContext> {
+async function loadCampaignPassContext(applicationId: string, options: { allowExpiredPreview?: boolean } = {}): Promise<CampaignPassContext> {
   const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL;
   if (!siteOrigin) throw new Error('Campaign site URL is not configured.');
   let origin: URL;
@@ -683,30 +694,46 @@ async function loadCampaignPassContext(applicationId: string): Promise<CampaignP
     throw new Error('Campaign pass delivery requires an HTTPS site URL.');
   }
 
-  const { data, error } = await getSupabaseAdminClient().from('campaign_ids').select(`
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from('campaign_ids').select(`
     id_number, pass_slug, qr_token, valid_from, valid_until, is_active, revoked_at,
-    application:campaign_applications!application_id (full_name, email, application_status,
-      assigned_role:campaign_roles!assigned_role_id (name), assigned_zone, assigned_shift)
+    application:campaign_applications!application_id (
+      application_number, full_name, email, category, application_status, photo_storage_path,
+      assigned_role:campaign_roles!assigned_role_id (name), assigned_zone, assigned_shift,
+      event:campaign_events!event_id (title, venue)
+    )
   `).eq('application_id', applicationId).maybeSingle();
   const applicant = Array.isArray(data?.application) ? data.application[0] : data?.application;
   const assignedRole = Array.isArray(applicant?.assigned_role) ? applicant.assigned_role[0] : applicant?.assigned_role;
+  const event = Array.isArray(applicant?.event) ? applicant.event[0] : applicant?.event;
   const validFrom = data ? new Date(data.valid_from).getTime() : Number.NaN;
   const validUntil = data ? new Date(data.valid_until).getTime() : Number.NaN;
   if (error || !data || !applicant || applicant.application_status !== 'approved' || !data.is_active || data.revoked_at
-    || !Number.isFinite(validFrom) || !Number.isFinite(validUntil) || Date.now() > validUntil
+    || !Number.isFinite(validFrom) || !Number.isFinite(validUntil)
+    || (!options.allowExpiredPreview && Date.now() > validUntil)
     || typeof data.qr_token !== 'string' || !/^[0-9a-f]{64}$/i.test(data.qr_token)
     || typeof data.pass_slug !== 'string' || !assignedRole?.name) {
     throw new Error('Only approved candidates with an active, unexpired pass can receive it.');
   }
+  const photo = applicant.photo_storage_path
+    ? await supabase.storage.from('campaign_documents').createSignedUrl(applicant.photo_storage_path, 900)
+    : { data: null, error: null };
   const qrImage = await QRCode.toBuffer(data.qr_token, {
     type: 'png', errorCorrectionLevel: 'H', margin: 2, width: 480,
     color: { dark: '#050f24', light: '#ffffff' },
   });
   return {
-    applicant: { ...applicant, assigned_role: assignedRole },
+    applicant: { ...applicant, assigned_role: assignedRole, event: event || null },
     idNumber: data.id_number,
     passUrl: new URL(`/campaign/id/${encodeURIComponent(data.pass_slug)}`, origin).toString(),
     qrImage,
+    qrImageBase64: qrImage.toString('base64'),
+    validFrom: data.valid_from,
+    validUntil: data.valid_until,
+    isExpired: Date.now() > validUntil,
+    signedPhotoUrl: photo.data?.signedUrl || null,
+    assignedMatch: event?.title || 'Season pass · all NUSC home matches',
+    eventVenue: event?.venue || 'NUSC home match venues',
   };
 }
 
@@ -714,12 +741,29 @@ async function loadCampaignPassContext(applicationId: string): Promise<CampaignP
 export async function prepareCampaignPassPreview(applicationId: string) {
   try {
     await assertStaffRole(['super_admin', 'campaign_manager']);
-    const context = await loadCampaignPassContext(applicationId);
+    // Managers can inspect and print an expired card for records. Delivery remains
+    // blocked by emailCampaignPass, and the attendance RPC still rejects its QR.
+    const context = await loadCampaignPassContext(applicationId, { allowExpiredPreview: true });
     return {
       success: true as const,
       idNumber: context.idNumber,
       passUrl: context.passUrl,
       qrImageBase64: context.qrImage.toString('base64'),
+      isExpired: context.isExpired,
+      pass: {
+        registrationId: context.applicant.application_number,
+        fullName: context.applicant.full_name,
+        category: context.applicant.category,
+        assignedRole: context.applicant.assigned_role?.name,
+        assignedMatch: context.assignedMatch,
+        assignedZone: context.applicant.assigned_zone,
+        assignedShift: context.applicant.assigned_shift,
+        validFrom: context.validFrom,
+        validUntil: context.validUntil,
+        isExpired: context.isExpired,
+        eventVenue: context.eventVenue,
+        signedPhotoUrl: context.signedPhotoUrl,
+      },
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The pass preview could not be prepared.';

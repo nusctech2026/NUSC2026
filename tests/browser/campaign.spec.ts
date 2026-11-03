@@ -41,23 +41,26 @@ test('approval issues a pass without sending it; manager can preview, download a
   await expect(page.getByText('Others: Camera operator').first()).toBeVisible();
   await page.getByRole('button',{name:'Approve & issue ID',exact:true}).click();
   await expect(page.getByText('NUSC-ID-2026-ABCDEF',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Preview ID & delivery options',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Preview & download ID',exact:true})).toBeVisible();
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='issue').length")).toBe(0);
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='email-pass').length")).toBe(0);
-  await page.getByRole('button',{name:'Preview ID & delivery options',exact:true}).click();
-  const dialog=page.getByRole('dialog',{name:'Preview and send workforce ID'});
+  await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByTitle('Full pass preview for Synthetic Candidate')).toHaveAttribute('src','https://campaign.example.invalid/campaign/id/pass');
-  await expect(dialog.getByRole('link',{name:'Open full pass to print / save as PDF'})).toHaveAttribute('href','https://campaign.example.invalid/campaign/id/pass');
-  const [qrDownload]=await Promise.all([
-    page.waitForEvent('download'),
-    dialog.getByRole('link',{name:'Download QR image (PNG)'}).click(),
-  ]);
-  expect(qrDownload.suggestedFilename()).toBe('NUSC-ID-2026-ABCDEF-QR.png');
+  await expect(dialog.getByRole('article',{name:'Complete workforce ID card with QR code'})).toBeVisible();
+  await expect(dialog.getByRole('heading',{name:'Synthetic Candidate',exact:true})).toBeVisible();
+  await expect(dialog.getByText('NUSC-CMP-2026-ABCDEF0123456789')).toBeVisible();
+  await expect(dialog.getByRole('img',{name:'Entry QR code for NUSC-CMP-2026-ABCDEF0123456789'})).toBeVisible();
+  await dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'}).click();
+  expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='print').length")).toBe(1);
+  await page.emulateMedia({media:'print'});
+  await expect(page.locator('#campaign-workforce-id-print')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Download complete ID with QR (PDF)'})).toBeHidden();
+  await page.emulateMedia({media:'screen'});
   await expect(dialog.getByRole('link',{name:'Open WhatsApp draft for 9000000000'})).toHaveAttribute('href',/wa\.me\/919000000000\?/);
-  await expect(dialog.getByText(/WhatsApp is not connected as an automatic sender/)).toBeVisible();
+  await expect(dialog.getByText(/WhatsApp has no automatic sender configured/)).toBeVisible();
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='preview-pass').length")).toBe(1);
-  await dialog.getByRole('button',{name:'Send pass and QR to candidate@example.invalid'}).click();
+  await dialog.getByRole('button',{name:'Email pass link and QR to candidate@example.invalid'}).click();
   await expect(dialog.getByRole('status')).toContainText('accepted by the email provider');
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='email-pass').length")).toBe(1);
   await dialog.getByRole('button',{name:'Close pass preview'}).click();
@@ -70,10 +73,27 @@ test('approval issues a pass without sending it; manager can preview, download a
 test('email setup failures are shown clearly inside the pass preview',async({page})=>{
   await mount(page,'detail',{emailResult:{success:false,message:'Resend rejected the sender domain.'}});
   await page.getByRole('button',{name:'Approve & issue ID',exact:true}).click();
-  await page.getByRole('button',{name:'Preview ID & delivery options',exact:true}).click();
-  const dialog=page.getByRole('dialog',{name:'Preview and send workforce ID'});
-  await dialog.getByRole('button',{name:'Send pass and QR to candidate@example.invalid'}).click();
+  await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
+  await dialog.getByRole('button',{name:'Email pass link and QR to candidate@example.invalid'}).click();
   await expect(dialog.getByRole('alert')).toContainText('Resend rejected the sender domain.');
+});
+
+test('approved expired IDs remain previewable and printable, but cannot be delivered',async({page})=>{
+  await mount(page,'detail',{expiredPass:true});
+  await page.getByRole('button',{name:'Approve & issue ID',exact:true}).click();
+  await expect(page.getByText('Status: Expired')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Preview & download ID',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
+  await expect(dialog.getByRole('article',{name:'Complete workforce ID card with QR code'})).toBeVisible();
+  await expect(dialog.getByText(/This ID is expired/)).toBeVisible();
+  await expect(dialog.getByRole('img',{name:'Entry QR code for NUSC-CMP-2026-ABCDEF0123456789'})).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'})).toBeEnabled();
+  await expect(dialog.getByRole('button',{name:'Email pass link and QR to candidate@example.invalid'})).toBeDisabled();
+  await expect(dialog.getByRole('link',{name:/Open WhatsApp draft/})).toHaveCount(0);
+  await dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'}).click();
+  expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='print').length")).toBe(1);
 });
 
 test('applicant list respects the Manage search link and opens the selected candidate for review',async({page})=>{

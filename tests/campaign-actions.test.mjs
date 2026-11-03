@@ -377,7 +377,7 @@ test('reviewers cannot approve or issue IDs, and gate staff cannot review applic
   }
 });
 
-test('campaign pass preview is manager-only, allows advance delivery, and never returns the QR token', async () => {
+test('campaign pass preview is manager-only, allows scheduled and expired inspection, and never returns the QR token', async () => {
   const oldUrl=process.env.NEXT_PUBLIC_SITE_URL;
   process.env.NEXT_PUBLIC_SITE_URL='https://campaign.example.invalid';
   const token='a'.repeat(64);
@@ -398,6 +398,13 @@ test('campaign pass preview is manager-only, allows advance delivery, and never 
     assert.match(preview.qrImageBase64,/^[A-Za-z0-9+/]+=*$/);
     assert.equal(JSON.stringify(preview).includes(token),false);
     assert.equal(calls.some(call=>call[0]==='from'&&call[1]==='campaign_ids'),true);
+
+    pass.valid_until=new Date(Date.now()-1000).toISOString();
+    const expiredPreview=await api.prepareCampaignPassPreview('application-id');
+    assert.equal(expiredPreview.success,true);
+    assert.equal(expiredPreview.isExpired,true);
+    assert.equal(expiredPreview.pass.fullName,'Synthetic Candidate');
+    assert.equal(JSON.stringify(expiredPreview).includes(token),false);
 
     const denied=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
       assertStaffRole:async()=>{throw new Error('Access denied');},
@@ -437,6 +444,13 @@ test('pass email reports setup or provider errors as a visible result and can se
     assert.equal(requests[0][1].to[0],'candidate@example.invalid');
     assert.equal(requests[0][1].attachments.some(file=>file.filename==='NUSC-AHB-011-QR.png'),true);
 
+    pass.valid_until=new Date(Date.now()-1000).toISOString();
+    const expiredDelivery=await api.emailCampaignPass('application-id');
+    assert.equal(expiredDelivery.success,false);
+    assert.match(expiredDelivery.message,/active, unexpired pass/i);
+    assert.equal(requests.length,1);
+
+    pass.valid_until=new Date(Date.now()+172800000).toISOString();
     globalThis.fetch=async()=>new Response(JSON.stringify({name:'restricted_api_key'}),{status:401});
     const providerFailure=await api.emailCampaignPass('application-id');
     assert.equal(providerFailure.success,false);
