@@ -362,7 +362,7 @@ export const CampaignApplicationsView: React.FC = () => {
                   </td>
                   <td style={{ padding: '12px 16px' }}>{getStatusBadge(row.application_status)}</td>
                   <td style={{ padding: '12px 16px', color: '#475569', fontSize: '12px' }}>
-                    {row.assigned_zone ? `${row.assigned_zone} (${row.assigned_shift || 'Shift'})` : <span style={{ color: '#cbd5e1' }}>Unassigned</span>}
+                    {row.assigned_zone ? `${row.assigned_zone} (${row.assigned_shift || 'Shift'})` : <span style={{ color: '#596579' }}>Unassigned</span>}
                   </td>
                   <td style={{ padding: '12px 16px', color: '#64748b' }}>
                     {new Date(row.submitted_at).toLocaleDateString()}
@@ -386,6 +386,7 @@ export const CampaignApplicationsView: React.FC = () => {
                       </button>
                       {canDeleteApplications && (
                         <button
+                          className="campaign-danger-button"
                           type="button"
                           disabled={Boolean(deletingApplicationId)}
                           onClick={() => void handleDeleteApplication(row)}
@@ -429,6 +430,7 @@ export const CampaignApplicationsView: React.FC = () => {
             <button className="campaign-primary-button campaign-open-application" type="button" onClick={() => setSelectedAppId(row.id)}>Open application</button>
             {canDeleteApplications && (
               <button
+                className="campaign-danger-button"
                 type="button"
                 disabled={Boolean(deletingApplicationId)}
                 onClick={() => void handleDeleteApplication(row)}

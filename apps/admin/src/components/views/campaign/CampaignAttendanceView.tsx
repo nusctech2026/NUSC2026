@@ -163,13 +163,13 @@ export const CampaignAttendanceView: React.FC = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: '#596579' }}>
                   Loading attendance records...
                 </td>
               </tr>
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: '#596579' }}>
                   No attendance scan logs found matching your filters.
                 </td>
               </tr>
@@ -255,7 +255,7 @@ export const CampaignAttendanceView: React.FC = () => {
                 borderRadius: '4px',
                 border: '1px solid #cbd5e1',
                 backgroundColor: page <= 1 ? '#f1f5f9' : '#ffffff',
-                color: page <= 1 ? '#94a3b8' : '#334155',
+                color: page <= 1 ? '#596579' : '#334155',
                 cursor: page <= 1 ? 'not-allowed' : 'pointer',
                 fontSize: '12px'
               }}
@@ -273,7 +273,7 @@ export const CampaignAttendanceView: React.FC = () => {
                 borderRadius: '4px',
                 border: '1px solid #cbd5e1',
                 backgroundColor: page >= totalPages ? '#f1f5f9' : '#ffffff',
-                color: page >= totalPages ? '#94a3b8' : '#334155',
+                color: page >= totalPages ? '#596579' : '#334155',
                 cursor: page >= totalPages ? 'not-allowed' : 'pointer',
                 fontSize: '12px'
               }}

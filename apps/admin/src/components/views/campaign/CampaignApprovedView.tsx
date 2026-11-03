@@ -134,10 +134,10 @@ export const CampaignApprovedView: React.FC = () => {
                     {campaignRoleLabel(row.assigned_role || row.preferred_role, row.other_role)}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    {row.assigned_zone || <span style={{ color: '#94a3b8' }}>Pending zone</span>}
+                    {row.assigned_zone || <span style={{ color: '#596579' }}>Pending zone</span>}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    {row.assigned_shift || <span style={{ color: '#94a3b8' }}>Pending shift</span>}
+                    {row.assigned_shift || <span style={{ color: '#596579' }}>Pending shift</span>}
                   </td>
                   <td style={{ padding: '12px 16px', color: '#64748b' }}>
                     {row.phone}

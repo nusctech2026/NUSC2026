@@ -107,37 +107,37 @@ export const CampaignDashboardView: React.FC = () => {
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Total Registered</div>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#050f24', margin: '6px 0 2px' }}>{stats.total_applications || 0}</div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Across all categories</div>
+              <div style={{ fontSize: '11px', color: '#596579' }}>Across all categories</div>
             </div>
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderLeft: '4px solid #0284c7', borderRadius: '10px', padding: '18px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#0284c7', textTransform: 'uppercase' }}>Submitted</div>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#0369a1', margin: '6px 0 2px' }}>{stats.submitted || 0}</div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Awaiting initial review</div>
+              <div style={{ fontSize: '11px', color: '#596579' }}>Awaiting initial review</div>
             </div>
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderLeft: '4px solid #d97706', borderRadius: '10px', padding: '18px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#d97706', textTransform: 'uppercase' }}>Under Review</div>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#b45309', margin: '6px 0 2px' }}>{stats.under_review || 0}</div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Vetting in progress</div>
+              <div style={{ fontSize: '11px', color: '#596579' }}>Vetting in progress</div>
             </div>
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderLeft: '4px solid #16a34a', borderRadius: '10px', padding: '18px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#16a34a', textTransform: 'uppercase' }}>Approved</div>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#15803d', margin: '6px 0 2px' }}>{stats.approved || 0}</div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Event pass eligible</div>
+              <div style={{ fontSize: '11px', color: '#596579' }}>Event pass eligible</div>
             </div>
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderLeft: '4px solid #9333ea', borderRadius: '10px', padding: '18px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#9333ea', textTransform: 'uppercase' }}>Waitlisted</div>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#7e22ce', margin: '6px 0 2px' }}>{stats.waitlisted || 0}</div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Standby pool</div>
+              <div style={{ fontSize: '11px', color: '#596579' }}>Standby pool</div>
             </div>
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderLeft: '4px solid #dc2626', borderRadius: '10px', padding: '18px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#dc2626', textTransform: 'uppercase' }}>Rejected</div>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#991b1b', margin: '6px 0 2px' }}>{stats.rejected || 0}</div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Declined applications</div>
+              <div style={{ fontSize: '11px', color: '#596579' }}>Declined applications</div>
             </div>
           </div>
 
