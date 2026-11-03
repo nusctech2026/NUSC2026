@@ -177,8 +177,8 @@ export async function getCampaignApplicationDetail(applicationId: string) {
 }
 
 /** Permanently remove one application and its linked pass, scans, audit history, and uploaded documents. */
-export async function deleteCampaignApplication(applicationId: string) {
-  await assertStaffRole(['super_admin', 'campaign_manager']);
+export async function deleteCampaignApplication(applicationId: string, confirmationNumber: string) {
+  await assertStaffRole(['super_admin']);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(applicationId)) {
     throw new Error('Invalid application identifier');
   }
@@ -192,6 +192,9 @@ export async function deleteCampaignApplication(applicationId: string) {
 
   if (lookupError || !application) {
     throw new Error('Application was not found or could not be loaded');
+  }
+  if (typeof confirmationNumber !== 'string' || confirmationNumber.trim() !== application.application_number) {
+    throw new Error('The registration ID confirmation did not match. Nothing was deleted.');
   }
 
   const documentPaths = [...new Set([

@@ -24,7 +24,7 @@ export const CampaignApplicationsView: React.FC = () => {
   const { user } = useAuth();
   const staff = user as any;
   const staffRoles = staff?.roles || staff?.display_roles?.map((item: any) => item.role) || [];
-  const canDeleteApplications = staffRoles.includes('super_admin') || staffRoles.includes('campaign_manager');
+  const canDeleteApplications = staffRoles.includes('super_admin');
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,15 +83,21 @@ export const CampaignApplicationsView: React.FC = () => {
   const handleDeleteApplication = async (application: any) => {
     if (!canDeleteApplications || deletingApplicationId) return;
     const confirmed = window.confirm(
-      `Permanently delete registration ${application.application_number} for ${application.full_name}?\n\nThis also invalidates its QR pass, deletes its gate and booth attendance history and uploaded documents, and releases its phone/email so you can submit another test. This cannot be undone.`
+      `Delete ${application.application_number} for ${application.full_name}?\n\nOnly continue if you have verified this is a test registration. This permanently removes its QR pass, attendance and application history, and uploaded documents, and releases the applicant's phone/email. This cannot be undone.`
     );
     if (!confirmed) return;
+    const typedRegistrationId = window.prompt(`Type ${application.application_number} to confirm deletion.`);
+    if (typedRegistrationId === null) return;
+    if (typedRegistrationId.trim() !== application.application_number) {
+      setDeleteError('Registration ID did not match. Nothing was deleted.');
+      return;
+    }
 
     setDeletingApplicationId(application.id);
     setDeleteError(null);
     setDeleteNotice(null);
     try {
-      const result = await deleteCampaignApplication(application.id);
+      const result = await deleteCampaignApplication(application.id, typedRegistrationId.trim());
       setDeleteNotice(result.storageCleanupWarning
         ? `Registration ${result.applicationNumber} was deleted, but some uploaded documents could not be removed. Contact a campaign manager for cleanup.`
         : `Registration ${result.applicationNumber} and its linked QR pass and attendance history were deleted.`);
