@@ -305,7 +305,7 @@ export const CampaignApplicationsView: React.FC = () => {
 
       {error && (
         <div role="alert" className="campaign-error-banner" style={{ marginBottom: '1rem' }}>
-          {error} <button type="button" onClick={() => { setLoading(true); setRefreshKey(key => key + 1); }} style={{ marginLeft: 10 }}>Try again</button>
+          {error} <button className="campaign-secondary-button" type="button" onClick={() => { setLoading(true); setRefreshKey(key => key + 1); }} style={{ marginLeft: 10 }}>Try again</button>
         </div>
       )}
 
@@ -370,6 +370,7 @@ export const CampaignApplicationsView: React.FC = () => {
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', gap: '6px' }}>
                       <button
+                        className="campaign-open-application"
                         type="button"
                         onClick={() => setSelectedAppId(row.id)}
                         style={{
@@ -454,6 +455,7 @@ export const CampaignApplicationsView: React.FC = () => {
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
+              className="campaign-pagination-button"
               disabled={page <= 1}
               onClick={() => { setLoading(true); setPage((p) => Math.max(1, p - 1)); }}
               style={{
@@ -468,6 +470,7 @@ export const CampaignApplicationsView: React.FC = () => {
               Previous
             </button>
             <button
+              className="campaign-pagination-button"
               disabled={page >= totalPages}
               onClick={() => { setLoading(true); setPage((p) => p + 1); }}
               style={{

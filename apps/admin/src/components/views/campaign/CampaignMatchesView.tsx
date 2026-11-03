@@ -50,8 +50,8 @@ export const CampaignMatchesView = () => {
       <label>Check-in closes (India time)<input style={inputStyle} type="datetime-local" required value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} /></label>
       <label><input type="checkbox" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} /> Match active</label>
       <div style={{ display: 'flex', gap: '12px' }}>
-        <button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save match'}</button>
-        {form.id && <button type="button" disabled={saving} onClick={() => setForm(empty)}>Cancel edit</button>}
+        <button className="campaign-primary-button" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save match'}</button>
+        {form.id && <button className="campaign-secondary-button" type="button" disabled={saving} onClick={() => setForm(empty)}>Cancel edit</button>}
       </div>
     </form>
     <h2 style={{ marginTop: '32px' }}>Scheduled matches</h2>
@@ -59,7 +59,7 @@ export const CampaignMatchesView = () => {
       <ul style={{ listStyle: 'none', padding: 0 }}>{matches.map(match => <li key={match.id} style={{ padding: '16px 0', borderTop: '1px solid #cbd5e1' }}>
         <strong>{match.title}</strong> · {match.is_active ? 'Active' : 'Inactive'}
         <p>{match.venue} · {new Date(match.start_date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} – {new Date(match.end_date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</p>
-        <button type="button" onClick={() => setForm({ id: match.id, title: match.title, venue: match.venue,
+        <button className="campaign-secondary-button" type="button" onClick={() => setForm({ id: match.id, title: match.title, venue: match.venue,
           startDate: indiaInput(match.start_date), endDate: indiaInput(match.end_date), isActive: match.is_active })}>Edit {match.title}</button>
       </li>)}</ul>}
   </main>;

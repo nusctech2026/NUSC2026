@@ -248,6 +248,7 @@ export const CampaignAttendanceView: React.FC = () => {
         {totalPages > 1 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
             <button
+              className="campaign-pagination-button"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page <= 1}
               style={{
@@ -266,6 +267,7 @@ export const CampaignAttendanceView: React.FC = () => {
               Page {page} of {totalPages}
             </span>
             <button
+              className="campaign-pagination-button"
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
               style={{

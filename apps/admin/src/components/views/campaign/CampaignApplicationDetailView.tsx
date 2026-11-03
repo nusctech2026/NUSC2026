@@ -319,10 +319,12 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
 
         {onClose && (
           <button
+            className="campaign-modal-close"
             onClick={onClose}
             style={{
               background: '#f1f5f9',
-              border: 'none',
+              border: '1px solid #cbd5e1',
+              color: '#344054',
               padding: '6px 14px',
               borderRadius: '6px',
               cursor: 'pointer',
@@ -445,7 +447,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingDetails(true)}
-                  style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#fff', color: '#344054', fontWeight: 600, cursor: 'pointer' }}
                 >
                   Edit registration details
                 </button>
@@ -811,7 +813,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                       </a>
                     </div>}
                     {(!app.issuedId.is_active || app.issuedId.isExpired) && (
-                      <button type="button" onClick={handleIssueId} disabled={actionLoading}>Replace expired or revoked pass</button>
+                      <button className="campaign-secondary-button" type="button" onClick={handleIssueId} disabled={actionLoading}>Replace expired or revoked pass</button>
                     )}
                   </div>
                 ) : (

@@ -289,8 +289,8 @@ export const CreatorChallengeEntriesView: React.FC = () => {
         <div className="creator-entry-pagination">
           <span>Page {page} of {totalPages}</span>
           <div>
-            <button type="button" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>Previous</button>
-            <button type="button" disabled={page >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))}>Next</button>
+            <button className="campaign-pagination-button" type="button" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>Previous</button>
+            <button className="campaign-pagination-button" type="button" disabled={page >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))}>Next</button>
           </div>
         </div>
       )}
