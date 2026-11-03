@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@payloadcms/ui';
 import { campaignRoleLabel } from '../../../utils/campaignRoleLabel';
-import { getCampaignApplicationsList, getCampaignRoleOptions } from '../../../actions/campaignAdminActions';
+import { deleteCampaignApplication, getCampaignApplicationsList, getCampaignRoleOptions } from '../../../actions/campaignAdminActions';
 import { CampaignApplicationDetailView } from './CampaignApplicationDetailView';
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
 
@@ -20,9 +21,16 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export const CampaignApplicationsView: React.FC = () => {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const staff = user as any;
+  const staffRoles = staff?.roles || staff?.display_roles?.map((item: any) => item.role) || [];
+  const canDeleteApplications = staffRoles.includes('super_admin') || staffRoles.includes('campaign_manager');
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+  const [deletingApplicationId, setDeletingApplicationId] = useState<string | null>(null);
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -70,6 +78,31 @@ export const CampaignApplicationsView: React.FC = () => {
     setLoading(true);
     setPage(1);
     setAppliedSearch(searchQuery.trim());
+  };
+
+  const handleDeleteApplication = async (application: any) => {
+    if (!canDeleteApplications || deletingApplicationId) return;
+    const confirmed = window.confirm(
+      `Permanently delete registration ${application.application_number} for ${application.full_name}?\n\nThis also invalidates its QR pass, deletes its gate and booth attendance history and uploaded documents, and releases its phone/email so you can submit another test. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingApplicationId(application.id);
+    setDeleteError(null);
+    setDeleteNotice(null);
+    try {
+      const result = await deleteCampaignApplication(application.id);
+      setDeleteNotice(result.storageCleanupWarning
+        ? `Registration ${result.applicationNumber} was deleted, but some uploaded documents could not be removed. Contact a campaign manager for cleanup.`
+        : `Registration ${result.applicationNumber} and its linked QR pass and attendance history were deleted.`);
+      setLoading(true);
+      if (applications.length === 1 && page > 1) setPage(currentPage => Math.max(1, currentPage - 1));
+      else setRefreshKey(key => key + 1);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Registration could not be deleted. Please retry.');
+    } finally {
+      setDeletingApplicationId(null);
+    }
   };
 
   const getStatusBadge = (st: string) => {
@@ -148,6 +181,21 @@ export const CampaignApplicationsView: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {(deleteError || deleteNotice) && (
+        <div
+          role={deleteError ? 'alert' : 'status'}
+          aria-live={deleteError ? 'assertive' : 'polite'}
+          style={{
+            marginBottom: '16px', padding: '12px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+            color: deleteError ? '#991b1b' : '#166534',
+            background: deleteError ? '#fef2f2' : '#f0fdf4',
+            border: `1px solid ${deleteError ? '#fecaca' : '#bbf7d0'}`,
+          }}
+        >
+          {deleteError || deleteNotice}
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div
@@ -314,21 +362,43 @@ export const CampaignApplicationsView: React.FC = () => {
                     {new Date(row.submitted_at).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedAppId(row.id)}
-                      style={{
-                        background: '#f8fafc',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        padding: '5px 10px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Open application
-                    </button>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAppId(row.id)}
+                        style={{
+                          background: '#f8fafc',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          padding: '5px 10px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Open application
+                      </button>
+                      {canDeleteApplications && (
+                        <button
+                          type="button"
+                          disabled={Boolean(deletingApplicationId)}
+                          onClick={() => void handleDeleteApplication(row)}
+                          style={{
+                            background: '#fff',
+                            border: '1px solid #fca5a5',
+                            color: '#b91c1c',
+                            borderRadius: '6px',
+                            padding: '5px 10px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: deletingApplicationId ? 'wait' : 'pointer',
+                            opacity: deletingApplicationId && deletingApplicationId !== row.id ? 0.55 : 1,
+                          }}
+                        >
+                          {deletingApplicationId === row.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -351,6 +421,20 @@ export const CampaignApplicationsView: React.FC = () => {
               <div><dt>Submitted</dt><dd>{new Date(row.submitted_at).toLocaleDateString()}</dd></div>
             </dl>
             <button className="campaign-primary-button campaign-open-application" type="button" onClick={() => setSelectedAppId(row.id)}>Open application</button>
+            {canDeleteApplications && (
+              <button
+                type="button"
+                disabled={Boolean(deletingApplicationId)}
+                onClick={() => void handleDeleteApplication(row)}
+                style={{
+                  width: '100%', marginTop: '8px', padding: '10px 12px', borderRadius: '8px',
+                  border: '1px solid #fca5a5', background: '#fff', color: '#b91c1c',
+                  fontWeight: 700, cursor: deletingApplicationId ? 'wait' : 'pointer',
+                }}
+              >
+                {deletingApplicationId === row.id ? 'Deleting…' : 'Delete registration'}
+              </button>
+            )}
           </article>)}
       </div>
 

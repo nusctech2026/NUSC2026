@@ -176,6 +176,67 @@ export async function getCampaignApplicationDetail(applicationId: string) {
   } finally { trace.finish(); }
 }
 
+/** Permanently remove one application and its linked pass, scans, audit history, and uploaded documents. */
+export async function deleteCampaignApplication(applicationId: string) {
+  await assertStaffRole(['super_admin', 'campaign_manager']);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(applicationId)) {
+    throw new Error('Invalid application identifier');
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: application, error: lookupError } = await supabase
+    .from('campaign_applications')
+    .select('id, application_number, photo_storage_path, media_authorisation_storage_path, official_credential_storage_path')
+    .eq('id', applicationId)
+    .maybeSingle();
+
+  if (lookupError || !application) {
+    throw new Error('Application was not found or could not be loaded');
+  }
+
+  const documentPaths = [...new Set([
+    application.photo_storage_path,
+    application.media_authorisation_storage_path,
+    application.official_credential_storage_path,
+  ].filter((path): path is string => typeof path === 'string' && path.trim().length > 0))];
+
+  // These references are stored by the registration flow. Reject malformed stored paths
+  // before deleting the database row so a bad reference cannot target another object.
+  if (documentPaths.some(path => path.startsWith('/') || path.includes('\\') || path.split('/').some(part => part === '.' || part === '..'))) {
+    throw new Error('Application has an invalid document reference and cannot be deleted automatically');
+  }
+
+  const { data: deleted, error: deleteError } = await supabase
+    .from('campaign_applications')
+    .delete()
+    .eq('id', application.id)
+    .select('id')
+    .maybeSingle();
+
+  if (deleteError) {
+    console.error('Campaign application deletion failed', {
+      code: deleteError.code || 'DATABASE_ERROR',
+      applicationNumber: application.application_number,
+    });
+    throw new Error('Application could not be deleted. Contact a campaign manager if this keeps happening.');
+  }
+  if (!deleted) throw new Error('Application was already deleted or is no longer available');
+
+  let storageCleanupWarning = false;
+  if (documentPaths.length > 0) {
+    const { error: storageError } = await supabase.storage.from('campaign_documents').remove(documentPaths);
+    if (storageError) {
+      storageCleanupWarning = true;
+      console.error('Campaign application was deleted but document cleanup failed', {
+        code: storageError.statusCode || storageError.name || 'STORAGE_ERROR',
+        applicationNumber: application.application_number,
+      });
+    }
+  }
+
+  return { success: true, applicationNumber: application.application_number, storageCleanupWarning };
+}
+
 /**
  * 4. Update Application Status (submitted, under_review, waitlisted, approved, rejected, cancelled)
  */
