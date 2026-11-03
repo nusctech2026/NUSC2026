@@ -708,7 +708,7 @@
     top: 50%;
     transform: translate(-50%, -50%);
     margin: 0;
-    border-radius: 0;
+    border-radius: 3mm;
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -716,5 +716,555 @@
   .no-print * {
     display: none !important;
     visibility: hidden !important;
+  }
+}
+
+/* Portrait workforce ID, styled to match the official NUSC card artwork. */
+.id-pass-page {
+  width: min(100% - 24px, 500px);
+  max-width: 500px;
+  margin: 20px auto 40px;
+  padding: 0;
+}
+
+.id-pass-controls {
+  display: flex;
+  width: min(100%, 86mm);
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto 14px;
+}
+
+.id-pass-card {
+  --id-navy: #091d3b;
+  --id-red: #e21e2b;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 86mm);
+  aspect-ratio: 86 / 144;
+  height: auto;
+  margin: 8px auto 12px;
+  overflow: hidden;
+  color: #0c1d38;
+  background: #fff;
+  border: 1.5px solid var(--id-navy);
+  border-radius: 11px;
+  box-shadow: 0 10px 28px rgb(9 29 59 / 18%);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.id-pass-slot {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  left: 50%;
+  width: 68px;
+  height: 14px;
+  transform: translateX(-50%);
+  border: 1px solid #aab4c4;
+  border-radius: 999px;
+  background: linear-gradient(#f7f8fa, #d9dee7);
+  box-shadow: inset 0 1px 2px rgb(9 29 59 / 12%);
+}
+
+.id-pass-header {
+  position: relative;
+  display: block;
+  flex: 0 0 24%;
+  min-height: 108px;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(120deg, #071832 0%, #102b52 70%, #0a2143 100%);
+  border-bottom: 4px solid var(--id-red);
+  padding: 0;
+}
+
+.id-pass-header-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 52px 1px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 23px 13px 9px;
+}
+
+.id-pass-crest {
+  display: block;
+  width: 52px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.id-pass-divider {
+  width: 1px;
+  height: 43px;
+  background: rgb(255 255 255 / 62%);
+}
+
+.id-pass-brand {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.id-pass-brand strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: .04em;
+}
+
+.id-pass-brand span {
+  color: #e7edf5;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  white-space: nowrap;
+}
+
+.id-pass-status {
+  align-self: center;
+  max-width: 52px;
+  padding: 4px 5px;
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: 3px;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: .04em;
+}
+
+.id-pass-status.active {
+  color: #fff;
+  background: #17472f;
+  border-color: #89c4a3;
+}
+
+.id-pass-status.scheduled {
+  color: #10233f;
+  background: #f4c95d;
+  border-color: #fff0bd;
+}
+
+.id-pass-slashes {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  display: flex;
+  gap: 7px;
+  height: 100%;
+  transform: skewX(-34deg);
+  opacity: .95;
+}
+
+.id-pass-slashes span {
+  width: 8px;
+  height: 100%;
+  background: rgb(38 77 128 / 42%);
+}
+
+.id-pass-slashes span:last-child {
+  width: 5px;
+  background: var(--id-red);
+}
+
+.id-pass-header-rule {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: var(--id-red);
+}
+
+.id-pass-body {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 10px 11px 27px;
+  background: linear-gradient(160deg, #fff 0%, #fbfcfe 62%, #f0f4f9 100%);
+}
+
+.id-pass-scenery {
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  bottom: 10px;
+  left: 0;
+  width: 100%;
+  height: 57%;
+  opacity: .72;
+  pointer-events: none;
+}
+
+.id-pass-profile {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 95px;
+}
+
+.id-pass-photo,
+.id-pass-photo-fallback {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 94px;
+  overflow: hidden;
+  color: #66758b;
+  background: #e8edf4;
+  border: 1px solid #aab9ce;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.id-pass-photo-fallback {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.id-pass-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.id-pass-department {
+  margin-bottom: 3px;
+  color: #d71927;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.id-pass-identity h2 {
+  margin: 0 0 5px;
+  color: var(--id-navy);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+}
+
+.id-pass-role-ribbon {
+  display: block;
+  max-width: 100%;
+  padding: 5px 11px 5px 8px;
+  color: #fff;
+  background: var(--id-red);
+  clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.id-pass-number {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 5px;
+  margin-top: 5px;
+}
+
+.id-pass-number span {
+  color: #56657d;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .07em;
+}
+
+.id-pass-number strong {
+  color: var(--id-navy);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.id-pass-registration {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 7px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.id-pass-meta-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0 0 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.id-pass-meta-item {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 35px;
+  padding: 4px 5px;
+  border: 1px solid #7386a3;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 88%);
+}
+
+.id-pass-icon-tab {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: #fff;
+  background: var(--id-navy);
+  clip-path: polygon(0 0, 100% 0, 74% 100%, 0 100%);
+}
+
+.id-pass-info-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.id-pass-meta-label {
+  color: #53627a;
+  font-size: 6.5px;
+  font-weight: 900;
+  line-height: 1.08;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+}
+
+.id-pass-meta-note {
+  color: #68768c;
+  font-size: 6px;
+  line-height: 1;
+}
+
+.id-pass-meta-value {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #0c1d38;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.13;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.id-pass-qr-box {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: auto;
+  margin: 1px 0 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.id-pass-qr-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #bdc9d9;
+  border-radius: 4px;
+}
+
+.id-pass-qr-image {
+  display: block;
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.id-pass-qr-corner {
+  position: absolute;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border-color: var(--id-red);
+  border-style: solid;
+}
+
+.id-pass-qr-corner.top-left {
+  top: -3px;
+  left: -3px;
+  border-width: 2px 0 0 2px;
+  border-radius: 4px 0 0;
+}
+
+.id-pass-qr-corner.top-right {
+  top: -3px;
+  right: -3px;
+  border-width: 2px 2px 0 0;
+  border-radius: 0 4px 0 0;
+}
+
+.id-pass-qr-corner.bottom-left {
+  bottom: -3px;
+  left: -3px;
+  border-width: 0 0 2px 2px;
+  border-radius: 0 0 0 4px;
+}
+
+.id-pass-qr-corner.bottom-right {
+  right: -3px;
+  bottom: -3px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 4px;
+}
+
+.id-pass-qr-title {
+  color: var(--id-navy);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .075em;
+}
+
+.id-pass-qr-note {
+  max-width: 100%;
+  color: #53627a;
+  font-size: 6px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.id-pass-qr-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 7px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.id-pass-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+  padding: 0;
+  color: #334763;
+  background: transparent;
+  border: 0;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .035em;
+  text-align: left;
+}
+
+.id-pass-bottom-trim {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 27px;
+  pointer-events: none;
+}
+
+@media (max-width: 430px) {
+  .id-pass-header-content {
+    grid-template-columns: 47px 1px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .id-pass-crest {
+    width: 47px;
+    height: 52px;
+  }
+
+  .id-pass-brand strong {
+    font-size: 11px;
+  }
+
+  .id-pass-brand span {
+    font-size: 7px;
+  }
+
+  .id-pass-profile {
+    grid-template-columns: 70px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .id-pass-photo,
+  .id-pass-photo-fallback {
+    width: 70px;
+    height: 88px;
+  }
+}
+
+@media print {
+  @page {
+    size: 86mm 144mm;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 86mm;
+    height: 144mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .id-pass-card {
+    width: 86mm;
+    height: 144mm;
+    min-height: 144mm;
+    max-width: none;
+    aspect-ratio: auto;
+    margin: 0;
+    border-radius: 3mm;
+    box-shadow: none;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 }
