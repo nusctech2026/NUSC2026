@@ -751,6 +751,7 @@ export async function prepareCampaignPassPreview(applicationId: string) {
       qrImageBase64: context.qrImage.toString('base64'),
       isExpired: context.isExpired,
       pass: {
+        idNumber: context.idNumber,
         registrationId: context.applicant.application_number,
         fullName: context.applicant.full_name,
         category: context.applicant.category,

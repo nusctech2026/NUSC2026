@@ -3,12 +3,13 @@ import { campaignFixtureHtml } from '../fixtures/campaign-ui';
 
 // Render production components with local synthetic actions. Block every other request.
 async function mount(page: Page, screen: string, options: object = {}) {
-  const {html,roles,qrSvg}=await campaignFixtureHtml();
+  const {html,roles,qrSvg,qrPngBase64,nuscCrest}=await campaignFixtureHtml();
   await page.route('**/*',route=>route.request().url()==='http://campaign.test/'
     ?route.fulfill({contentType:'text/html',body:html}):route.request().url()==='http://campaign.test/api/campaign/id/fixture-pass/qr'
-      ?route.fulfill({contentType:'image/svg+xml',body:qrSvg}):route.abort());
+      ?route.fulfill({contentType:'image/svg+xml',body:qrSvg}):route.request().url()==='http://campaign.test/images/nusc-crest.png'
+        ?route.fulfill({contentType:'image/png',body:nuscCrest}):route.abort());
   await page.goto('http://campaign.test/');
-  await page.evaluate(`window.mountFixture(${JSON.stringify(screen)},${JSON.stringify({roles,...options})})`);
+  await page.evaluate(`window.mountFixture(${JSON.stringify(screen)},${JSON.stringify({roles,qrPngBase64,...options})})`);
 }
 
 test('all requested Ahibi roles are selectable and Crew Others requires a specification',async({page})=>{
@@ -50,13 +51,20 @@ test('approval issues a pass without sending it; manager can preview, download a
   await expect(dialog.getByRole('article',{name:'Complete workforce ID card with QR code'})).toBeVisible();
   await expect(dialog.getByRole('heading',{name:'Synthetic Candidate',exact:true})).toBeVisible();
   await expect(dialog.getByText('NUSC-CMP-2026-ABCDEF0123456789')).toBeVisible();
-  await expect(dialog.getByRole('img',{name:'Entry QR code for NUSC-CMP-2026-ABCDEF0123456789'})).toBeVisible();
+  await expect(dialog.getByRole('img',{name:'Entry QR code for NUSC-ID-2026-ABCDEF'})).toBeVisible();
+  await expect(dialog.getByRole('img',{name:'Nagaland United Sports Club crest'})).toHaveAttribute('src','/images/nusc-crest.png');
+  expect(await dialog.getByRole('img',{name:'Nagaland United Sports Club crest'}).evaluate(element=>(element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  const cardDimensions=await dialog.getByRole('article',{name:'Complete workforce ID card with QR code'}).evaluate(element=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height}));
+  expect(cardDimensions.height).toBeGreaterThan(cardDimensions.width);
   await dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'}).click();
-  expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='print').length")).toBe(1);
-  await page.emulateMedia({media:'print'});
-  await expect(page.locator('#campaign-workforce-id-print')).toBeVisible();
-  await expect(page.getByRole('button',{name:'Download complete ID with QR (PDF)'})).toBeHidden();
-  await page.emulateMedia({media:'screen'});
+  const printFrame=page.frameLocator('#campaign-workforce-id-print-frame');
+  await expect(page.locator('#campaign-workforce-id-print-frame')).toHaveCount(1);
+  await expect(printFrame.getByRole('article',{name:'Complete workforce ID card with QR code'})).toBeVisible();
+  expect(await printFrame.locator('body > article').count()).toBe(1);
+  expect(await printFrame.locator('style').textContent()).toContain('@page { size: 86mm 144mm; margin: 0; }');
+  await expect(printFrame.getByRole('img',{name:'Nagaland United Sports Club crest'})).toHaveAttribute('src','/images/nusc-crest.png');
+  const printedDimensions=await printFrame.getByRole('article',{name:'Complete workforce ID card with QR code'}).evaluate(element=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height}));
+  expect(printedDimensions.height).toBeGreaterThan(printedDimensions.width);
   await expect(dialog.getByRole('link',{name:'Open WhatsApp draft for 9000000000'})).toHaveAttribute('href',/wa\.me\/919000000000\?/);
   await expect(dialog.getByText(/WhatsApp has no automatic sender configured/)).toBeVisible();
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='preview-pass').length")).toBe(1);
@@ -88,12 +96,15 @@ test('approved expired IDs remain previewable and printable, but cannot be deliv
   const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
   await expect(dialog.getByRole('article',{name:'Complete workforce ID card with QR code'})).toBeVisible();
   await expect(dialog.getByText(/This ID is expired/)).toBeVisible();
-  await expect(dialog.getByRole('img',{name:'Entry QR code for NUSC-CMP-2026-ABCDEF0123456789'})).toBeVisible();
+  await expect(dialog.getByRole('img',{name:'Entry QR code for NUSC-ID-2026-ABCDEF'})).toBeVisible();
   await expect(dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'})).toBeEnabled();
   await expect(dialog.getByRole('button',{name:'Email pass link and QR to candidate@example.invalid'})).toBeDisabled();
   await expect(dialog.getByRole('link',{name:/Open WhatsApp draft/})).toHaveCount(0);
   await dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'}).click();
-  expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='print').length")).toBe(1);
+  const printFrame=page.frameLocator('#campaign-workforce-id-print-frame');
+  await expect(printFrame.getByRole('article',{name:'Complete workforce ID card with QR code'})).toBeVisible();
+  expect(await printFrame.locator('body > article').count()).toBe(1);
+  expect(await printFrame.locator('style').textContent()).toContain('@page { size: 86mm 144mm; margin: 0; }');
 });
 
 test('applicant list respects the Manage search link and opens the selected candidate for review',async({page})=>{
@@ -150,9 +161,19 @@ test('attendance shows the match and specified Crew role and filters by match',a
 test('digital pass loads the QR and allows printing only after it is ready',async({page})=>{
   await mount(page,'pass');
   await expect(page.getByRole('img',{name:'Gate Verification QR Code'})).toBeVisible();
+  await expect(page.getByRole('img',{name:'Nagaland United Sports Club crest'})).toHaveAttribute('src','/images/nusc-crest.png');
+  expect(await page.getByRole('img',{name:'Nagaland United Sports Club crest'}).evaluate(element=>(element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(page.getByText('NUSC-ID-2026-ABCDEF0123456789',{exact:true})).toBeVisible();
+  const cardDimensions=await page.locator('.id-pass-card').evaluate(element=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height}));
+  expect(cardDimensions.height).toBeGreaterThan(cardDimensions.width);
   await expect(page.getByRole('button',{name:/Print \/ Save Pass/})).toBeEnabled();
   await page.getByRole('button',{name:/Print \/ Save Pass/}).click();
   expect(await page.evaluate("window.fixture.calls")).toEqual([['print']]);
+  await page.emulateMedia({media:'print'});
+  const printedDimensions=await page.locator('.id-pass-card').evaluate(element=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height}));
+  expect(printedDimensions.height).toBeGreaterThan(printedDimensions.width);
+  expect(await page.locator('.id-pass-card').count()).toBe(1);
+  await page.emulateMedia({media:'screen'});
 });
 
 test('success screen displays official application number and offers copy, download slip and print',async({page})=>{

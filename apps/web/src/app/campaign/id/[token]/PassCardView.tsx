@@ -56,29 +56,19 @@ export default function PassCardView({ pass }: PassCardViewProps) {
         {/* Pass Header */}
         <div className="id-pass-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                background: 'var(--camp-red)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: '14px',
-                letterSpacing: '0.05em',
-              }}
-            >
-              NU
-            </div>
+            <img
+              src="/images/nusc-crest.png"
+              alt="Nagaland United Sports Club crest"
+              width={44}
+              height={44}
+              style={{ width: '44px', height: '44px', objectFit: 'contain', padding: '3px', borderRadius: '7px', background: '#fff' }}
+            />
             <div>
               <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.05em', color: '#fff', textTransform: 'uppercase' }}>
                 Nagaland United SC
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--camp-gold)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                Official Matchday Credential
+              <div style={{ fontSize: '10px', color: '#e2e8f0', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Official Matchday Workforce ID
               </div>
             </div>
           </div>
@@ -113,13 +103,14 @@ export default function PassCardView({ pass }: PassCardViewProps) {
             <div className="id-pass-details" style={{ flex: 1, minWidth: 0 }}>
               <div className="role-badge">{DEPARTMENT_LABELS[pass.category] || pass.category} · {pass.accreditationType}</div>
               <h2>{pass.fullName}</h2>
-              <div style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: 600, marginBottom: '6px' }}>
+              <div style={{ fontSize: '12px', color: '#050f24', fontWeight: 700, marginBottom: '6px' }}>
                 {pass.assignedRole}
               </div>
-              <div style={{ fontSize: '10px', color: '#cbd5e1', marginBottom: '2px' }}>Registration ID</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--camp-gold)', fontWeight: 700 }}>
-                {pass.registrationId}
+              <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '2px', textTransform: 'uppercase' }}>Workforce ID</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#050f24', fontWeight: 900, overflowWrap: 'anywhere' }}>
+                {pass.idNumber}
               </div>
+              {pass.registrationId !== pass.idNumber && <div style={{ fontSize: '8px', color: '#64748b', marginTop: '2px', overflowWrap: 'anywhere' }}>Registration: {pass.registrationId}</div>}
             </div>
           </div>
 
@@ -149,7 +140,7 @@ export default function PassCardView({ pass }: PassCardViewProps) {
 
           {/* Secure Gate Verification QR Matrix */}
           <div className="id-pass-qr-box">
-            <div style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '132px', height: '132px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img
                 src={`/api/campaign/id/${pass.passSlug}/qr`}
                 alt="Gate Verification QR Code"
@@ -160,7 +151,7 @@ export default function PassCardView({ pass }: PassCardViewProps) {
             </div>
             {qrError && <p role="alert">Unable to load your QR. Refresh this page before printing.</p>}
             <div style={{ fontSize: '11px', color: '#475569', fontWeight: 600, marginTop: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Gate Check-in Barcode
+              Matchday Entry and Attendance QR
             </div>
             <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px', textAlign: 'center' }}>
               Scan at stadium turnstile checkpoint for authorized entry

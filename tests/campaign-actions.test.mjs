@@ -383,8 +383,8 @@ test('campaign pass preview is manager-only, allows scheduled and expired inspec
   const token='a'.repeat(64);
   const pass={id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',qr_token:token,
     valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
-    is_active:true,revoked_at:null,application:{full_name:'Synthetic Candidate',email:'candidate@example.invalid',
-      application_status:'approved',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
+    is_active:true,revoked_at:null,application:{application_number:'NUSC-AHB-011',full_name:'Synthetic Candidate',email:'candidate@example.invalid',
+      category:'ahibi',application_status:'approved',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
   try {
     const calls=[];
     const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
@@ -394,6 +394,8 @@ test('campaign pass preview is manager-only, allows scheduled and expired inspec
     const preview=await api.prepareCampaignPassPreview('application-id');
     assert.equal(preview.success,true);
     assert.equal(preview.idNumber,'NUSC-AHB-011');
+    assert.equal(preview.pass.idNumber,'NUSC-AHB-011');
+    assert.equal(preview.pass.registrationId,'NUSC-AHB-011');
     assert.equal(preview.passUrl,'https://campaign.example.invalid/campaign/id/synthetic-pass');
     assert.match(preview.qrImageBase64,/^[A-Za-z0-9+/]+=*$/);
     assert.equal(JSON.stringify(preview).includes(token),false);
@@ -404,6 +406,7 @@ test('campaign pass preview is manager-only, allows scheduled and expired inspec
     assert.equal(expiredPreview.success,true);
     assert.equal(expiredPreview.isExpired,true);
     assert.equal(expiredPreview.pass.fullName,'Synthetic Candidate');
+    assert.equal(expiredPreview.pass.idNumber,'NUSC-AHB-011');
     assert.equal(JSON.stringify(expiredPreview).includes(token),false);
 
     const denied=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{

@@ -30,6 +30,8 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   medical: 'Medical Team',
 };
 
+const NUSC_CREST_URL = '/images/nusc-crest.png';
+
 const formatPassDate = (value: string) => new Date(value).toLocaleDateString('en-IN', {
   day: 'numeric', month: 'short', year: 'numeric',
 });
@@ -359,7 +361,93 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   };
 
   const handlePrintPassCard = () => {
-    if (passPreviewDetails && passQrImage) window.print();
+    const card = document.getElementById('campaign-workforce-id-print');
+    if (!passPreviewDetails || !passQrImage || !card) return;
+    document.getElementById('campaign-workforce-id-print-frame')?.remove();
+
+    const printFrame = document.createElement('iframe');
+    printFrame.id = 'campaign-workforce-id-print-frame';
+    printFrame.title = 'Print one NUSC workforce ID';
+    printFrame.setAttribute('aria-hidden', 'true');
+    printFrame.style.cssText = 'position:fixed;left:-10000px;top:0;width:86mm;height:144mm;border:0;';
+
+    const printStyles = [
+      '@page { size: 86mm 144mm; margin: 0; }',
+      '* { box-sizing: border-box; }',
+      'html, body { width: 86mm; height: 144mm; margin: 0; padding: 0; overflow: hidden; background: #fff; }',
+      'body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }',
+      '#campaign-workforce-id-print { display: flex !important; flex-direction: column !important; width: 86mm !important; height: 144mm !important; max-width: none !important; max-height: none !important; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; overflow: hidden !important; page-break-inside: avoid !important; break-inside: avoid !important; }',
+      '.campaign-id-card-header { min-height: 14mm !important; padding: 2mm 3mm !important; gap: 2mm !important; flex: 0 0 auto !important; border-bottom-width: 1mm !important; }',
+      '.campaign-id-card-crest { width: 12mm !important; height: 12mm !important; padding: 1mm !important; border-radius: 2mm !important; }',
+      '.campaign-id-card-brand strong { font-size: 2.6mm !important; }',
+      '.campaign-id-card-brand small { font-size: 1.9mm !important; }',
+      '.campaign-id-card-status { font-size: 2mm !important; }',
+      '.campaign-id-card-body { display: flex !important; flex: 1 1 auto !important; flex-direction: column !important; min-height: 0 !important; gap: 2mm !important; padding: 3mm !important; }',
+      '.campaign-id-card-profile { gap: 2.5mm !important; margin-bottom: 2mm !important; }',
+      '.campaign-id-card-photo { width: 17mm !important; height: 22mm !important; border-radius: 1.5mm !important; }',
+      '.campaign-id-card-profile-name { font-size: 4mm !important; }',
+      '.campaign-id-card-category { font-size: 2.2mm !important; }',
+      '.campaign-id-card-role { font-size: 2.5mm !important; }',
+      '.campaign-id-card-id-label { margin-top: 1.5mm !important; font-size: 1.8mm !important; }',
+      '.campaign-id-card-id-number { font-size: 2.4mm !important; }',
+      '.campaign-id-card-details { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 1.2mm !important; }',
+      '.campaign-id-card-field { min-height: 9mm !important; padding: 1.3mm !important; border-radius: 1mm !important; }',
+      '.campaign-id-card-field-label { margin-bottom: .5mm !important; font-size: 1.7mm !important; }',
+      '.campaign-id-card-field-value { font-size: 2mm !important; line-height: 1.2 !important; }',
+      '.campaign-id-card-qr { justify-self: center !important; gap: 1mm !important; padding: 1.5mm !important; border-radius: 1.5mm !important; }',
+      '.campaign-id-card-qr-image { width: 28mm !important; height: 28mm !important; }',
+      '.campaign-id-card-qr-label { font-size: 1.9mm !important; }',
+      '.campaign-id-card-qr-note { font-size: 1.6mm !important; }',
+      '.campaign-id-card-footer { min-height: 7mm !important; padding: 1.5mm 3mm !important; font-size: 1.7mm !important; flex: 0 0 auto !important; }',
+    ].join('');
+    const printHtml = [
+      '<!doctype html><html lang="en"><head><meta charset="utf-8">',
+      '<meta name="viewport" content="width=device-width, initial-scale=1">',
+      '<base href="' + window.location.origin + '/">',
+      '<title>NUSC Workforce ID</title><style>' + printStyles + '</style>',
+      '</head><body>', card.outerHTML, '</body></html>',
+    ].join('');
+
+    printFrame.onload = () => {
+      const printWindow = printFrame.contentWindow;
+      const printDocument = printFrame.contentDocument;
+      if (!printWindow || !printDocument) {
+        printFrame.remove();
+        setDeliveryNotice({ kind: 'error', message: 'The ID print view could not be prepared. Please try again.' });
+        return;
+      }
+
+      const waitForImage = (image: HTMLImageElement) => new Promise<void>(resolve => {
+        if (image.complete) {
+          resolve();
+          return;
+        }
+        const finish = () => {
+          window.clearTimeout(timeout);
+          image.removeEventListener('load', finish);
+          image.removeEventListener('error', finish);
+          resolve();
+        };
+        const timeout = window.setTimeout(finish, 4000);
+        image.addEventListener('load', finish, { once: true });
+        image.addEventListener('error', finish, { once: true });
+      });
+      const cleanup = () => {
+        window.clearTimeout(cleanupTimeout);
+        printFrame.remove();
+      };
+      const cleanupTimeout = window.setTimeout(cleanup, 60_000);
+      printWindow.addEventListener('afterprint', () => {
+        window.setTimeout(cleanup, 5000);
+      }, { once: true });
+      void Promise.all(Array.from(printDocument.images).map(waitForImage)).then(() => {
+        if (!printFrame.isConnected) return;
+        printWindow.focus();
+        printWindow.print();
+      });
+    };
+    printFrame.srcdoc = printHtml;
+    document.body.appendChild(printFrame);
   };
 
   if (loading) {
@@ -973,18 +1061,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
               </button>
             </div>
 
-            <style>{`
-              @page { size: landscape; margin: 10mm; }
-              @media print {
-                html, body { background: #fff !important; min-height: 0 !important; overflow: visible !important; }
-                body * { visibility: hidden !important; }
-                #campaign-workforce-id-print, #campaign-workforce-id-print * { visibility: visible !important; }
-                .campaign-pass-preview-header, .campaign-pass-preview-actions { display: none !important; }
-                #campaign-workforce-id-print { position: fixed !important; left: 0 !important; top: 0 !important; width: 100% !important; max-width: 10.5in !important; margin: 0 !important; box-shadow: none !important; }
-              }
-            `}</style>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 18, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 18, alignItems: 'start' }}>
               <div>
                 {passPreviewLoading && <p role="status" style={{ margin: 0, color: '#475569' }}>Preparing the complete ID and QR…</p>}
                 {passPreviewError && <p role="alert" style={{ margin: 0, background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 6, padding: 10 }}>{passPreviewError}</p>}
@@ -992,32 +1069,33 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                   id="campaign-workforce-id-print"
                   className="campaign-pass-printable"
                   aria-label="Complete workforce ID card with QR code"
-                  style={{ maxWidth: 760, margin: '0 auto', overflow: 'hidden', background: '#fff', color: '#0f172a', border: '2px solid #173f35', borderRadius: 12, boxShadow: '0 10px 28px rgba(15, 23, 42, 0.12)' }}
+                  style={{ width: '100%', maxWidth: 400, margin: '0 auto', overflow: 'hidden', background: '#fff', color: '#0f172a', border: '2px solid #050f24', borderRadius: 12, boxShadow: '0 10px 28px rgba(5, 15, 36, 0.16)' }}
                 >
-                  <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '16px 20px', background: '#173f35', color: '#fff' }}>
+                  <header className="campaign-id-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#050f24', borderBottom: '4px solid #e31f2b', color: '#fff' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 8, background: '#be1e2d', color: '#fff', fontSize: 14, fontWeight: 900 }}>NU</span>
-                      <span><strong style={{ display: 'block', fontSize: 14, letterSpacing: '.05em' }}>NAGALAND UNITED SC</strong><small style={{ color: '#d1e6d9' }}>Official matchday workforce ID</small></span>
+                      <img className="campaign-id-card-crest" src={NUSC_CREST_URL} alt="Nagaland United Sports Club crest" style={{ width: 42, height: 42, padding: 3, objectFit: 'contain', borderRadius: 7, background: '#fff' }} />
+                      <span className="campaign-id-card-brand"><strong style={{ display: 'block', fontSize: 13, letterSpacing: '.04em' }}>NAGALAND UNITED SC</strong><small style={{ color: '#e2e8f0' }}>Official matchday workforce ID</small></span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 800, textAlign: 'right' }}>{previewPassIsExpired ? 'EXPIRED' : previewPassIsNotYetValid ? 'SCHEDULED' : 'APPROVED'}</span>
+                    <span className="campaign-id-card-status" style={{ padding: '4px 7px', borderRadius: 999, background: previewPassIsExpired ? '#e31f2b' : previewPassIsNotYetValid ? '#e9b949' : '#fff', color: previewPassIsNotYetValid ? '#050f24' : previewPassIsExpired ? '#fff' : '#050f24', fontSize: 10, fontWeight: 900, textAlign: 'right' }}>{previewPassIsExpired ? 'EXPIRED' : previewPassIsNotYetValid ? 'SCHEDULED' : 'APPROVED'}</span>
                   </header>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))', gap: 18, alignItems: 'start', padding: 20 }}>
+                  <div className="campaign-id-card-body" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, alignItems: 'start', padding: 12 }}>
                     <section>
-                      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
+                      <div className="campaign-id-card-profile" style={{ display: 'flex', gap: 11, alignItems: 'center', marginBottom: 10 }}>
                         {passPreviewDetails.signedPhotoUrl
-                          ? <img src={passPreviewDetails.signedPhotoUrl} alt={`${passPreviewDetails.fullName} ID photo`} style={{ width: 92, height: 116, objectFit: 'cover', border: '1px solid #cbd5e1', borderRadius: 8 }} />
-                          : <div aria-hidden="true" style={{ display: 'grid', placeItems: 'center', width: 92, height: 116, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, color: '#64748b', fontSize: 30 }}>ID</div>}
+                          ? <img className="campaign-id-card-photo" src={passPreviewDetails.signedPhotoUrl} alt={`${passPreviewDetails.fullName} ID photo`} style={{ width: 72, height: 90, objectFit: 'cover', border: '1px solid #cbd5e1', borderRadius: 7, flex: '0 0 auto' }} />
+                          : <div className="campaign-id-card-photo" aria-hidden="true" style={{ display: 'grid', placeItems: 'center', width: 72, height: 90, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 7, color: '#64748b', fontSize: 24, flex: '0 0 auto' }}>ID</div>}
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ marginBottom: 5, color: '#b91c1c', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' }}>{DEPARTMENT_LABELS[passPreviewDetails.category] || passPreviewDetails.category}</div>
-                          <h3 style={{ margin: '0 0 5px', color: '#071b17', fontSize: 21, lineHeight: 1.15 }}>{passPreviewDetails.fullName}</h3>
-                          <div style={{ fontSize: 13, fontWeight: 700 }}>{passPreviewDetails.assignedRole}</div>
-                          <div style={{ marginTop: 9, color: '#475569', fontSize: 10, textTransform: 'uppercase' }}>Registration ID</div>
-                          <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 800 }}>{passPreviewDetails.registrationId}</div>
+                          <div className="campaign-id-card-category" style={{ marginBottom: 3, color: '#e31f2b', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}>{DEPARTMENT_LABELS[passPreviewDetails.category] || passPreviewDetails.category}</div>
+                          <h3 className="campaign-id-card-profile-name" style={{ margin: '0 0 3px', color: '#050f24', fontSize: 18, lineHeight: 1.15, overflowWrap: 'anywhere' }}>{passPreviewDetails.fullName}</h3>
+                          <div className="campaign-id-card-role" style={{ fontSize: 12, fontWeight: 800, overflowWrap: 'anywhere' }}>{passPreviewDetails.assignedRole}</div>
+                          <div className="campaign-id-card-id-label" style={{ marginTop: 6, color: '#64748b', fontSize: 9, textTransform: 'uppercase' }}>Workforce ID</div>
+                          <div className="campaign-id-card-id-number" style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 900, color: '#050f24', overflowWrap: 'anywhere' }}>{passPreviewDetails.idNumber || passPreviewDetails.registrationId}</div>
+                          {passPreviewDetails.registrationId !== passPreviewDetails.idNumber && <div style={{ marginTop: 2, color: '#64748b', fontSize: 8, overflowWrap: 'anywhere' }}>Registration: {passPreviewDetails.registrationId}</div>}
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                      <div className="campaign-id-card-details" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
                         {[
                           ['Match access', passPreviewDetails.assignedMatch],
                           ['Assigned zone', passPreviewDetails.assignedZone || 'To be assigned'],
@@ -1025,22 +1103,22 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                           ['Valid from', formatPassDate(passPreviewDetails.validFrom)],
                           ['Valid until', formatPassDate(passPreviewDetails.validUntil)],
                           ['Venue', passPreviewDetails.eventVenue],
-                        ].map(([label, value]) => <div key={label} style={{ padding: '8px 9px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6 }}>
-                          <div style={{ marginBottom: 3, color: '#64748b', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
-                          <div style={{ color: '#0f172a', fontSize: 11, fontWeight: 700, overflowWrap: 'anywhere' }}>{value}</div>
+                        ].map(([label, value]) => <div className="campaign-id-card-field" key={label} style={{ minWidth: 0, padding: '6px 7px', background: '#f8fafc', border: '1px solid #dce3ee', borderRadius: 6 }}>
+                          <div className="campaign-id-card-field-label" style={{ marginBottom: 2, color: '#475569', fontSize: 8, fontWeight: 900, textTransform: 'uppercase' }}>{label}</div>
+                          <div className="campaign-id-card-field-value" style={{ color: '#050f24', fontSize: 9, fontWeight: 800, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{value}</div>
                         </div>)}
                       </div>
                     </section>
 
-                    <aside style={{ display: 'grid', justifyItems: 'center', gap: 8, padding: 12, border: '1px solid #cbd5e1', borderRadius: 10 }}>
-                      <img src={passQrImage} alt={`Entry QR code for ${passPreviewDetails.registrationId}`} style={{ width: 200, height: 200, objectFit: 'contain', background: '#fff' }} />
-                      <strong style={{ fontSize: 11, letterSpacing: '.04em', textTransform: 'uppercase' }}>Matchday entry QR</strong>
-                      <span style={{ color: '#475569', fontSize: 10, textAlign: 'center' }}>The entry system checks approval, pass validity, and match access when scanned.</span>
+                    <aside className="campaign-id-card-qr" style={{ display: 'grid', justifyItems: 'center', gap: 4, width: 'fit-content', maxWidth: '100%', margin: '0 auto', padding: 7, border: '1px solid #dce3ee', borderRadius: 8, background: '#fff' }}>
+                      <img className="campaign-id-card-qr-image" src={passQrImage} alt={`Entry QR code for ${passPreviewDetails.idNumber || passPreviewDetails.registrationId}`} style={{ width: 132, height: 132, objectFit: 'contain', background: '#fff' }} />
+                      <strong className="campaign-id-card-qr-label" style={{ color: '#050f24', fontSize: 9, letterSpacing: '.04em', textTransform: 'uppercase' }}>Entry and attendance QR</strong>
+                      <span className="campaign-id-card-qr-note" style={{ color: '#475569', fontSize: 8, textAlign: 'center' }}>Scan at the assigned gate or booth.</span>
                     </aside>
                   </div>
 
-                  <footer style={{ padding: '10px 20px', borderTop: '1px solid #e2e8f0', color: '#475569', fontSize: 10 }}>
-                    {previewPassIsExpired ? 'EXPIRED - this QR cannot be used for entry.' : 'Non-transferable. Show this ID at your assigned gate or booth.'}
+                  <footer className="campaign-id-card-footer" style={{ padding: '8px 12px', borderTop: '1px solid #dce3ee', color: previewPassIsExpired ? '#b3141f' : '#475569', fontSize: 8, fontWeight: 700 }}>
+                    {previewPassIsExpired ? 'EXPIRED - this QR cannot be used for entry.' : 'Non-transferable • Show this ID at your assigned gate or booth.'}
                   </footer>
                 </article>}
               </div>
