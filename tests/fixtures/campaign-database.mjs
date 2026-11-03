@@ -5,13 +5,15 @@ export const campaignMigration = '20261027110000_campaign_workflow_hardening.sql
 export const campaignCryptoMigration = '20261027120000_campaign_issue_crypto_search_path.sql';
 export const campaignSql = name => readFile(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8');
 
-export async function campaignDatabase({ beforeHardening = async () => {} } = {}) {
+async function createCampaignDatabaseBase() {
   const db = new PGlite();
   await db.exec(`
     CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
     CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY);
     CREATE SCHEMA extensions;
-    CREATE SCHEMA storage; CREATE TABLE storage.buckets(id text PRIMARY KEY, name text, public boolean);
+    CREATE SCHEMA storage; CREATE TABLE storage.buckets(
+      id text PRIMARY KEY, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]
+    );
     -- PGlite has no pgcrypto; use random UUID bytes only for synthetic test defaults.
     CREATE FUNCTION gen_random_bytes(n int) RETURNS bytea LANGUAGE sql AS $$
       SELECT decode(substr(string_agg(replace(gen_random_uuid()::text, '-', ''), ''),1,n*2),'hex')
@@ -26,9 +28,34 @@ export async function campaignDatabase({ beforeHardening = async () => {} } = {}
   const store = await campaignSql('20260929132600_create_store_schema.sql');
   await db.exec(store.slice(0, store.indexOf('-- Categories Table')));
   await db.exec(await campaignSql('20261027100000_create_campaign_tables.sql'));
+  return db;
+}
+
+export async function campaignDatabase({ beforeHardening = async () => {} } = {}) {
+  const db = await createCampaignDatabaseBase();
   await beforeHardening(db);
   await db.exec(await campaignSql(campaignMigration));
   await db.exec(await campaignSql(campaignCryptoMigration));
+  return db;
+}
+
+export async function workforceDatabase({ beforeIntegrity = async () => {} } = {}) {
+  const db = await createCampaignDatabaseBase();
+  await db.exec(await campaignSql(campaignMigration));
+  await db.exec(await campaignSql(campaignCryptoMigration));
+  for (const migration of [
+    '20261028110000_unified_workforce_registration.sql',
+    '20261028120000_add_media_team_to_workforce.sql',
+    '20261028130000_workforce_department_details.sql',
+    '20261028140000_workforce_media_authorisation_document.sql',
+    '20261028150000_workforce_match_official_review_details.sql',
+    '20261028160000_workforce_crew_affiliation.sql',
+  ]) {
+    await db.exec(await campaignSql(migration));
+  }
+  await beforeIntegrity(db);
+  await db.exec(await campaignSql('20261028170000_workforce_registration_integrity.sql'));
+  await db.exec(await campaignSql('20261028180000_workforce_registration_counter_backfill.sql'));
   return db;
 }
 

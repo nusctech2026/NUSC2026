@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applicant, campaignDatabase, credential, match, review, scan } from './fixtures/campaign-database.mjs';
+import { applicant, campaignDatabase, credential, match, review, scan, workforceDatabase } from './fixtures/campaign-database.mjs';
 
 test('anonymous and authenticated clients cannot read private campaign data or invoke privileged functions', async () => {
   const db = await campaignDatabase();
@@ -89,6 +89,27 @@ test('approval never silently reactivates a revoked ID; explicit reissue invalid
     assert.equal((await scan(db, original.qr_token, event)).code, 'INVALID_TOKEN');
     assert.equal((await db.query('SELECT id FROM campaign_ids WHERE pass_slug=$1', [original.pass_slug])).rows.length, 0);
     assert.equal((await scan(db, replacement.qr_token, event)).code, 'CHECK_IN_SUCCESS');
+  } finally { await db.close(); }
+});
+
+test('deleting an application cascades its QR, attendance, edit history, and identity claims', async () => {
+  const db = await workforceDatabase();
+  try {
+    const event = await match(db);
+    const app = await applicant(db, { eventId:event.id });
+    await review(db, app);
+    const id = await credential(db, app);
+    assert.equal((await scan(db, id.qr_token, event)).code, 'CHECK_IN_SUCCESS');
+    assert.equal((await db.query('SELECT count(*)::int n FROM campaign_attendance WHERE application_id=$1', [app.id])).rows[0].n, 1);
+
+    await db.query('DELETE FROM campaign_applications WHERE id=$1', [app.id]);
+
+    assert.equal((await db.query('SELECT count(*)::int n FROM campaign_applications WHERE id=$1', [app.id])).rows[0].n, 0);
+    assert.equal((await db.query('SELECT count(*)::int n FROM campaign_ids WHERE application_id=$1', [app.id])).rows[0].n, 0);
+    assert.equal((await db.query('SELECT count(*)::int n FROM campaign_attendance WHERE application_id=$1', [app.id])).rows[0].n, 0);
+    assert.equal((await db.query('SELECT count(*)::int n FROM campaign_application_change_history WHERE application_id=$1', [app.id])).rows[0].n, 0);
+    assert.equal((await db.query('SELECT count(*)::int n FROM workforce_registration_identity_claims WHERE application_id=$1', [app.id])).rows[0].n, 0);
+    assert.equal((await scan(db, id.qr_token, event)).code, 'INVALID_TOKEN');
   } finally { await db.close(); }
 });
 

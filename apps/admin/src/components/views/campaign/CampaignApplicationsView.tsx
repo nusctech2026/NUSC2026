@@ -83,7 +83,7 @@ export const CampaignApplicationsView: React.FC = () => {
   const handleDeleteApplication = async (application: any) => {
     if (!canDeleteApplications || deletingApplicationId) return;
     const confirmed = window.confirm(
-      `Delete ${application.application_number} for ${application.full_name}?\n\nOnly continue if you have verified this is a test registration. This permanently removes its QR pass, attendance and application history, and uploaded documents, and releases the applicant's phone/email. This cannot be undone.`
+      `Permanently delete ${application.application_number} for ${application.full_name}?\n\nThis removes its QR pass, attendance and application history, and uploaded documents, and releases the applicant's phone/email. This cannot be undone.`
     );
     if (!confirmed) return;
     const typedRegistrationId = window.prompt(`Type ${application.application_number} to confirm deletion.`);

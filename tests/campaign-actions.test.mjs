@@ -11,6 +11,74 @@ const roleId = '11111111-1111-4111-8111-111111111112';
 const app = {id:'synthetic-app',application_number:number,email:'candidate@example.invalid',full_name:'Synthetic Candidate',
   category:'crew',application_status:'approved',preferred_role:{name:'Others',code:'crew_others'},other_role:'Camera operator'};
 const verified = {id:'synthetic-user',email:'candidate@example.invalid',email_confirmed_at:'2026-01-01'};
+const deletionApplicationId = '22222222-2222-4222-8222-222222222222';
+const deletionApplication = {
+  id:deletionApplicationId,
+  application_number:'NUSC-AHB-010',
+  photo_storage_path:'photos/nusc-ahb-010.png',
+  media_authorisation_storage_path:'authorisations/nusc-ahb-010.pdf',
+  official_credential_storage_path:'credentials/nusc-ahb-010.pdf',
+};
+
+function campaignDeletionActions({
+  staffRoles=['super_admin'],
+  application=deletionApplication,
+  lookupError=null,
+  deleteError=null,
+  storageError=null,
+}={}) {
+  const calls=[];
+  let fromCount=0;
+  const supabase={
+    from(table) {
+      const phase=fromCount++===0?'lookup':'delete';
+      const chain={
+        select:fields=>{calls.push(['select',phase,table,fields]);return chain;},
+        delete:()=>{calls.push(['delete',phase,table]);return chain;},
+        eq:(field,value)=>{calls.push(['eq',phase,table,field,value]);return chain;},
+        maybeSingle:async()=>{
+          calls.push(['maybeSingle',phase,table]);
+          return phase==='lookup'
+            ? {data:application,error:lookupError}
+            : {data:deleteError?null:{id:application?.id},error:deleteError};
+        },
+      };
+      return chain;
+    },
+    storage:{from:bucket=>({
+      remove:async paths=>{calls.push(['storage.remove',bucket,paths]);return{error:storageError};},
+    })},
+  };
+  const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{
+    '../utils/supabaseServerClient':{
+      assertStaffRole:async allowedRoles=>{
+        calls.push(['authorize',allowedRoles]);
+        if(!allowedRoles.some(role=>staffRoles.includes(role)))throw new Error('Access denied');
+        return{email:'super-admin@example.invalid'};
+      },
+      getSupabaseAdminClient:()=>supabase,
+    },
+  });
+  return{api,calls};
+}
+
+function campaignStaffRoleGuard(userRoles) {
+  const serverClient={auth:{getUser:async()=>({data:{user:{id:'synthetic-admin',email:'admin@example.invalid'}},error:null})}};
+  const adminClient={from:table=>{
+    assert.equal(table,'user_roles');
+    const chain={
+      select:()=>chain,
+      eq:()=>chain,
+      then:(resolve,reject)=>Promise.resolve({data:userRoles.map(role=>({role})),error:null}).then(resolve,reject),
+    };
+    return chain;
+  }};
+  return loadSource('apps/admin/src/utils/supabaseServerClient.ts',{
+    '@supabase/ssr':{createServerClient:()=>serverClient},
+    '@supabase/supabase-js':{createClient:()=>adminClient},
+    'next/headers':{cookies:async()=>({getAll:()=>[],set:()=>{}})},
+  });
+}
 
 test('status requires a verified server session; application number, email and partial phone alone grant no access', async () => {
   for (const user of [null,{...verified,email_confirmed_at:null}]) {
@@ -266,6 +334,85 @@ test('reviewers cannot approve or issue IDs, and gate staff cannot review applic
     const work=operation==='approve'?()=>api.updateApplicationStatus('app','approved'):operation==='issue'?()=>api.issueCampaignId('app'):()=>api.getCampaignApplicationDetail('app');
     await assert.rejects(work,/Access denied/);
   }
+});
+
+test('application deletion is super-admin-only and requires the exact registration ID', async () => {
+  for(const role of ['campaign_manager','reviewer','gate_staff']){
+    const {api,calls}=campaignDeletionActions({staffRoles:[role]});
+    await assert.rejects(()=>api.deleteCampaignApplication(deletionApplicationId,'NUSC-AHB-010'),/Access denied/);
+    assert.deepEqual(calls[0],['authorize',['super_admin']]);
+    assert.equal(calls.some(call=>call[0]==='select'||call[0]==='delete'||call[0]==='storage.remove'),false);
+  }
+
+  const invalid=campaignDeletionActions();
+  await assert.rejects(()=>invalid.api.deleteCampaignApplication('not-a-uuid','NUSC-AHB-010'),/Invalid application identifier/);
+  assert.equal(invalid.calls.some(call=>call[0]==='select'||call[0]==='delete'||call[0]==='storage.remove'),false);
+
+  const mismatch=campaignDeletionActions();
+  await assert.rejects(()=>mismatch.api.deleteCampaignApplication(deletionApplicationId,'NUSC-AHB-011'),/did not match/);
+  assert.equal(mismatch.calls.some(call=>call[0]==='delete'||call[0]==='storage.remove'),false);
+});
+
+test('server role verification rejects campaign staff and accepts a verified super admin for deletion', async () => {
+  const oldUrl=process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const oldKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_URL='https://supabase.example.invalid';
+  process.env.SUPABASE_SERVICE_ROLE_KEY='synthetic-service-role';
+  try {
+    for(const roles of [['campaign_manager'],['reviewer'],['gate_staff']]){
+      const guard=campaignStaffRoleGuard(roles);
+      await assert.rejects(()=>guard.assertStaffRole(['super_admin']),/Access denied/);
+    }
+    const guard=campaignStaffRoleGuard(['super_admin']);
+    const staff=await guard.assertStaffRole(['super_admin']);
+    assert.equal(staff.email,'admin@example.invalid');
+    assert.deepEqual(staff.roles,['super_admin']);
+  } finally {
+    if(oldUrl===undefined)delete process.env.NEXT_PUBLIC_SUPABASE_URL;else process.env.NEXT_PUBLIC_SUPABASE_URL=oldUrl;
+    if(oldKey===undefined)delete process.env.SUPABASE_SERVICE_ROLE_KEY;else process.env.SUPABASE_SERVICE_ROLE_KEY=oldKey;
+  }
+});
+
+test('application deletion targets one row and removes only its three private document paths', async () => {
+  const {api,calls}=campaignDeletionActions();
+  const result=await api.deleteCampaignApplication(deletionApplicationId,' NUSC-AHB-010 ');
+  assert.deepEqual(result,{success:true,applicationNumber:'NUSC-AHB-010',storageCleanupWarning:false});
+  assert.ok(calls.some(call=>call[0]==='eq'&&call[1]==='lookup'&&call[3]==='id'&&call[4]===deletionApplicationId));
+  assert.ok(calls.some(call=>call[0]==='eq'&&call[1]==='delete'&&call[3]==='id'&&call[4]===deletionApplicationId));
+  assert.deepEqual(calls.find(call=>call[0]==='storage.remove'),[
+    'storage.remove','campaign_documents',[
+      'photos/nusc-ahb-010.png',
+      'authorisations/nusc-ahb-010.pdf',
+      'credentials/nusc-ahb-010.pdf',
+    ],
+  ]);
+});
+
+test('invalid stored document paths and database failures stop deletion and storage cleanup', async () => {
+  const invalidPath=campaignDeletionActions({application:{...deletionApplication,photo_storage_path:'../other-user/private.png'}});
+  await assert.rejects(()=>invalidPath.api.deleteCampaignApplication(deletionApplicationId,'NUSC-AHB-010'),/invalid document reference/i);
+  assert.equal(invalidPath.calls.some(call=>call[0]==='delete'||call[0]==='storage.remove'),false);
+
+  const databaseFailure=campaignDeletionActions({deleteError:{code:'synthetic-delete-failure'}});
+  const previousError=console.error;
+  console.error=()=>{};
+  try {
+    await assert.rejects(()=>databaseFailure.api.deleteCampaignApplication(deletionApplicationId,'NUSC-AHB-010'),/could not be deleted/i);
+  } finally { console.error=previousError; }
+  assert.equal(databaseFailure.calls.some(call=>call[0]==='storage.remove'),false);
+});
+
+test('failed document cleanup is reported after the application delete succeeds', async () => {
+  const {api,calls}=campaignDeletionActions({storageError:{statusCode:'500'}});
+  const previousError=console.error;
+  console.error=()=>{};
+  try {
+    const result=await api.deleteCampaignApplication(deletionApplicationId,'NUSC-AHB-010');
+    assert.equal(result.success,true);
+    assert.equal(result.storageCleanupWarning,true);
+  } finally { console.error=previousError; }
+  assert.ok(calls.some(call=>call[0]==='delete'));
+  assert.ok(calls.some(call=>call[0]==='storage.remove'));
 });
 
 test('campaign source scripts contain no embedded JWTs or database passwords', () => {
