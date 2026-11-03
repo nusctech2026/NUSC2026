@@ -21,6 +21,16 @@ interface DetailViewProps {
   onStatusUpdated?: () => void;
 }
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  ahibi: 'Ahibi',
+  volunteer: 'Volunteers',
+  media: 'Press and Media',
+  crew: 'Crew',
+  management: 'Management',
+  officials: 'Match Officials',
+  medical: 'Medical Team',
+};
+
 const formatPassDate = (value: string) => new Date(value).toLocaleDateString('en-IN', {
   day: 'numeric', month: 'short', year: 'numeric',
 });
