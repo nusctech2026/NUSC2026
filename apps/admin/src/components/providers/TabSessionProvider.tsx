@@ -3,34 +3,57 @@
 import React, { useEffect, useState } from 'react'
 
 export const TabSessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isReady, setIsReady] = useState(false)
+  const [sessionState, setSessionState] = useState<'checking' | 'allowed' | 'redirecting'>('checking')
 
   useEffect(() => {
+    let active = true
+
     const checkSession = async () => {
+      const isLoginPage = window.location.pathname.endsWith('/login')
+      let hasTabSession = false
+
       try {
-        const tabSession = sessionStorage.getItem('tab_session')
-        
-        if (!tabSession) {
-          // Empty sessionStorage means new tab. We must logout from the backend to clear the shared cookie
-          await fetch('/api/auth/logout', { method: 'POST' })
-          
-          if (!window.location.pathname.endsWith('/login')) {
-            window.location.href = '/admin/login'
-            return // Stop execution, let the browser navigate
-          }
-        }
+        hasTabSession = Boolean(sessionStorage.getItem('tab_session'))
       } catch (err) {
-        console.error('Failed to check tab session', err)
-      } finally {
-        setIsReady(true)
+        // Treat inaccessible sessionStorage as a missing tab session (fail closed).
+        console.error('Failed to read tab session', err)
       }
+
+      if (!active) return
+
+      if (hasTabSession) {
+        setSessionState('allowed')
+        return
+      }
+
+      // A new tab has no session binding. Clear the shared auth cookie before
+      // redirecting, while keeping protected admin views hidden during logout.
+      setSessionState('redirecting')
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' })
+      } catch (err) {
+        console.error('Failed to clear the tab session', err)
+      }
+
+      if (!active) return
+
+      if (isLoginPage) {
+        setSessionState('allowed')
+        return
+      }
+
+      window.location.replace('/admin/login')
     }
 
-    checkSession()
+    void checkSession()
+
+    return () => {
+      active = false
+    }
   }, [])
 
-  if (!isReady) {
-    // Avoid rendering the admin UI with valid cookies if we are about to log them out
+  if (sessionState !== 'allowed') {
+    // Do not mount protected views while the tab is being logged out or redirected.
     return null
   }
 
