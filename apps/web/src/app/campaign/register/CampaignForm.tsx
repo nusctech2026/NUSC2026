@@ -62,9 +62,9 @@ const CATEGORY_META: Record<CampaignCategory, { label: string; description: stri
 
 const DEPARTMENTS = Object.entries(CATEGORY_META) as [CampaignCategory, (typeof CATEGORY_META)[CampaignCategory]][];
 const MANAGEMENT_ORGANISATIONS = [
-  'Chümoukedima District Football Association (CDFA)',
-  'Department of Youth Resources & Sports',
-  'Others',
+  { value: 'Chümoukedima District Football Association (CDFA)', label: 'Chümoukedima District Football Association (CDFA)' },
+  { value: 'Department of Youth Resources & Sports', label: 'Department of Youth Resources & Sports' },
+  { value: 'Others', label: 'Other' },
 ];
 const MEDIA_ACCESS_OPTIONS = [
   { value: 'media_press_seating', label: 'Media / Press Seating', description: 'Reserved covered press bench with desk space and power outlet' },
@@ -191,7 +191,8 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
   }, [photoPreview]);
 
   const selectedRole = roles.find((role) => role.id === preferredRoleId);
-  const isOtherRoleSelected = selectedRole?.code.endsWith('_others') || selectedRole?.name === 'Others';
+  const isOtherRoleSelected = selectedRole?.code.endsWith('_others')
+    || selectedRole?.name === 'Others' || selectedRole?.name === 'Other';
   const isManagement = category === 'management';
   const usesRoleSelection = Boolean(category && !isManagement);
   const needsOtherOrganisation = isManagement && organisation === 'Others';
@@ -825,7 +826,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                 required
               >
                 <option value="">Choose an organisation</option>
-                {MANAGEMENT_ORGANISATIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                {MANAGEMENT_ORGANISATIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
               {inlineError('organisation')}
             </div>

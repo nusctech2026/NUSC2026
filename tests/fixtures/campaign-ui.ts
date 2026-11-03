@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import QRCode from 'qrcode';
 
-let bundle: Promise<string> | undefined;
+let bundle: Promise<{ js: string; css: string }> | undefined;
 async function browserBundle() {
   bundle ??= build({
     stdin: { loader:'tsx',resolveDir:process.cwd(),contents:`
@@ -29,12 +29,13 @@ async function browserBundle() {
           ...options};
         window.print=()=>window.fixture.calls.push(['print']);
         root.render(<React.Fragment key={screen+Math.random()}>{screen==='status'?<Status verifiedEmail={options.verifiedEmail||null}/>:
-          screen==='success'?<Success/>:screen==='pass'?<Pass pass={{idNumber:'NUSC-ID-2026-ABCDEF0123456789',registrationId:'NUSC-CMP-2026-ABCDEF0123456789',passSlug:'fixture-pass',fullName:'Synthetic Candidate',category:'crew',assignedRole:'Others: Camera operator',accreditationType:'Season Pass',assignedMatch:'All NUSC home matches',assignedZone:'Zone 1',assignedShift:'Evening',validFrom:'2026-01-01',validUntil:'2099-01-01',signedPhotoUrl:null,issuedAt:'2026-01-01',eventVenue:'Synthetic stadium'}}/>:
+          screen==='success'?<Success/>:screen==='pass'?<Pass pass={{idNumber:'NUSC-ID-2026-ABCDEF0123456789',registrationId:'NUSC-CMP-2026-ABCDEF0123456789',passSlug:'fixture-pass',fullName:'Synthetic Candidate',category:'crew',assignedRole:'Other: Camera operator',accreditationType:'Season Pass',assignedMatch:'All NUSC home matches',assignedZone:'Zone 1',assignedShift:'Evening',affiliation:options.affiliation||null,mediaOutlet:options.mediaOutlet||null,mediaOrganisationType:options.mediaOrganisationType||null,validFrom:'2026-01-01',validUntil:'2099-01-01',signedPhotoUrl:null,issuedAt:'2026-01-01',eventVenue:'Synthetic stadium'}}/>:
           screen==='registration'?<Form fixedCategory={options.category||'ahibi'}/>:screen==='applications'?<Applications/>:
           screen==='detail'?<Detail applicationId="app"/>:screen==='matches'?<Matches/>:screen==='attendance'?<Attendance/>:<Scanner/>}</React.Fragment>);
       };
     ` },
-    bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',loader:{'.css':'empty'},
+    bundle:true,write:false,outfile:'campaign-ui-fixture.js',platform:'browser',format:'iife',jsx:'automatic',
+    loader:{'.css':'empty','.module.css':'local-css'},
     define:{'process.env.NODE_ENV':'"test"','process.env.NEXT_PUBLIC_SITE_URL':'"https://campaign.example.invalid"'},
     plugins:[{name:'isolated-campaign-ui',setup(builder){
       builder.onResolve({filter:/^(next\/(navigation|link)|@payloadcms\/ui)$/},args=>({path:args.path,namespace:'fixture'}));
@@ -52,7 +53,7 @@ async function browserBundle() {
           export async function discardOfficialCredentialUpload(path){window.fixture.calls.push(['discard-official',path]);return {success:true}}
           export async function submitCampaignApplication(form){window.fixture.calls.push(['submit',Object.fromEntries(form)]);return {success:true,applicationNumber:'NUSC-CMP-2026-ABCDEF0123456789'}}
           export async function requestCampaignAccess(number,email){window.fixture.calls.push(['email',number,email]);return {success:true,message:'If these details match an application, a sign-in link will arrive in the registered email.'}}
-          export async function checkCampaignStatus(number){window.fixture.calls.push(['status',number]);return {success:true,data:{applicationNumber:number,fullName:'Synthetic Candidate',category:'crew',preferredRoleName:'Others: Camera operator',assignedRoleName:'Others: Camera operator',status:'approved',submittedAt:new Date().toISOString(),passSlug:'fixture-pass'}}}
+          export async function checkCampaignStatus(number){window.fixture.calls.push(['status',number]);return {success:true,data:{applicationNumber:number,fullName:'Synthetic Candidate',category:'crew',preferredRoleName:'Other: Camera operator',assignedRoleName:'Other: Camera operator',status:'approved',submittedAt:new Date().toISOString(),passSlug:'fixture-pass'}}}
         `:`
           export async function getCampaignMatches(){return window.fixture.matches}
           export async function getCampaignRoleOptions(category){return window.fixture.roles.filter(role=>role.category===category)}
@@ -64,19 +65,23 @@ async function browserBundle() {
           export async function updateApplicationStatus(id,status,notes){window.fixture.calls.push(['review',id,status,notes]);window.fixture.app={...window.fixture.app,application_status:status,...(status==='approved'?{issuedId:{id:'credential',id_number:'NUSC-ID-2026-ABCDEF',pass_slug:'pass',is_active:true,revoked_at:null,valid_from:'2026-01-01T00:00:00.000Z',valid_until:window.fixture.expiredPass?'2000-01-01T00:00:00.000Z':'2099-01-01T00:00:00.000Z',isExpired:window.fixture.expiredPass,isNotYetValid:false}}:{})};return {success:true}}
           export async function issueCampaignId(...args){window.fixture.calls.push(['issue',...args]);return {success:true,idNumber:'NUSC-ID-2026-ABCDEF'}}
           export async function emailCampaignPass(...args){window.fixture.calls.push(['email-pass',...args]);return window.fixture.emailResult||{success:true,recipient:'candidate@example.invalid'}}
-          export async function prepareCampaignPassPreview(...args){window.fixture.calls.push(['preview-pass',...args]);return {success:true,idNumber:'NUSC-ID-2026-ABCDEF',passUrl:'https://campaign.example.invalid/campaign/id/pass',qrImageBase64:window.fixture.qrPngBase64,isExpired:window.fixture.expiredPass,pass:{idNumber:'NUSC-ID-2026-ABCDEF',registrationId:'NUSC-CMP-2026-ABCDEF0123456789',fullName:'Synthetic Candidate',category:'crew',assignedRole:'Others: Camera operator',assignedMatch:'Season pass · all NUSC home matches',assignedZone:'Gate 1',assignedShift:'Morning',validFrom:'2026-01-01T00:00:00.000Z',validUntil:window.fixture.expiredPass?'2000-01-01T00:00:00.000Z':'2099-01-01T00:00:00.000Z',eventVenue:'Synthetic stadium',signedPhotoUrl:null}}}
+          export async function prepareCampaignPassPreview(...args){window.fixture.calls.push(['preview-pass',...args]);return {success:true,idNumber:'NUSC-ID-2026-ABCDEF',passUrl:'https://campaign.example.invalid/campaign/id/pass',qrImageBase64:window.fixture.qrPngBase64,isExpired:window.fixture.expiredPass,pass:{idNumber:'NUSC-ID-2026-ABCDEF',registrationId:'NUSC-CMP-2026-ABCDEF0123456789',fullName:'Synthetic Candidate',category:'crew',assignedRole:'Other: Camera operator',assignedMatch:'Season pass · all NUSC home matches',assignedZone:'Gate 1',assignedShift:'Morning',validFrom:'2026-01-01T00:00:00.000Z',validUntil:window.fixture.expiredPass?'2000-01-01T00:00:00.000Z':'2099-01-01T00:00:00.000Z',eventVenue:'Synthetic stadium',signedPhotoUrl:null}}}
           export async function assignRoleZoneShift(...args){window.fixture.calls.push(['assign',...args]);return {success:true}}
           export async function saveCampaignMatch(input){window.fixture.calls.push(['match',input]);return {success:true}}
           export async function getCampaignAttendanceHistory(...args){window.fixture.calls.push(['attendance',...args]);return {logs:[{id:'log',action:'check_in',event:{title:'NUSC vs Team A'},gate:'Gate 3',scanned_at:new Date().toISOString(),application:{full_name:'Synthetic Candidate',category:'crew',assigned_role:{name:'Others',code:'crew_others'},other_role:'Camera operator'},campaign_id_record:{id_number:'NUSC-ID-2026-ABCDEF'}}],totalCount:1,totalPages:1}}
-          export async function verifyAndCheckInGateScan(...args){window.fixture.calls.push(['scan',...args]);return {success:true,code:'CHECK_IN_SUCCESS',message:'Attendance recorded',match_title:window.fixture.matches.find(match=>match.id===args[2]).title,candidate:{full_name:'Synthetic Candidate',id_number:'NUSC-ID-2026-ABCDEF',assigned_role:'Others: Camera operator'}}}
+          export async function exportCampaignAttendanceCsv(filters){window.fixture.calls.push(['attendance-export',filters]);return 'Scanned At,Person\\n2026-11-03,Synthetic Candidate'}
+          export async function verifyAndCheckInGateScan(...args){window.fixture.calls.push(['scan',...args]);return {success:true,code:'CHECK_IN_SUCCESS',message:'Attendance recorded',match_title:window.fixture.matches.find(match=>match.id===args[2]).title,candidate:{full_name:'Synthetic Candidate',id_number:'NUSC-ID-2026-ABCDEF',assigned_role:'Other: Camera operator'}}}
         `}));
     }}],
-  }).then(result=>result.outputFiles[0].text);
+  }).then(result=>({
+    js: result.outputFiles.find(file=>file.path.endsWith('.js'))!.text,
+    css: result.outputFiles.find(file=>file.path.endsWith('.css'))?.text || '',
+  }));
   return bundle;
 }
 
 export async function campaignFixtureHtml() {
-  const [js,css,original,hardening,nuscCrest]=await Promise.all([
+  const [compiled,css,original,hardening,nuscCrest]=await Promise.all([
     browserBundle(),readFile('apps/web/src/app/campaign/campaign.css','utf8'),
     readFile('supabase/migrations/20261027100000_create_campaign_tables.sql','utf8'),
     readFile('supabase/migrations/20261027110000_campaign_workflow_hardening.sql','utf8'),
@@ -88,5 +93,5 @@ export async function campaignFixtureHtml() {
     QRCode.toString('a'.repeat(64),{type:'svg'}),
     QRCode.toBuffer('a'.repeat(64),{type:'png',errorCorrectionLevel:'H',margin:2,width:480,color:{dark:'#050f24',light:'#ffffff'}}),
   ]);
-  return {html:`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}body{margin:0;font-family:system-ui}*{box-sizing:border-box}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:default}</style></head><body><div id="root"></div><script>${js.replace(/<\/script/gi,'<\\/script')}</script></body></html>`,roles,qrSvg,qrPngBase64:qrPng.toString('base64'),nuscCrest};
+  return {html:`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}${compiled.css}body{margin:0;font-family:system-ui}*{box-sizing:border-box}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:default}</style></head><body><div id="root"></div><script>${compiled.js.replace(/<\/script/gi,'<\\/script')}</script></body></html>`,roles,qrSvg,qrPngBase64:qrPng.toString('base64'),nuscCrest};
 }

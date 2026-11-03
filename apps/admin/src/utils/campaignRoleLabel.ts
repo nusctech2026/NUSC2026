@@ -1,5 +1,6 @@
 export function campaignRoleLabel(role: { name?: string; code?: string } | null | undefined, other?: string | null) {
-  if ((role?.code?.endsWith('_others') || role?.name === 'Others') && other) return ['Others', other].join(': ');
-  if ((role?.code === 'crew_others' || role?.name === 'Others') && other) return `Others: ${other}`;
+  const isOtherRole = role?.code?.endsWith('_others') || role?.name === 'Others' || role?.name === 'Other';
+  if (isOtherRole && other) return `Other: ${other}`;
+  if (isOtherRole) return 'Other';
   return role?.name || other || 'Not assigned';
 }

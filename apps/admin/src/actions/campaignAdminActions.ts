@@ -3,6 +3,7 @@
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getSupabaseAdminClient, assertStaffRole } from '../utils/supabaseServerClient';
+import { campaignRoleLabel } from '../utils/campaignRoleLabel';
 import { createPerformanceTrace } from '@nusc/db/src/performance';
 
 function normalizeWorkforcePhone(value: string) {
@@ -346,7 +347,7 @@ export async function updateApplicationStatus(applicationId: string, newStatus: 
   }
   if (adminNotes && adminNotes.length > 4000) throw new Error('Keep notes within 4,000 characters');
   const { data, error } = await getSupabaseAdminClient().rpc('review_campaign_application', {
-    p_application_id: applicationId, p_status: newStatus, p_actor: staff.email, p_notes: adminNotes ?? null,
+    p_application_id: applicationId, p_status: newStatus, p_actor_user_id: staff.userId, p_notes: adminNotes ?? null,
   });
   if (error) {
     console.error('Campaign application review RPC failed', {
@@ -921,7 +922,17 @@ export async function verifyAndCheckInGateScan(qrToken: string, gate: string, ev
 /**
  * 9. Attendance Logs Query (Audit History)
  */
-export async function getCampaignAttendanceHistory(page = 1, pageSize = 30, gateFilter?: string, actionFilter?: string, eventId?: string) {
+export async function getCampaignAttendanceHistory(
+  page = 1,
+  pageSize = 30,
+  gateFilter?: string,
+  actionFilter?: string,
+  eventId?: string,
+  checkpointTypeFilter?: string,
+  personFilter?: string,
+  departmentFilter?: string,
+  roleIdFilter?: string,
+) {
   const trace = createPerformanceTrace('admin.campaign_attendance_list');
   try {
     await trace.measure('authorize', () => assertStaffRole(['super_admin', 'campaign_manager']));
@@ -931,6 +942,10 @@ export async function getCampaignAttendanceHistory(page = 1, pageSize = 30, gate
 
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
+    const hasApplicantFilter = Boolean(personFilter?.trim()
+      || (departmentFilter && departmentFilter !== 'all')
+      || (roleIdFilter && roleIdFilter !== 'all'));
+    const applicantJoin = hasApplicantFilter ? '!inner' : '';
 
     let query = supabase
       .from('campaign_attendance')
@@ -942,12 +957,14 @@ export async function getCampaignAttendanceHistory(page = 1, pageSize = 30, gate
       scanned_by,
       scanned_at,
       notes,
-      application:campaign_applications!application_id (
+      application:campaign_applications!application_id${applicantJoin} (
+        application_number,
         full_name,
         category,
         assigned_zone,
         assigned_shift,
         other_role,
+        assigned_role_id,
         assigned_role:campaign_roles!assigned_role_id (name, code)
       ),
       campaign_id_record:campaign_ids!campaign_id (
@@ -965,6 +982,28 @@ export async function getCampaignAttendanceHistory(page = 1, pageSize = 30, gate
       query = query.eq('action', actionFilter);
     }
 
+    if (checkpointTypeFilter && checkpointTypeFilter !== 'all') {
+      if (!['gate', 'booth'].includes(checkpointTypeFilter)) throw new Error('Invalid checkpoint filter');
+      query = query.eq('checkpoint_type', checkpointTypeFilter);
+    }
+
+    if (personFilter?.trim()) {
+      const person = personFilter.trim().slice(0, 100);
+      query = person.toUpperCase().startsWith('NUSC-')
+        ? query.ilike('application.application_number', `%${person}%`)
+        : query.ilike('application.full_name', `%${person}%`);
+    }
+    if (departmentFilter && departmentFilter !== 'all') {
+      if (!['ahibi', 'volunteer', 'media', 'crew', 'management', 'officials', 'medical'].includes(departmentFilter)) {
+        throw new Error('Invalid department filter');
+      }
+      query = query.eq('application.category', departmentFilter);
+    }
+    if (roleIdFilter && roleIdFilter !== 'all') {
+      if (!/^[0-9a-f-]{36}$/i.test(roleIdFilter)) throw new Error('Invalid role filter');
+      query = query.eq('application.assigned_role_id', roleIdFilter);
+    }
+
     query = query.order('scanned_at', { ascending: false }).range(from, to);
 
     const { data, count, error } = await trace.measure('query', () => query);
@@ -980,6 +1019,91 @@ export async function getCampaignAttendanceHistory(page = 1, pageSize = 30, gate
       totalPages: Math.ceil((count || 0) / pageSize),
     };
   } finally { trace.finish(); }
+}
+
+export interface CampaignAttendanceFilters {
+  gate?: string;
+  action?: string;
+  eventId?: string;
+  checkpointType?: string;
+  person?: string;
+  department?: string;
+  roleId?: string;
+}
+
+function csvCell(input: unknown) {
+  let value = input == null ? '' : typeof input === 'string' ? input : String(input);
+  if (/^\s*[=+@-]/.test(value)) value = `'${value}`;
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+export async function exportCampaignAttendanceCsv(filters: CampaignAttendanceFilters = {}) {
+  await assertStaffRole(['super_admin', 'campaign_manager']);
+  const supabase = getSupabaseAdminClient();
+  const headers = [
+    'Scanned At', 'Match', 'Registration ID', 'Person', 'Pass ID', 'Department', 'Role',
+    'Action', 'Checkpoint Type', 'Location', 'Scanned By', 'Notes',
+  ];
+  const rows = [headers.map(csvCell).join(',')];
+  const pageSize = 1000;
+
+  for (let page = 0; ; page += 1) {
+    const hasApplicantFilter = Boolean(filters.person?.trim()
+      || (filters.department && filters.department !== 'all')
+      || (filters.roleId && filters.roleId !== 'all'));
+    const applicantJoin = hasApplicantFilter ? '!inner' : '';
+    let query = supabase.from('campaign_attendance').select(`
+      action, checkpoint_type, gate, scanned_by, scanned_at, notes,
+      event:campaign_events!event_id (title),
+      application:campaign_applications!application_id${applicantJoin} (
+        application_number, full_name, category, other_role, assigned_role_id,
+        assigned_role:campaign_roles!assigned_role_id (name, code)
+      ),
+      campaign_id_record:campaign_ids!campaign_id (id_number)
+    `).order('scanned_at', { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
+
+    if (filters.eventId && filters.eventId !== 'all') query = query.eq('event_id', filters.eventId);
+    if (filters.gate && filters.gate !== 'all') query = query.eq('gate', filters.gate);
+    if (filters.action && filters.action !== 'all') query = query.eq('action', filters.action);
+    if (filters.checkpointType && filters.checkpointType !== 'all') {
+      if (!['gate', 'booth'].includes(filters.checkpointType)) throw new Error('Invalid checkpoint filter');
+      query = query.eq('checkpoint_type', filters.checkpointType);
+    }
+    if (filters.person?.trim()) {
+      const person = filters.person.trim().slice(0, 100);
+      query = person.toUpperCase().startsWith('NUSC-')
+        ? query.ilike('application.application_number', `%${person}%`)
+        : query.ilike('application.full_name', `%${person}%`);
+    }
+    if (filters.department && filters.department !== 'all') {
+      if (!['ahibi', 'volunteer', 'media', 'crew', 'management', 'officials', 'medical'].includes(filters.department)) {
+        throw new Error('Invalid department filter');
+      }
+      query = query.eq('application.category', filters.department);
+    }
+    if (filters.roleId && filters.roleId !== 'all') {
+      if (!/^[0-9a-f-]{36}$/i.test(filters.roleId)) throw new Error('Invalid role filter');
+      query = query.eq('application.assigned_role_id', filters.roleId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error('Failed to export attendance: ' + error.message);
+    const records = data || [];
+    for (const record of records) {
+      const application = Array.isArray(record.application) ? record.application[0] : record.application;
+      const event = Array.isArray(record.event) ? record.event[0] : record.event;
+      const role = Array.isArray(application?.assigned_role) ? application.assigned_role[0] : application?.assigned_role;
+      const pass = Array.isArray(record.campaign_id_record) ? record.campaign_id_record[0] : record.campaign_id_record;
+      rows.push([
+        record.scanned_at, event?.title || 'Legacy: match not recorded', application?.application_number,
+        application?.full_name, pass?.id_number, application?.category,
+        campaignRoleLabel(role, application?.other_role), record.action, record.checkpoint_type,
+        record.gate, record.scanned_by, record.notes,
+      ].map(csvCell).join(','));
+    }
+    if (records.length < pageSize) break;
+  }
+  return rows.join('\r\n');
 }
 
 /**

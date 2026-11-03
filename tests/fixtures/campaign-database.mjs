@@ -3,13 +3,14 @@ import { PGlite } from '@electric-sql/pglite';
 
 export const campaignMigration = '20261027110000_campaign_workflow_hardening.sql';
 export const campaignCryptoMigration = '20261027120000_campaign_issue_crypto_search_path.sql';
+export const campaignReliabilityMigration = '20261103100000_campaign_accreditation_reliability.sql';
 export const campaignSql = name => readFile(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8');
 
 async function createCampaignDatabaseBase() {
   const db = new PGlite();
   await db.exec(`
     CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
-    CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY);
+    CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY, email text);
     CREATE SCHEMA extensions;
     CREATE SCHEMA storage; CREATE TABLE storage.buckets(
       id text PRIMARY KEY, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]
@@ -56,6 +57,34 @@ export async function workforceDatabase({ beforeIntegrity = async () => {} } = {
   await beforeIntegrity(db);
   await db.exec(await campaignSql('20261028170000_workforce_registration_integrity.sql'));
   await db.exec(await campaignSql('20261028180000_workforce_registration_counter_backfill.sql'));
+  return db;
+}
+
+export async function accreditationDatabase({ beforeReliability = async () => {} } = {}) {
+  const db = await workforceDatabase();
+  await db.exec(`
+    GRANT USAGE ON SCHEMA storage TO anon, authenticated;
+    CREATE TABLE storage.objects(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bucket_id text NOT NULL, name text);
+    ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY existing_press_documents_public ON storage.objects FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+    GRANT ALL ON storage.objects TO anon, authenticated;
+    CREATE TABLE public.press_accreditations(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), applicant_name text NOT NULL);
+    ALTER TABLE public.press_accreditations ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY "Allow anon insert press_accreditations" ON public.press_accreditations FOR INSERT TO anon WITH CHECK (true);
+    GRANT INSERT, SELECT ON public.press_accreditations TO anon;
+    CREATE FUNCTION public.record_campaign_attendance_scan(text,text,text,text,uuid,text)
+      RETURNS jsonb LANGUAGE sql AS $$ SELECT jsonb_build_object('role','Others: Camera operator') $$;
+  `);
+  await beforeReliability(db);
+  await db.exec(await campaignSql(campaignReliabilityMigration));
+  await db.exec(`
+    INSERT INTO auth.users(id,email) VALUES
+      ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','manager@example.invalid'),
+      ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','reviewer@example.invalid');
+    INSERT INTO public.user_roles(user_id,role) VALUES
+      ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','campaign_manager'),
+      ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','reviewer');
+  `);
   return db;
 }
 

@@ -11,6 +11,7 @@ export function loadSource(relativePath, mocks) {
   const loaded = { exports:{} };
   new Function('require','module','exports',outputText)(name => name in mocks ? mocks[name]
     : name === '@nusc/db/src/performance' ? loadSource('packages/db/src/performance.ts', {})
+    : name === '../utils/campaignRoleLabel' ? loadSource('apps/admin/src/utils/campaignRoleLabel.ts', {})
     : require(name),loaded,loaded.exports);
   return loaded.exports;
 }
