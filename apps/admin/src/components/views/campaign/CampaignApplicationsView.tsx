@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@payloadcms/ui';
 import { campaignRoleLabel } from '../../../utils/campaignRoleLabel';
-import { deleteCampaignApplication, getCampaignApplicationsList, getCampaignRoleOptions } from '../../../actions/campaignAdminActions';
+import { deleteCampaignApplication, deleteCampaignApplications, getCampaignApplicationsList, getCampaignRoleOptions } from '../../../actions/campaignAdminActions';
 import { CampaignApplicationDetailView } from './CampaignApplicationDetailView';
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
 
@@ -18,6 +18,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   officials: 'Match Officials',
   medical: 'Medical Team',
 };
+const MAX_BULK_APPLICATION_DELETE_COUNT = 100;
+const CAMPAIGN_APPLICATIONS_PAGE_SIZE = 20;
 
 export const CampaignApplicationsView: React.FC = () => {
   const searchParams = useSearchParams();
@@ -31,6 +33,18 @@ export const CampaignApplicationsView: React.FC = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [deletingApplicationId, setDeletingApplicationId] = useState<string | null>(null);
+  const [selectedApplications, setSelectedApplications] = useState<Record<string, string>>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState('');
+  const [deletingSelectedApplications, setDeletingSelectedApplications] = useState(false);
+  const bulkDeleteDialogRef = useRef<HTMLDialogElement>(null);
+  const selectedApplicationIds = Object.keys(selectedApplications);
+  const selectedApplicationCount = selectedApplicationIds.length;
+  const allCurrentPageSelected = applications.length > 0 && applications.every(row => Boolean(selectedApplications[row.id]));
+  const someCurrentPageSelected = applications.some(row => Boolean(selectedApplications[row.id]));
+  const currentPageUnselectedCount = applications.filter(row => !selectedApplications[row.id]).length;
+  const currentPageSelectionWouldExceedLimit = !allCurrentPageSelected
+    && selectedApplicationCount + currentPageUnselectedCount > MAX_BULK_APPLICATION_DELETE_COUNT;
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -53,7 +67,7 @@ export const CampaignApplicationsView: React.FC = () => {
     let active = true;
     Promise.resolve().then(() => {
       if (active) setError(null);
-      return getCampaignApplicationsList({ category: categoryFilter, roleId: roleFilter, status: statusFilter, search: appliedSearch, page, pageSize: 20 });
+      return getCampaignApplicationsList({ category: categoryFilter, roleId: roleFilter, status: statusFilter, search: appliedSearch, page, pageSize: CAMPAIGN_APPLICATIONS_PAGE_SIZE });
     })
       .then(res => {
         if (!active) return;
@@ -73,15 +87,53 @@ export const CampaignApplicationsView: React.FC = () => {
     return () => { active = false; };
   }, [categoryFilter]);
 
+  useEffect(() => {
+    const dialog = bulkDeleteDialogRef.current;
+    if (!dialog) return;
+    if (bulkDeleteDialogOpen && !dialog.open) dialog.showModal();
+    else if (!bulkDeleteDialogOpen && dialog.open) dialog.close();
+  }, [bulkDeleteDialogOpen]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSelectedApplications({});
+    setBulkDeleteConfirmation('');
     setLoading(true);
     setPage(1);
     setAppliedSearch(searchQuery.trim());
   };
 
+  const toggleApplicationSelection = (application: any) => {
+    setSelectedApplications(current => {
+      const next = { ...current };
+      if (next[application.id]) delete next[application.id];
+      else if (selectedApplicationCount >= MAX_BULK_APPLICATION_DELETE_COUNT) return current;
+      else next[application.id] = application.application_number;
+      return next;
+    });
+  };
+
+  const toggleCurrentPageSelection = () => {
+    setSelectedApplications(current => {
+      const next = { ...current };
+      if (allCurrentPageSelected) {
+        applications.forEach(application => delete next[application.id]);
+      } else if (selectedApplicationCount + currentPageUnselectedCount > MAX_BULK_APPLICATION_DELETE_COUNT) {
+        return current;
+      } else {
+        applications.forEach(application => { next[application.id] = application.application_number; });
+      }
+      return next;
+    });
+  };
+
+  const clearApplicationSelection = () => {
+    setSelectedApplications({});
+    setBulkDeleteConfirmation('');
+  };
+
   const handleDeleteApplication = async (application: any) => {
-    if (!canDeleteApplications || deletingApplicationId) return;
+    if (!canDeleteApplications || deletingApplicationId || deletingSelectedApplications) return;
     const confirmed = window.confirm(
       `Permanently delete ${application.application_number} for ${application.full_name}?\n\nThis removes its QR pass, attendance and application history, and uploaded documents, and releases the applicant's phone/email. This cannot be undone.`
     );
@@ -98,6 +150,11 @@ export const CampaignApplicationsView: React.FC = () => {
     setDeleteNotice(null);
     try {
       const result = await deleteCampaignApplication(application.id, typedRegistrationId.trim());
+      setSelectedApplications(current => {
+        const next = { ...current };
+        delete next[application.id];
+        return next;
+      });
       setDeleteNotice(result.storageCleanupWarning
         ? `Registration ${result.applicationNumber} was deleted, but some uploaded documents could not be removed. Contact a campaign manager for cleanup.`
         : `Registration ${result.applicationNumber} and its linked QR pass and attendance history were deleted.`);
@@ -108,6 +165,42 @@ export const CampaignApplicationsView: React.FC = () => {
       setDeleteError(err instanceof Error ? err.message : 'Registration could not be deleted. Please retry.');
     } finally {
       setDeletingApplicationId(null);
+    }
+  };
+
+  const handleDeleteSelectedApplications = async () => {
+    const applicationIds = selectedApplicationIds;
+    const confirmationPhrase = `DELETE ${applicationIds.length}`;
+    if (!canDeleteApplications || applicationIds.length === 0 || deletingApplicationId || deletingSelectedApplications
+        || bulkDeleteConfirmation.trim() !== confirmationPhrase) return;
+
+    setDeletingSelectedApplications(true);
+    setDeleteError(null);
+    setDeleteNotice(null);
+    try {
+      const result = await deleteCampaignApplications(applicationIds, bulkDeleteConfirmation.trim());
+      setBulkDeleteDialogOpen(false);
+      setBulkDeleteConfirmation('');
+      setSelectedApplications({});
+
+      const successMessage = `Deleted ${result.deletedCount} selected registration${result.deletedCount === 1 ? '' : 's'} and their linked QR passes and attendance history.`;
+      const unavailableMessage = result.alreadyUnavailableCount > 0
+        ? ` ${result.alreadyUnavailableCount} selected registration${result.alreadyUnavailableCount === 1 ? ' was' : 's were'} already unavailable.`
+        : '';
+      const storageMessage = result.storageCleanupWarning
+        ? ' Some uploaded documents could not be removed; contact a campaign manager for cleanup.'
+        : '';
+      setDeleteNotice(`${successMessage}${unavailableMessage}${storageMessage}`);
+
+      const nextTotalCount = Math.max(0, totalCount - applicationIds.length);
+      const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / CAMPAIGN_APPLICATIONS_PAGE_SIZE));
+      setLoading(true);
+      if (page > nextTotalPages) setPage(nextTotalPages);
+      else setRefreshKey(key => key + 1);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Selected registrations could not be deleted. Please retry.');
+    } finally {
+      setDeletingSelectedApplications(false);
     }
   };
 
@@ -254,6 +347,8 @@ export const CampaignApplicationsView: React.FC = () => {
           <select
             value={categoryFilter}
             onChange={(e) => {
+              setSelectedApplications({});
+              setBulkDeleteConfirmation('');
               setLoading(true);
               setCategoryFilter(e.target.value);
               setPage(1);
@@ -274,6 +369,8 @@ export const CampaignApplicationsView: React.FC = () => {
             value={roleFilter}
             aria-label="Filter by role"
             onChange={(e) => {
+              setSelectedApplications({});
+              setBulkDeleteConfirmation('');
               setLoading(true);
               setRoleFilter(e.target.value);
               setPage(1);
@@ -287,6 +384,8 @@ export const CampaignApplicationsView: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => {
+              setSelectedApplications({});
+              setBulkDeleteConfirmation('');
               setLoading(true);
               setStatusFilter(e.target.value);
               setPage(1);
@@ -309,12 +408,66 @@ export const CampaignApplicationsView: React.FC = () => {
         </div>
       )}
 
+      {canDeleteApplications && selectedApplicationCount > 0 && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px',
+            marginBottom: '14px', padding: '12px 14px', borderRadius: '8px',
+            color: '#7f1d1d', background: '#fff7f5', border: '1px solid #fecaca',
+          }}
+        >
+          <div>
+            <strong>{selectedApplicationCount} registration{selectedApplicationCount === 1 ? '' : 's'} selected</strong>
+            <div style={{ marginTop: '3px', color: '#7c2d12', fontSize: '12px' }}>
+              Selection stays across pages; search or filters clear it. Select up to {MAX_BULK_APPLICATION_DELETE_COUNT} at once.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              className="campaign-modal-close"
+              type="button"
+              onClick={clearApplicationSelection}
+              disabled={deletingSelectedApplications || Boolean(deletingApplicationId)}
+              style={{ padding: '8px 12px', borderRadius: '6px', background: '#fff', fontWeight: 600 }}
+            >
+              Clear selection
+            </button>
+            <button
+              className="campaign-danger-button"
+              type="button"
+              onClick={() => { setBulkDeleteConfirmation(''); setDeleteError(null); setBulkDeleteDialogOpen(true); }}
+              disabled={deletingSelectedApplications || Boolean(deletingApplicationId)}
+              style={{ padding: '8px 12px', borderRadius: '6px', fontWeight: 700 }}
+            >
+              Delete selected ({selectedApplicationCount})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Applications Table */}
       <div className="campaign-application-table-wrap" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <table className="campaign-application-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Registration ID</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {canDeleteApplications && (
+                    <input
+                      type="checkbox"
+                      checked={allCurrentPageSelected}
+                      ref={node => { if (node) node.indeterminate = someCurrentPageSelected && !allCurrentPageSelected; }}
+                      onChange={toggleCurrentPageSelection}
+                      disabled={loading || applications.length === 0 || Boolean(deletingApplicationId) || deletingSelectedApplications || currentPageSelectionWouldExceedLimit}
+                      aria-label="Select all registrations on this page"
+                      style={{ width: '16px', height: '16px', minWidth: '16px', margin: 0, accentColor: '#b42318', cursor: 'pointer' }}
+                    />
+                  )}
+                  <span>Registration ID</span>
+                </div>
+              </th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Full Name</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Category</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Preferred Role</th>
@@ -341,9 +494,21 @@ export const CampaignApplicationsView: React.FC = () => {
               </tr>
             ) : (
               applications.map((row) => (
-                <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <tr key={row.id} aria-selected={Boolean(selectedApplications[row.id])} style={{ borderBottom: '1px solid #f1f5f9', background: selectedApplications[row.id] ? '#fffafa' : '#fff' }}>
                   <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 700, color: '#050f24' }}>
-                    {row.application_number}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {canDeleteApplications && (
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedApplications[row.id])}
+                          onChange={() => toggleApplicationSelection(row)}
+                          disabled={loading || Boolean(deletingApplicationId) || deletingSelectedApplications || (!selectedApplications[row.id] && selectedApplicationCount >= MAX_BULK_APPLICATION_DELETE_COUNT)}
+                          aria-label={`Select registration ${row.application_number}`}
+                          style={{ width: '16px', height: '16px', minWidth: '16px', margin: 0, accentColor: '#b42318', cursor: 'pointer' }}
+                        />
+                      )}
+                      <span>{row.application_number}</span>
+                    </div>
                   </td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>
                     {row.full_name}
@@ -389,7 +554,7 @@ export const CampaignApplicationsView: React.FC = () => {
                         <button
                           className="campaign-danger-button"
                           type="button"
-                          disabled={Boolean(deletingApplicationId)}
+                          disabled={Boolean(deletingApplicationId) || deletingSelectedApplications}
                           onClick={() => void handleDeleteApplication(row)}
                           style={{
                             background: '#fff',
@@ -399,7 +564,7 @@ export const CampaignApplicationsView: React.FC = () => {
                             padding: '5px 10px',
                             fontSize: '12px',
                             fontWeight: 700,
-                            cursor: deletingApplicationId ? 'wait' : 'pointer',
+                            cursor: deletingApplicationId || deletingSelectedApplications ? 'wait' : 'pointer',
                             opacity: deletingApplicationId && deletingApplicationId !== row.id ? 0.55 : 1,
                           }}
                         >
@@ -419,7 +584,23 @@ export const CampaignApplicationsView: React.FC = () => {
         {loading ? <p className="campaign-mobile-state">Loading applications…</p> : applications.length === 0
           ? <p className="campaign-mobile-state">{statusFilter !== 'all' || categoryFilter !== 'all' || appliedSearch ? 'No applications match these filters.' : 'No applications have been submitted yet.'}</p>
           : applications.map(row => <article className="campaign-application-card" key={`mobile-${row.id}`}>
-            <div className="campaign-application-card-top"><span>{row.application_number}</span>{getStatusBadge(row.application_status)}</div>
+            <div className="campaign-application-card-top">
+              <span>{row.application_number}</span>
+              {getStatusBadge(row.application_status)}
+            </div>
+            {canDeleteApplications && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '10px 0', fontSize: '13px', fontWeight: 600, color: '#344054' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedApplications[row.id])}
+                  onChange={() => toggleApplicationSelection(row)}
+                  disabled={loading || Boolean(deletingApplicationId) || deletingSelectedApplications || (!selectedApplications[row.id] && selectedApplicationCount >= MAX_BULK_APPLICATION_DELETE_COUNT)}
+                  aria-label={`Select registration ${row.application_number}`}
+                  style={{ width: '18px', height: '18px', minWidth: '18px', margin: 0, accentColor: '#b42318', cursor: 'pointer' }}
+                />
+                Select registration
+              </label>
+            )}
             <h2>{row.full_name}</h2>
             <a className="campaign-application-phone" href={`tel:${row.phone}`}>{row.phone}</a>
             <dl>
@@ -433,7 +614,7 @@ export const CampaignApplicationsView: React.FC = () => {
               <button
                 className="campaign-danger-button"
                 type="button"
-                disabled={Boolean(deletingApplicationId)}
+                disabled={Boolean(deletingApplicationId) || deletingSelectedApplications}
                 onClick={() => void handleDeleteApplication(row)}
                 style={{
                   width: '100%', marginTop: '8px', padding: '10px 12px', borderRadius: '8px',
@@ -528,6 +709,74 @@ export const CampaignApplicationsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      <dialog
+        ref={bulkDeleteDialogRef}
+        className="campaign-delete-dialog"
+        aria-labelledby="campaign-bulk-delete-title"
+        aria-describedby="campaign-bulk-delete-description"
+        onCancel={event => {
+          if (deletingSelectedApplications) {
+            event.preventDefault();
+            return;
+          }
+          setBulkDeleteDialogOpen(false);
+          setBulkDeleteConfirmation('');
+        }}
+      >
+        <div style={{ padding: '24px', color: '#101828' }}>
+          <h2 id="campaign-bulk-delete-title" style={{ margin: '0 0 8px', color: '#7f1d1d', fontSize: '20px' }}>
+            Delete {selectedApplicationCount} selected registration{selectedApplicationCount === 1 ? '' : 's'}?
+          </h2>
+          <p id="campaign-bulk-delete-description" style={{ margin: '0 0 14px', color: '#475467', fontSize: '14px', lineHeight: 1.5 }}>
+            This permanently deletes the selected Workforce applications, linked QR passes, attendance and application history, and uploaded documents. This cannot be undone.
+          </p>
+          <div style={{ maxHeight: '180px', overflowY: 'auto', marginBottom: '16px', padding: '10px 12px', border: '1px solid #e4e7ec', borderRadius: '8px', background: '#f9fafb' }}>
+            <ul style={{ margin: 0, paddingLeft: '20px', color: '#344054', fontFamily: 'monospace', fontSize: '13px', lineHeight: 1.8 }}>
+              {Object.values(selectedApplications).map(applicationNumber => <li key={applicationNumber}>{applicationNumber}</li>)}
+            </ul>
+          </div>
+          <form onSubmit={event => { event.preventDefault(); void handleDeleteSelectedApplications(); }}>
+            <label htmlFor="campaign-bulk-delete-confirmation" style={{ display: 'block', marginBottom: '6px', color: '#344054', fontSize: '13px', fontWeight: 700 }}>
+              Type <span style={{ fontFamily: 'monospace', color: '#b42318' }}>DELETE {selectedApplicationCount}</span> to confirm
+            </label>
+            <input
+              id="campaign-bulk-delete-confirmation"
+              type="text"
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={32}
+              value={bulkDeleteConfirmation}
+              onChange={event => setBulkDeleteConfirmation(event.target.value)}
+              disabled={deletingSelectedApplications}
+              style={{ width: '100%', minHeight: '44px', padding: '10px 12px', border: '1px solid #98a2b3', borderRadius: '6px', fontSize: '14px', color: '#101828', background: '#fff' }}
+            />
+            {deleteError && (
+              <p role="alert" style={{ margin: '10px 0 0', color: '#991b1b', fontSize: '13px', fontWeight: 600 }}>{deleteError}</p>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>
+              <button
+                className="campaign-modal-close"
+                type="button"
+                onClick={() => { setBulkDeleteDialogOpen(false); setBulkDeleteConfirmation(''); }}
+                disabled={deletingSelectedApplications}
+                style={{ minHeight: '42px', padding: '9px 14px', borderRadius: '6px', background: '#fff', fontWeight: 600 }}
+              >
+                Cancel
+              </button>
+              <button
+                className="campaign-danger-button"
+                type="submit"
+                disabled={deletingSelectedApplications || bulkDeleteConfirmation.trim() !== `DELETE ${selectedApplicationCount}` || selectedApplicationCount === 0}
+                style={{ minHeight: '42px', padding: '9px 14px', borderRadius: '6px', fontWeight: 700 }}
+              >
+                {deletingSelectedApplications ? 'Deleting selected...' : `Delete ${selectedApplicationCount} selected registration${selectedApplicationCount === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
     </div>
   );
 };

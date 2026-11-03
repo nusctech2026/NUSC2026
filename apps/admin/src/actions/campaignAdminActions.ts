@@ -240,6 +240,97 @@ export async function deleteCampaignApplication(applicationId: string, confirmat
   return { success: true, applicationNumber: application.application_number, storageCleanupWarning };
 }
 
+/** Permanently remove a selected set of workforce applications and their linked records. */
+export async function deleteCampaignApplications(applicationIds: string[], confirmationPhrase: string) {
+  await assertStaffRole(['super_admin']);
+
+  const maxBulkDeleteCount = 100;
+  if (!Array.isArray(applicationIds) || applicationIds.length === 0 || applicationIds.length > maxBulkDeleteCount) {
+    throw new Error(`Select between 1 and ${maxBulkDeleteCount} registrations to delete`);
+  }
+  if (applicationIds.some(id => typeof id !== 'string'
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))) {
+    throw new Error('One or more application identifiers are invalid');
+  }
+
+  const uniqueIds = [...new Set(applicationIds)];
+  if (uniqueIds.length !== applicationIds.length) {
+    throw new Error('Duplicate registrations were included in the selection');
+  }
+  if (typeof confirmationPhrase !== 'string' || confirmationPhrase.trim() !== `DELETE ${uniqueIds.length}`) {
+    throw new Error('The bulk deletion confirmation did not match. Nothing was deleted.');
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: applications, error: lookupError } = await supabase
+    .from('campaign_applications')
+    .select('id, application_number, photo_storage_path, media_authorisation_storage_path, official_credential_storage_path')
+    .in('id', uniqueIds);
+
+  if (lookupError || !applications || applications.length !== uniqueIds.length) {
+    throw new Error('One or more selected registrations are unavailable. Refresh the list and select them again.');
+  }
+
+  const documentPathsByApplication = new Map<string, string[]>();
+  for (const application of applications) {
+    const documentPaths = [...new Set([
+      application.photo_storage_path,
+      application.media_authorisation_storage_path,
+      application.official_credential_storage_path,
+    ].filter((path): path is string => typeof path === 'string' && path.trim().length > 0))];
+
+    // Validate every stored path before deleting any database rows.
+    if (documentPaths.some(path => path.startsWith('/') || path.includes('\\') || path.split('/').some(part => part === '.' || part === '..'))) {
+      throw new Error('A selected registration has an invalid document reference and cannot be deleted automatically');
+    }
+    documentPathsByApplication.set(application.id, documentPaths);
+  }
+
+  const { data: deletedApplications, error: deleteError } = await supabase
+    .from('campaign_applications')
+    .delete()
+    .in('id', uniqueIds)
+    .select('id');
+
+  if (deleteError) {
+    console.error('Campaign application bulk deletion failed', {
+      code: deleteError.code || 'DATABASE_ERROR',
+      requestedCount: uniqueIds.length,
+    });
+    throw new Error('Selected registrations could not be deleted. Contact a campaign manager if this keeps happening.');
+  }
+
+  const deletedIds = new Set((deletedApplications || []).map(application => application.id));
+  if (deletedIds.size === 0) throw new Error('The selected registrations were already deleted or are no longer available');
+
+  const documentPaths = [...new Set([...deletedIds].flatMap(id => documentPathsByApplication.get(id) || []))];
+  let storageCleanupWarning = false;
+  for (let offset = 0; offset < documentPaths.length; offset += 100) {
+    try {
+      const { error: storageError } = await supabase.storage.from('campaign_documents').remove(documentPaths.slice(offset, offset + 100));
+      if (!storageError) continue;
+      storageCleanupWarning = true;
+      console.error('Campaign application bulk deletion document cleanup failed', {
+        code: storageError.statusCode || storageError.name || 'STORAGE_ERROR',
+        deletedCount: deletedIds.size,
+      });
+    } catch (storageError) {
+      storageCleanupWarning = true;
+      console.error('Campaign application bulk deletion document cleanup failed', {
+        code: storageError instanceof Error ? storageError.name : 'STORAGE_ERROR',
+        deletedCount: deletedIds.size,
+      });
+    }
+  }
+
+  return {
+    success: true,
+    deletedCount: deletedIds.size,
+    alreadyUnavailableCount: uniqueIds.length - deletedIds.size,
+    storageCleanupWarning,
+  };
+}
+
 /**
  * 4. Update Application Status (submitted, under_review, waitlisted, approved, rejected, cancelled)
  */

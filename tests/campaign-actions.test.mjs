@@ -62,6 +62,47 @@ function campaignDeletionActions({
   return{api,calls};
 }
 
+function campaignBulkDeletionActions({
+  staffRoles=['super_admin'],
+  applications=[deletionApplication],
+  lookupError=null,
+  deleteError=null,
+  deletedIds=null,
+  storageErrors=[],
+}={}) {
+  const calls=[];
+  let fromCount=0;
+  const supabase={
+    from(table) {
+      const phase=fromCount++===0?'lookup':'delete';
+      const chain={
+        select:fields=>{calls.push(['select',phase,table,fields]);return chain;},
+        delete:()=>{calls.push(['delete',phase,table]);return chain;},
+        in:(field,values)=>{calls.push(['in',phase,table,field,values]);return chain;},
+        then:(resolve,reject)=>Promise.resolve(phase==='lookup'
+          ? {data:lookupError?null:applications,error:lookupError}
+          : {data:deleteError?null:deletedIds??applications.map(application=>({id:application.id})),error:deleteError}
+        ).then(resolve,reject),
+      };
+      return chain;
+    },
+    storage:{from:bucket=>({
+      remove:async paths=>{calls.push(['storage.remove',bucket,paths]);return{error:storageErrors.shift()||null};},
+    })},
+  };
+  const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{
+    '../utils/supabaseServerClient':{
+      assertStaffRole:async allowedRoles=>{
+        calls.push(['authorize',allowedRoles]);
+        if(!allowedRoles.some(role=>staffRoles.includes(role)))throw new Error('Access denied');
+        return{email:'super-admin@example.invalid'};
+      },
+      getSupabaseAdminClient:()=>supabase,
+    },
+  });
+  return{api,calls};
+}
+
 function campaignStaffRoleGuard(userRoles) {
   const serverClient={auth:{getUser:async()=>({data:{user:{id:'synthetic-admin',email:'admin@example.invalid'}},error:null})}};
   const adminClient={from:table=>{
@@ -413,6 +454,79 @@ test('failed document cleanup is reported after the application delete succeeds'
   } finally { console.error=previousError; }
   assert.ok(calls.some(call=>call[0]==='delete'));
   assert.ok(calls.some(call=>call[0]==='storage.remove'));
+});
+
+test('bulk application deletion is super-admin-only and validates the selected IDs and count phrase', async () => {
+  for(const role of ['campaign_manager','reviewer','gate_staff']){
+    const {api,calls}=campaignBulkDeletionActions({staffRoles:[role]});
+    await assert.rejects(()=>api.deleteCampaignApplications([deletionApplicationId],'DELETE 1'),/Access denied/);
+    assert.deepEqual(calls[0],['authorize',['super_admin']]);
+    assert.equal(calls.some(call=>['select','delete','storage.remove'].includes(call[0])),false);
+  }
+
+  const tooManyIds=Array.from({length:101},(_,index)=>`00000000-0000-4000-8000-${String(index).padStart(12,'0')}`);
+  for(const [ids,phrase,message] of [
+    [[], 'DELETE 0', /between 1 and 100/],
+    [['not-a-uuid'], 'DELETE 1', /identifiers are invalid/],
+    [[deletionApplicationId,deletionApplicationId], 'DELETE 2', /Duplicate registrations/],
+    [[deletionApplicationId], 'DELETE 2', /confirmation did not match/],
+    [tooManyIds, 'DELETE 101', /between 1 and 100/],
+  ]){
+    const {api,calls}=campaignBulkDeletionActions();
+    await assert.rejects(()=>api.deleteCampaignApplications(ids,phrase),message);
+    assert.equal(calls.some(call=>['select','delete','storage.remove'].includes(call[0])),false);
+  }
+});
+
+test('bulk deletion rechecks every selected registration before deleting and removes only its stored documents', async () => {
+  const secondApplication={
+    id:'33333333-3333-4333-8333-333333333333',
+    application_number:'NUSC-MGT-009',
+    photo_storage_path:'photos/nusc-ahb-010.png',
+    media_authorisation_storage_path:null,
+    official_credential_storage_path:null,
+  };
+  const ids=[deletionApplicationId,secondApplication.id];
+  const {api,calls}=campaignBulkDeletionActions({applications:[deletionApplication,secondApplication]});
+  const result=await api.deleteCampaignApplications(ids,' DELETE 2 ');
+
+  assert.deepEqual(result,{success:true,deletedCount:2,alreadyUnavailableCount:0,storageCleanupWarning:false});
+  assert.deepEqual(calls.find(call=>call[0]==='in'&&call[1]==='lookup'),['in','lookup','campaign_applications','id',ids]);
+  assert.deepEqual(calls.find(call=>call[0]==='in'&&call[1]==='delete'),['in','delete','campaign_applications','id',ids]);
+  assert.deepEqual(calls.find(call=>call[0]==='storage.remove'),[
+    'storage.remove','campaign_documents',[
+      'photos/nusc-ahb-010.png',
+      'authorisations/nusc-ahb-010.pdf',
+      'credentials/nusc-ahb-010.pdf',
+    ],
+  ]);
+});
+
+test('bulk deletion stops when a selected row or document reference is invalid and reports storage cleanup failure', async () => {
+  const secondId='33333333-3333-4333-8333-333333333333';
+  const ids=[deletionApplicationId,secondId];
+  const missing=campaignBulkDeletionActions({applications:[deletionApplication]});
+  await assert.rejects(()=>missing.api.deleteCampaignApplications(ids,'DELETE 2'),/unavailable/);
+  assert.equal(missing.calls.some(call=>call[0]==='delete'||call[0]==='storage.remove'),false);
+
+  const invalidPath=campaignBulkDeletionActions({applications:[
+    deletionApplication,
+    {id:secondId,application_number:'NUSC-MGT-009',photo_storage_path:'../other-user/private.png'},
+  ]});
+  await assert.rejects(()=>invalidPath.api.deleteCampaignApplications(ids,'DELETE 2'),/invalid document reference/i);
+  assert.equal(invalidPath.calls.some(call=>call[0]==='delete'||call[0]==='storage.remove'),false);
+
+  const storageFailure=campaignBulkDeletionActions({storageErrors:[{statusCode:'500'}]});
+  const previousError=console.error;
+  console.error=()=>{};
+  try {
+    const result=await storageFailure.api.deleteCampaignApplications([deletionApplicationId],'DELETE 1');
+    assert.equal(result.success,true);
+    assert.equal(result.deletedCount,1);
+    assert.equal(result.storageCleanupWarning,true);
+  } finally { console.error=previousError; }
+  assert.ok(storageFailure.calls.some(call=>call[0]==='delete'));
+  assert.ok(storageFailure.calls.some(call=>call[0]==='storage.remove'));
 });
 
 test('campaign source scripts contain no embedded JWTs or database passwords', () => {
