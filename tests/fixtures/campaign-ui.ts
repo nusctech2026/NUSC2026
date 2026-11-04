@@ -31,7 +31,7 @@ async function browserBundle() {
           ...options};
         window.print=()=>window.fixture.calls.push(['print']);
         root.render(<React.Fragment key={screen+Math.random()}>{screen==='status'?<Status verifiedEmail={options.verifiedEmail||null}/>:
-          screen==='success'?<Success/>:screen==='pass'?<Pass pass={{idNumber:'NUSC-ID-2026-ABCDEF0123456789',registrationId:'NUSC-CMP-2026-ABCDEF0123456789',passSlug:'fixture-pass',fullName:'Synthetic Candidate',category:'crew',assignedRole:'Other: Camera operator',accreditationType:'Season Pass',assignedMatch:'All NUSC home matches',assignedZone:'Zone 1',assignedShift:'Evening',affiliation:options.affiliation||null,mediaOutlet:options.mediaOutlet||null,mediaOrganisationType:options.mediaOrganisationType||null,validFrom:'2026-01-01',validUntil:'2099-01-01',signedPhotoUrl:null,issuedAt:'2026-01-01',eventVenue:'Synthetic stadium'}}/>:
+          screen==='success'?<Success/>:screen==='pass'?<div className="campaign-pass-document"><div className="fixture-campaign-nav" data-testid="campaign-navbar" aria-hidden="true"/><main className="campaign-page-wrapper" id="campaign-pass-print-page"><Pass pass={{idNumber:'NUSC-ID-2026-ABCDEF0123456789',registrationId:'NUSC-CMP-2026-ABCDEF0123456789',passSlug:'fixture-pass',fullName:'Synthetic Candidate',category:'crew',assignedRole:'Other: Camera operator',accreditationType:'Season Pass',assignedMatch:'All NUSC home matches',assignedZone:'Zone 1',assignedShift:'Evening',affiliation:options.affiliation||null,mediaOutlet:options.mediaOutlet||null,mediaOrganisationType:options.mediaOrganisationType||null,validFrom:'2026-01-01',validUntil:'2099-01-01',signedPhotoUrl:null,issuedAt:'2026-01-01',eventVenue:'Synthetic stadium'}}/></main></div>:
           screen==='registration'?<Form fixedCategory={options.category||'ahibi'}/>:screen==='applications'?<Applications/>:
           screen==='detail'?<Detail applicationId="app"/>:screen==='matches'?<Matches/>:screen==='attendance'?<Attendance/>:<Scanner/>}</React.Fragment>);
       };
@@ -83,8 +83,9 @@ async function browserBundle() {
 }
 
 export async function campaignFixtureHtml() {
-  const [compiled,css,original,hardening,nuscCrest]=await Promise.all([
+  const [compiled,css,printCss,original,hardening,nuscCrest]=await Promise.all([
     browserBundle(),readFile('apps/web/src/app/campaign/campaign.css','utf8'),
+    readFile('apps/web/src/app/campaign/id/[token]/pass-card-print.css','utf8'),
     readFile('supabase/migrations/20261027100000_create_campaign_tables.sql','utf8'),
     readFile('supabase/migrations/20261027110000_campaign_workflow_hardening.sql','utf8'),
     readFile('apps/web/public/images/nusc-crest.png'),
@@ -95,5 +96,5 @@ export async function campaignFixtureHtml() {
     QRCode.toString('a'.repeat(64),{type:'svg'}),
     QRCode.toBuffer('a'.repeat(64),{type:'png',errorCorrectionLevel:'H',margin:2,width:480,color:{dark:'#050f24',light:'#ffffff'}}),
   ]);
-  return {html:`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}${compiled.css}body{margin:0;font-family:system-ui}*{box-sizing:border-box}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:default}</style></head><body><div id="root"></div><script>${compiled.js.replace(/<\/script/gi,'<\\/script')}</script></body></html>`,roles,qrSvg,qrPngBase64:qrPng.toString('base64'),nuscCrest};
+  return {html:`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}${printCss}${compiled.css}body{margin:0;font-family:system-ui}*{box-sizing:border-box}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:default}.fixture-campaign-nav{position:fixed;inset:0 0 auto;height:82px;z-index:80;background:#fff}@media(max-width:600px){.fixture-campaign-nav{height:70px}}</style></head><body><div id="root"></div><script>${compiled.js.replace(/<\/script/gi,'<\\/script')}</script></body></html>`,roles,qrSvg,qrPngBase64:qrPng.toString('base64'),nuscCrest};
 }

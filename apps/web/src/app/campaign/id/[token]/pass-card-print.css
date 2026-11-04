@@ -3,6 +3,21 @@
   margin: 0;
 }
 
+/* The site navigation is fixed, so leave space for it before the public ID actions. */
+#campaign-pass-print-page {
+  padding-top: 106px;
+}
+
+#campaign-pass-print-page .id-pass-page {
+  margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  #campaign-pass-print-page {
+    padding-top: 94px;
+  }
+}
+
 @media print {
   html,
   body {
@@ -56,103 +71,19 @@
   #campaign-pass-print-page .id-pass-card {
     position: absolute !important;
     inset: 0 !important;
+    transform: none !important;
     box-sizing: border-box !important;
     width: 86mm !important;
     max-width: none !important;
     height: 144mm !important;
     margin: 0 !important;
     overflow: hidden !important;
-    border-radius: 0 !important;
+    border-radius: 3mm !important;
     box-shadow: none !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-  }
-
-  #campaign-pass-print-page .id-pass-header {
-    padding: 10px 12px !important;
-  }
-
-  #campaign-pass-print-page .id-pass-body {
-    padding: 12px !important;
-  }
-
-  #campaign-pass-print-page .id-pass-profile {
-    gap: 12px !important;
-    margin-bottom: 10px !important;
-  }
-
-  #campaign-pass-print-page .id-pass-photo {
-    flex: 0 0 72px !important;
-    width: 72px !important;
-    height: 90px !important;
-  }
-
-  #campaign-pass-print-page .id-pass-details h2 {
-    margin: 0 0 3px !important;
-    font-size: 1rem !important;
-    line-height: 1.1 !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  #campaign-pass-print-page .id-pass-details .role-badge {
-    margin-bottom: 5px !important;
-    font-size: 8px !important;
-    line-height: 1.15 !important;
-  }
-
-  #campaign-pass-print-page .id-pass-meta-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 6px 8px !important;
-    margin-bottom: 10px !important;
-    padding: 8px !important;
-    font-size: 9px !important;
-  }
-
-  #campaign-pass-print-page .id-pass-meta-item .label {
-    margin-bottom: 1px !important;
-    font-size: 7px !important;
-    line-height: 1.1 !important;
-  }
-
-  #campaign-pass-print-page .id-pass-meta-item .val {
-    font-size: 9px !important;
-    line-height: 1.1 !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  #campaign-pass-print-page .id-pass-qr-box {
-    padding: 8px !important;
-    border-radius: 8px !important;
-  }
-
-  #campaign-pass-print-page .id-pass-qr-box > div:first-child {
-    width: 130px !important;
-    height: 130px !important;
-  }
-
-  #campaign-pass-print-page .id-pass-qr-box > div:nth-of-type(2) {
-    margin-top: 5px !important;
-    font-size: 8px !important;
-    line-height: 1.15 !important;
-  }
-
-  #campaign-pass-print-page .id-pass-qr-box > div:nth-of-type(3) {
-    margin-top: 1px !important;
-    font-size: 7px !important;
-    line-height: 1.1 !important;
-  }
-
-  #campaign-pass-print-page .id-pass-footer {
-    padding: 7px 12px !important;
-    font-size: 8px !important;
-    line-height: 1.15 !important;
-  }
-
-  #campaign-pass-print-page .id-pass-footer > div:nth-child(2) {
-    margin-top: 2px !important;
-    font-size: 7px !important;
   }
 
   #campaign-pass-print-page .no-print,

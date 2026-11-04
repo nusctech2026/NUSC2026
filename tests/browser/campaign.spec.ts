@@ -244,6 +244,8 @@ test('pass card displays management affiliation and Press and Media details',asy
 test('digital pass loads the QR and allows printing only after it is ready',async({page})=>{
   await mount(page,'pass');
   await expect(page.getByRole('img',{name:'Entry and attendance QR for NUSC-ID-2026-ABCDEF0123456789'})).toBeVisible();
+  await expect(page.locator('.id-pass-qr-title')).toBeVisible();
+  await expect(page.locator('.id-pass-qr-note')).toBeVisible();
   await expect(page.getByRole('img',{name:'Nagaland United Sports Club crest'})).toHaveAttribute('src','/images/nusc-crest.png');
   expect(await page.getByRole('img',{name:'Nagaland United Sports Club crest'}).evaluate(element=>(element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(page.getByText('NUSC-ID-2026-ABCDEF0123456789',{exact:true})).toBeVisible();
@@ -262,15 +264,25 @@ test('digital pass loads the QR and allows printing only after it is ready',asyn
 test('public ID print fits one complete 86 by 144 mm page',async({page})=>{
   await mount(page,'pass');
   await expect(page.getByRole('img',{name:'Entry and attendance QR for NUSC-ID-2026-ABCDEF0123456789'})).toBeVisible();
+  const screenGeometry=await page.locator('.id-pass-controls').evaluate(controls=>{
+    const nav=document.querySelector('[data-testid="campaign-navbar"]')!.getBoundingClientRect();
+    const actions=controls.getBoundingClientRect();
+    return {navBottom:nav.bottom,actionsTop:actions.top};
+  });
+  expect(screenGeometry.actionsTop).toBeGreaterThanOrEqual(screenGeometry.navBottom+16);
   await page.emulateMedia({media:'print'});
   const geometry=await page.locator('.id-pass-card').evaluate(card=>{
     const rect=card.getBoundingClientRect();
     const trim=card.querySelector('.id-pass-bottom-trim')!.getBoundingClientRect();
-    return {width:rect.width,height:rect.height,scrollHeight:(card as HTMLElement).scrollHeight,clientHeight:(card as HTMLElement).clientHeight,trimBottom:trim.bottom,cardBottom:rect.bottom};
+    const note=card.querySelector('.id-pass-qr-note')!.getBoundingClientRect();
+    return {left:rect.left,top:rect.top,width:rect.width,height:rect.height,scrollHeight:(card as HTMLElement).scrollHeight,clientHeight:(card as HTMLElement).clientHeight,trimTop:trim.top,trimBottom:trim.bottom,cardBottom:rect.bottom,qrNoteBottom:note.bottom};
   });
+  expect(geometry.left).toBeCloseTo(0,0);
+  expect(geometry.top).toBeCloseTo(0,0);
   expect(geometry.width).toBeCloseTo(325,0);
   expect(geometry.height).toBeCloseTo(544,0);
   expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.clientHeight+1);
+  expect(geometry.qrNoteBottom).toBeLessThanOrEqual(geometry.trimTop+1);
   expect(geometry.trimBottom).toBeLessThanOrEqual(geometry.cardBottom+1);
   const pdf=await page.pdf({preferCSSPageSize:true,printBackground:true});
   const pdfText=pdf.toString('latin1');
@@ -279,6 +291,17 @@ test('public ID print fits one complete 86 by 144 mm page',async({page})=>{
   expect(mediaBox).not.toBeNull();
   expect(Number(mediaBox?.[1])).toBeCloseTo(86/25.4*72,0);
   expect(Number(mediaBox?.[2])).toBeCloseTo(144/25.4*72,0);
+});
+
+test('public ID actions stay clear of the fixed navigation on mobile',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await mount(page,'pass');
+  const geometry=await page.locator('.id-pass-controls').evaluate(controls=>{
+    const nav=document.querySelector('[data-testid="campaign-navbar"]')!.getBoundingClientRect();
+    const actions=controls.getBoundingClientRect();
+    return {navBottom:nav.bottom,actionsTop:actions.top};
+  });
+  expect(geometry.actionsTop).toBeGreaterThanOrEqual(geometry.navBottom+16);
 });
 
 test('success screen displays official application number and offers copy, download slip and print',async({page})=>{
