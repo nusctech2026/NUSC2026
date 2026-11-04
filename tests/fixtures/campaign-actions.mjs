@@ -12,6 +12,9 @@ export function loadSource(relativePath, mocks) {
   new Function('require','module','exports',outputText)(name => name in mocks ? mocks[name]
     : name === '@nusc/db/src/performance' ? loadSource('packages/db/src/performance.ts', {})
     : name === '../utils/campaignRoleLabel' ? loadSource('apps/admin/src/utils/campaignRoleLabel.ts', {})
+    : name === '../utils/campaignPassPdf' ? loadSource('apps/admin/src/utils/campaignPassPdf.ts', {
+      './campaignPassCrest': loadSource('apps/admin/src/utils/campaignPassCrest.ts', {}),
+    })
     : require(name),loaded,loaded.exports);
   return loaded.exports;
 }

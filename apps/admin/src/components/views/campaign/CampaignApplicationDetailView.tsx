@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@payloadcms/ui';
 import { campaignRoleLabel } from '../../../utils/campaignRoleLabel';
 import { campaignPassUrl } from '../../../utils/campaignPassUrl';
-import CampaignWorkforceIdCard from './CampaignWorkforceIdCard';
 import {
   getCampaignApplicationDetail,
   updateApplicationStatus,
@@ -34,6 +33,25 @@ const DEPARTMENT_LABELS: Record<string, string> = {
 const formatPassDate = (value: string) => new Date(value).toLocaleDateString('en-IN', {
   day: 'numeric', month: 'short', year: 'numeric',
 });
+
+function createCampaignPassPdfFile(base64: string, filename: string) {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], filename, { type: 'application/pdf' });
+}
+
+function downloadCampaignPassPdf(file: File) {
+  const downloadUrl = URL.createObjectURL(file);
+  const anchor = document.createElement('a');
+  anchor.href = downloadUrl;
+  anchor.download = file.name;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+}
 
 const MEDIA_ACCESS_OPTIONS = [
   { value: 'media_press_seating', label: 'Media / Press Seating', description: 'Reserved covered press bench with desk space and power outlet' },
@@ -82,7 +100,9 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   const [passPreviewError, setPassPreviewError] = useState<string | null>(null);
   const [passPreviewUrl, setPassPreviewUrl] = useState<string | null>(null);
   const [passPreviewIdNumber, setPassPreviewIdNumber] = useState<string | null>(null);
-  const [passQrImage, setPassQrImage] = useState<string | null>(null);
+  const [passPreviewSvgBase64, setPassPreviewSvgBase64] = useState<string | null>(null);
+  const [passPdfBase64, setPassPdfBase64] = useState<string | null>(null);
+  const [passPdfFilename, setPassPdfFilename] = useState<string | null>(null);
   const [passPreviewDetails, setPassPreviewDetails] = useState<any>(null);
   const [deliveryNotice, setDeliveryNotice] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
@@ -293,7 +313,9 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
       setActionSuccess(`Event ID Pass Issued: ${res.idNumber}`);
       setPassPreviewUrl(null);
       setPassPreviewIdNumber(null);
-      setPassQrImage(null);
+      setPassPreviewSvgBase64(null);
+      setPassPdfBase64(null);
+      setPassPdfFilename(null);
       setPassPreviewDetails(null);
       await loadDetail();
       onStatusUpdated?.();
@@ -329,7 +351,9 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     setPassPreviewError(null);
     setPassPreviewUrl(null);
     setPassPreviewIdNumber(null);
-    setPassQrImage(null);
+    setPassPreviewSvgBase64(null);
+    setPassPdfBase64(null);
+    setPassPdfFilename(null);
     setPassPreviewDetails(null);
     setDeliveryNotice(null);
     try {
@@ -340,7 +364,9 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
       }
       setPassPreviewUrl(result.passUrl);
       setPassPreviewIdNumber(result.idNumber);
-      setPassQrImage(`data:image/png;base64,${result.qrImageBase64}`);
+      setPassPreviewSvgBase64(result.svgBase64);
+      setPassPdfBase64(result.pdfBase64);
+      setPassPdfFilename(result.pdfFilename);
       setPassPreviewDetails({ ...result.pass, isExpired: result.isExpired });
     } catch {
       setPassPreviewError('The pass preview could not be prepared. Try again or contact a campaign manager.');
@@ -359,85 +385,51 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     }
   };
 
-  const handlePrintPassCard = () => {
-    const card = document.getElementById('campaign-workforce-id-print');
-    if (!passPreviewDetails || !passQrImage || !card) return;
-    document.getElementById('campaign-workforce-id-print-frame')?.remove();
+  const handleDownloadPassPdf = () => {
+    if (!passPdfBase64 || !passPdfFilename) return;
+    try {
+      downloadCampaignPassPdf(createCampaignPassPdfFile(passPdfBase64, passPdfFilename));
+      setDeliveryNotice({ kind: 'success', message: 'The ID PDF was downloaded.' });
+    } catch {
+      setDeliveryNotice({ kind: 'error', message: 'The ID PDF could not be downloaded. Try again or contact a campaign manager.' });
+    }
+  };
 
-    const printCard = card.cloneNode(true) as HTMLElement;
-    const sourceNodes = [card, ...Array.from(card.querySelectorAll('*'))];
-    const printNodes = [printCard, ...Array.from(printCard.querySelectorAll('*'))];
-    sourceNodes.forEach((source, index) => {
-      const target = printNodes[index] as HTMLElement | SVGElement | undefined;
-      if (!target || !('style' in target)) return;
-      const computed = window.getComputedStyle(source);
-      for (let propertyIndex = 0; propertyIndex < computed.length; propertyIndex += 1) {
-        const property = computed.item(propertyIndex);
-        target.style.setProperty(property, computed.getPropertyValue(property), computed.getPropertyPriority(property));
-      }
-    });
+  const handleSharePassPdf = async () => {
+    if (!passPdfBase64 || !passPdfFilename || !passCanBeShared) return;
+    setDeliveryNotice(null);
+    try {
+      const file = createCampaignPassPdfFile(passPdfBase64, passPdfFilename);
+      const shareApi = navigator as Navigator & {
+        canShare?: (data: ShareData) => boolean;
+        share?: (data: ShareData) => Promise<void>;
+      };
+      const shareData: ShareData = {
+        title: 'NUSC Workforce ID',
+        text: `Approved NUSC workforce ID for ${app.full_name}. Select WhatsApp to share the PDF.`,
+        files: [file],
+      };
 
-    const printFrame = document.createElement('iframe');
-    printFrame.id = 'campaign-workforce-id-print-frame';
-    printFrame.title = 'Print one NUSC workforce ID';
-    printFrame.setAttribute('aria-hidden', 'true');
-    printFrame.style.cssText = 'position:fixed;left:-10000px;top:0;width:86mm;height:144mm;border:0;';
-
-    const printStyles = [
-      '@page { size: 86mm 144mm; margin: 0; }',
-      '* { box-sizing: border-box; }',
-      'html, body { width: 86mm; height: 144mm; margin: 0; padding: 0; overflow: hidden; background: #fff; }',
-      'body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }',
-      '#campaign-workforce-id-print { display: flex !important; flex-direction: column !important; width: 86mm !important; height: 144mm !important; min-height: 144mm !important; max-width: none !important; max-height: none !important; aspect-ratio: auto !important; margin: 0 !important; border-radius: 3mm !important; box-shadow: none !important; overflow: hidden !important; page-break-inside: avoid !important; break-inside: avoid !important; }',
-    ].join('');
-    const printHtml = [
-      '<!doctype html><html lang="en"><head><meta charset="utf-8">',
-      '<meta name="viewport" content="width=device-width, initial-scale=1">',
-      '<base href="' + window.location.origin + '/">',
-      '<title>NUSC Workforce ID</title><style>' + printStyles + '</style>',
-      '</head><body>', printCard.outerHTML, '</body></html>',
-    ].join('');
-
-    printFrame.onload = () => {
-      const printWindow = printFrame.contentWindow;
-      const printDocument = printFrame.contentDocument;
-      if (!printWindow || !printDocument) {
-        printFrame.remove();
-        setDeliveryNotice({ kind: 'error', message: 'The ID print view could not be prepared. Please try again.' });
+      if (shareApi.share && shareApi.canShare?.(shareData)) {
+        try {
+          await shareApi.share(shareData);
+          setDeliveryNotice({ kind: 'success', message: 'The device share sheet closed. Confirm the PDF was sent in WhatsApp.' });
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            setDeliveryNotice({ kind: 'error', message: 'Sharing was cancelled. The PDF was not sent.' });
+            return;
+          }
+          downloadCampaignPassPdf(file);
+          setDeliveryNotice({ kind: 'success', message: 'The share sheet could not open. The ID PDF was downloaded; attach it in WhatsApp.' });
+        }
         return;
       }
 
-      const waitForImage = (image: HTMLImageElement) => new Promise<void>(resolve => {
-        if (image.complete) {
-          resolve();
-          return;
-        }
-        const finish = () => {
-          window.clearTimeout(timeout);
-          image.removeEventListener('load', finish);
-          image.removeEventListener('error', finish);
-          resolve();
-        };
-        const timeout = window.setTimeout(finish, 4000);
-        image.addEventListener('load', finish, { once: true });
-        image.addEventListener('error', finish, { once: true });
-      });
-      const cleanup = () => {
-        window.clearTimeout(cleanupTimeout);
-        printFrame.remove();
-      };
-      const cleanupTimeout = window.setTimeout(cleanup, 60_000);
-      printWindow.addEventListener('afterprint', () => {
-        window.setTimeout(cleanup, 5000);
-      }, { once: true });
-      void Promise.all(Array.from(printDocument.images).map(waitForImage)).then(() => {
-        if (!printFrame.isConnected) return;
-        printWindow.focus();
-        printWindow.print();
-      });
-    };
-    printFrame.srcdoc = printHtml;
-    document.body.appendChild(printFrame);
+      downloadCampaignPassPdf(file);
+      setDeliveryNotice({ kind: 'success', message: 'This browser cannot share files. The ID PDF was downloaded. Open WhatsApp and attach this file in the applicant chat.' });
+    } catch {
+      setDeliveryNotice({ kind: 'error', message: 'The ID PDF could not be prepared for sharing.' });
+    }
   };
 
   if (loading) {
@@ -1055,10 +1047,11 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
               <div>
                 {passPreviewLoading && <p role="status" style={{ margin: 0, color: '#475569' }}>Preparing the complete ID and QR…</p>}
                 {passPreviewError && <p role="alert" style={{ margin: 0, background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 6, padding: 10 }}>{passPreviewError}</p>}
-                {passPreviewDetails && passQrImage && <CampaignWorkforceIdCard
-                  details={passPreviewDetails}
-                  qrImage={passQrImage}
-                  status={previewPassIsExpired ? 'expired' : previewPassIsNotYetValid ? 'scheduled' : 'active'}
+                {passPreviewSvgBase64 && <img
+                  id="campaign-workforce-id-print"
+                  src={`data:image/svg+xml;base64,${passPreviewSvgBase64}`}
+                  alt={`${previewPassIsExpired ? 'Expired' : previewPassIsNotYetValid ? 'Scheduled' : 'Approved'} NUSC workforce ID preview for ${passPreviewDetails?.fullName || app.full_name}`}
+                  style={{ display: 'block', width: '100%', maxWidth: 420, height: 'auto', margin: '0 auto', borderRadius: 9, border: '1px solid #cbd5e1', background: '#050f24' }}
                 />}
               </div>
 
@@ -1071,15 +1064,24 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                 </div>}
                 <button
                   type="button"
-                  onClick={handlePrintPassCard}
-                  disabled={!passPreviewDetails || !passQrImage}
-                  style={{ padding: '11px 12px', borderRadius: 6, border: '1px solid #14532d', background: '#14532d', color: '#fff', fontWeight: 800, cursor: passPreviewDetails && passQrImage ? 'pointer' : 'not-allowed', opacity: passPreviewDetails && passQrImage ? 1 : 0.6 }}
+                  onClick={handleSharePassPdf}
+                  disabled={!passPdfBase64 || !passCanBeShared}
+                  style={{ padding: '12px', borderRadius: 6, border: '1px solid #14532d', background: '#14532d', color: '#fff', fontWeight: 800, cursor: passPdfBase64 && passCanBeShared ? 'pointer' : 'not-allowed', opacity: passPdfBase64 && passCanBeShared ? 1 : 0.6 }}
                 >
-                  Download complete ID with QR (PDF)
+                  Share ID PDF
                 </button>
                 <p style={{ margin: '-4px 0 0', color: '#475569', fontSize: 12, lineHeight: 1.45 }}>
-                  The print dialog will open. Choose “Save as PDF” to download the complete ID card, including the photo, assignment details, validity dates, and QR.
+                  Choose WhatsApp in the device share sheet. If this browser cannot share files, the PDF downloads so you can attach it in WhatsApp.
                 </p>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadPassPdf}
+                  disabled={!passPdfBase64}
+                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #14532d', background: '#fff', color: '#14532d', fontWeight: 700, cursor: passPdfBase64 ? 'pointer' : 'not-allowed', opacity: passPdfBase64 ? 1 : 0.6 }}
+                >
+                  Download ID PDF
+                </button>
 
                 {passCanBeShared && passPreviewUrl && <a
                   href={passPreviewUrl}
@@ -1100,10 +1102,10 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                 <button
                   type="button"
                   onClick={handleEmailPass}
-                  disabled={actionLoading || !app.email || !passQrImage || !passCanBeShared}
-                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #15803d', background: '#15803d', color: '#fff', fontWeight: 700, cursor: actionLoading || !app.email || !passQrImage || !passCanBeShared ? 'not-allowed' : 'pointer', opacity: actionLoading || !app.email || !passQrImage || !passCanBeShared ? 0.6 : 1 }}
+                  disabled={actionLoading || !app.email || !passPdfBase64 || !passCanBeShared}
+                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #15803d', background: '#15803d', color: '#fff', fontWeight: 700, cursor: actionLoading || !app.email || !passPdfBase64 || !passCanBeShared ? 'not-allowed' : 'pointer', opacity: actionLoading || !app.email || !passPdfBase64 || !passCanBeShared ? 0.6 : 1 }}
                 >
-                  {actionLoading ? 'Sending email…' : `Email pass link and QR to ${app.email || 'applicant email'}`}
+                  {actionLoading ? 'Sending email…' : `Email ID PDF to ${app.email || 'applicant email'}`}
                 </button>
 
                 {passCanBeShared && whatsappDraftUrl ? (
@@ -1113,7 +1115,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                     rel="noopener noreferrer"
                     style={{ display: 'block', textAlign: 'center', padding: '10px 12px', borderRadius: 6, background: '#16a34a', color: '#fff', textDecoration: 'none', fontWeight: 700 }}
                   >
-                    Open WhatsApp draft for {app.phone}
+                    Share pass link in WhatsApp (fallback)
                   </a>
                 ) : passCanBeShared ? (
                   <div style={{ padding: 10, borderRadius: 6, background: '#fff7ed', color: '#9a3412' }}>
@@ -1125,7 +1127,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                   </div>
                 )}
                 <div style={{ padding: 10, borderRadius: 6, background: '#f8fafc', color: '#475569', lineHeight: 1.5 }}>
-                  WhatsApp has no automatic sender configured. For manual sending, download the complete ID PDF above, attach it to the draft, and press Send in WhatsApp.
+                  The link-only fallback shares the private pass URL. To share the PDF, use Share ID PDF or download it and attach the file in WhatsApp.
                 </div>
                 {deliveryNotice && <p
                   role={deliveryNotice.kind === 'error' ? 'alert' : 'status'}

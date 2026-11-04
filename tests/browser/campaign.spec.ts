@@ -50,27 +50,21 @@ test('approval issues a pass without sending it; manager can preview, download a
   await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('article',{name:'NUSC workforce identity card'})).toBeVisible();
-  await expect(dialog.getByRole('heading',{name:'Synthetic Candidate',exact:true})).toBeVisible();
-  await expect(dialog.getByText('NUSC-CMP-2026-ABCDEF0123456789')).toBeVisible();
-  await expect(dialog.getByRole('img',{name:'Entry and attendance QR for NUSC-ID-2026-ABCDEF'})).toBeVisible();
-  await expect(dialog.getByRole('img',{name:'Nagaland United Sports Club crest'})).toHaveAttribute('src','/images/nusc-crest.png');
-  expect(await dialog.getByRole('img',{name:'Nagaland United Sports Club crest'}).evaluate(element=>(element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-  const cardDimensions=await dialog.getByRole('article',{name:'NUSC workforce identity card'}).evaluate(element=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height}));
+  const preview=dialog.getByRole('img',{name:/Approved NUSC workforce ID preview for Synthetic Candidate/});
+  await expect(preview).toBeVisible();
+  await expect(dialog.getByText('NUSC-ID-2026-ABCDEF · Synthetic Candidate')).toBeVisible();
+  const cardDimensions=await preview.evaluate(element=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height}));
   expect(cardDimensions.height).toBeGreaterThan(cardDimensions.width);
-  await dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'}).click();
-  const printFrame=page.frameLocator('#campaign-workforce-id-print-frame');
-  await expect(page.locator('#campaign-workforce-id-print-frame')).toHaveCount(1);
-  await expect(printFrame.getByRole('article',{name:'NUSC workforce identity card'})).toBeVisible();
-  expect(await printFrame.locator('body > article').count()).toBe(1);
-  expect(await printFrame.locator('style').textContent()).toContain('@page { size: 86mm 144mm; margin: 0; }');
-  await expect(printFrame.getByRole('img',{name:'Nagaland United Sports Club crest'})).toHaveAttribute('src','/images/nusc-crest.png');
-  const printedDimensions=await printFrame.getByRole('article',{name:'NUSC workforce identity card'}).evaluate(element=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height}));
-  expect(printedDimensions.height).toBeGreaterThan(printedDimensions.width);
-  await expect(dialog.getByRole('link',{name:'Open WhatsApp draft for 9000000000'})).toHaveAttribute('href',/wa\.me\/919000000000\?/);
-  await expect(dialog.getByText(/WhatsApp has no automatic sender configured/)).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'Share ID PDF',exact:true})).toBeEnabled();
+  const [download]=await Promise.all([
+    page.waitForEvent('download'),
+    dialog.getByRole('button',{name:'Download ID PDF',exact:true}).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('NUSC-Workforce-ID-test.pdf');
+  await expect(dialog.getByRole('link',{name:'Share pass link in WhatsApp (fallback)'})).toHaveAttribute('href',/wa\.me\/919000000000\?/);
+  await expect(dialog.getByText(/link-only fallback shares the private pass URL/)).toBeVisible();
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='preview-pass').length")).toBe(1);
-  await dialog.getByRole('button',{name:'Email pass link and QR to candidate@example.invalid'}).click();
+  await dialog.getByRole('button',{name:'Email ID PDF to candidate@example.invalid'}).click();
   await expect(dialog.getByRole('status')).toContainText('accepted by the email provider');
   expect(await page.evaluate("window.fixture.calls.filter(call=>call[0]==='email-pass').length")).toBe(1);
   await dialog.getByRole('button',{name:'Close pass preview'}).click();
@@ -85,28 +79,77 @@ test('email setup failures are shown clearly inside the pass preview',async({pag
   await page.getByRole('button',{name:'Approve & issue ID',exact:true}).click();
   await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
-  await dialog.getByRole('button',{name:'Email pass link and QR to candidate@example.invalid'}).click();
+  await dialog.getByRole('button',{name:'Email ID PDF to candidate@example.invalid'}).click();
   await expect(dialog.getByRole('alert')).toContainText('Resend rejected the sender domain.');
 });
 
-test('approved expired IDs remain previewable and printable, but cannot be delivered',async({page})=>{
+test('approved expired IDs remain previewable and downloadable, but cannot be shared or delivered',async({page})=>{
   await mount(page,'detail',{expiredPass:true});
   await page.getByRole('button',{name:'Approve & issue ID',exact:true}).click();
   await expect(page.getByText('Status: Expired')).toBeVisible();
   await expect(page.getByRole('button',{name:'Preview & download ID',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
-  await expect(dialog.getByRole('article',{name:'NUSC workforce identity card'})).toBeVisible();
+  await expect(dialog.getByRole('img',{name:/Expired NUSC workforce ID preview/})).toBeVisible();
   await expect(dialog.getByText(/This ID is expired/)).toBeVisible();
-  await expect(dialog.getByRole('img',{name:'Entry and attendance QR for NUSC-ID-2026-ABCDEF'})).toBeVisible();
-  await expect(dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'})).toBeEnabled();
-  await expect(dialog.getByRole('button',{name:'Email pass link and QR to candidate@example.invalid'})).toBeDisabled();
+  await expect(dialog.getByRole('button',{name:'Share ID PDF',exact:true})).toBeDisabled();
+  await expect(dialog.getByRole('button',{name:'Download ID PDF'})).toBeEnabled();
+  await expect(dialog.getByRole('button',{name:'Email ID PDF to candidate@example.invalid'})).toBeDisabled();
   await expect(dialog.getByRole('link',{name:/Open WhatsApp draft/})).toHaveCount(0);
-  await dialog.getByRole('button',{name:'Download complete ID with QR (PDF)'}).click();
-  const printFrame=page.frameLocator('#campaign-workforce-id-print-frame');
-  await expect(printFrame.getByRole('article',{name:'NUSC workforce identity card'})).toBeVisible();
-  expect(await printFrame.locator('body > article').count()).toBe(1);
-  expect(await printFrame.locator('style').textContent()).toContain('@page { size: 86mm 144mm; margin: 0; }');
+  const [download]=await Promise.all([
+    page.waitForEvent('download'),
+    dialog.getByRole('button',{name:'Download ID PDF'}).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('NUSC-Workforce-ID-test.pdf');
+});
+
+const approvedIdFixture = {
+  id:'app', application_number:'NUSC-VOL-2026-0142', full_name:'Rishav N. Kikon', category:'volunteer',
+  preferred_role_id:'volunteer_gate_1_scanning', assigned_role_id:'volunteer_gate_1_scanning',
+  preferred_role:{name:'Gate 1 Scanning',code:'volunteer_gate_1_scanning'},
+  assigned_role:{name:'Gate 1 Scanning',code:'volunteer_gate_1_scanning'},
+  application_status:'approved', email:'rishav@example.invalid', phone:'9000000000', assigned_zone:'North Stand · Gate 1',
+  assigned_shift:'Morning', submitted_at:new Date().toISOString(),
+  issuedId:{id:'credential',id_number:'NUSC-ID-2026-ABCDEF',pass_slug:'private-pass',is_active:true,isExpired:false,valid_until:'2099-01-01'},
+};
+
+test('Share ID PDF offers a PDF file to the native share sheet and leaves link sharing secondary',async({page})=>{
+  await mount(page,'detail',{app:approvedIdFixture});
+  await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
+  await expect(dialog.getByRole('button',{name:'Share ID PDF',exact:true})).toBeEnabled();
+  await page.evaluate(()=>{
+    (window as any).fixture.sharedFiles=[];
+    Object.defineProperty(navigator,'canShare',{configurable:true,value:data=>data.files?.every(file=>file.type==='application/pdf')===true});
+    Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{
+      (window as any).fixture.sharedFiles=data.files.map(file=>({name:file.name,type:file.type,size:file.size}));
+    }});
+  });
+  await dialog.getByRole('button',{name:'Share ID PDF',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>(window as any).fixture.sharedFiles?.length||0)).toBe(1);
+  expect(await page.evaluate(()=>(window as any).fixture.sharedFiles[0])).toEqual({
+    name:'NUSC-Workforce-ID-test.pdf',type:'application/pdf',size:13,
+  });
+  await expect(dialog.getByText(/device share sheet closed.*confirm the PDF was sent/i)).toBeVisible();
+  await expect(dialog.getByRole('link',{name:'Share pass link in WhatsApp (fallback)'}))
+    .toHaveAttribute('href',/^https:\/\/wa\.me\/919000000000\?text=/);
+});
+
+test('unsupported file sharing downloads the ID PDF and instructs staff to attach it manually',async({page})=>{
+  await mount(page,'detail',{app:approvedIdFixture});
+  await page.getByRole('button',{name:'Preview & download ID',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Workforce ID preview'});
+  await expect(dialog.getByRole('button',{name:'Share ID PDF',exact:true})).toBeEnabled();
+  await page.evaluate(()=>{
+    Object.defineProperty(navigator,'canShare',{configurable:true,value:undefined});
+    Object.defineProperty(navigator,'share',{configurable:true,value:undefined});
+  });
+  const [download]=await Promise.all([
+    page.waitForEvent('download'),
+    dialog.getByRole('button',{name:'Share ID PDF',exact:true}).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('NUSC-Workforce-ID-test.pdf');
+  await expect(dialog.getByText(/ID PDF was downloaded.*Open WhatsApp.*attach this file in the applicant chat/i)).toBeVisible();
 });
 
 test('applicant list respects the Manage search link and opens the selected candidate for review',async({page})=>{
@@ -214,6 +257,28 @@ test('digital pass loads the QR and allows printing only after it is ready',asyn
   expect(printedDimensions.height).toBeGreaterThan(printedDimensions.width);
   expect(await page.locator('.id-pass-card').count()).toBe(1);
   await page.emulateMedia({media:'screen'});
+});
+
+test('public ID print fits one complete 86 by 144 mm page',async({page})=>{
+  await mount(page,'pass');
+  await expect(page.getByRole('img',{name:'Entry and attendance QR for NUSC-ID-2026-ABCDEF0123456789'})).toBeVisible();
+  await page.emulateMedia({media:'print'});
+  const geometry=await page.locator('.id-pass-card').evaluate(card=>{
+    const rect=card.getBoundingClientRect();
+    const trim=card.querySelector('.id-pass-bottom-trim')!.getBoundingClientRect();
+    return {width:rect.width,height:rect.height,scrollHeight:(card as HTMLElement).scrollHeight,clientHeight:(card as HTMLElement).clientHeight,trimBottom:trim.bottom,cardBottom:rect.bottom};
+  });
+  expect(geometry.width).toBeCloseTo(325,0);
+  expect(geometry.height).toBeCloseTo(544,0);
+  expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.clientHeight+1);
+  expect(geometry.trimBottom).toBeLessThanOrEqual(geometry.cardBottom+1);
+  const pdf=await page.pdf({preferCSSPageSize:true,printBackground:true});
+  const pdfText=pdf.toString('latin1');
+  expect((pdfText.match(/\/Type \/Page\b/g)||[]).length).toBe(1);
+  const mediaBox=pdfText.match(/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/);
+  expect(mediaBox).not.toBeNull();
+  expect(Number(mediaBox?.[1])).toBeCloseTo(86/25.4*72,0);
+  expect(Number(mediaBox?.[2])).toBeCloseTo(144/25.4*72,0);
 });
 
 test('success screen displays official application number and offers copy, download slip and print',async({page})=>{

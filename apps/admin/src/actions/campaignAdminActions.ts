@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getSupabaseAdminClient, assertStaffRole } from '../utils/supabaseServerClient';
 import { campaignRoleLabel } from '../utils/campaignRoleLabel';
+import { renderCampaignPassCardSvg, renderCampaignPassPdfFromSvg, type CampaignPassCardData } from '../utils/campaignPassPdf';
 import { createPerformanceTrace } from '@nusc/db/src/performance';
 
 function normalizeWorkforcePhone(value: string) {
@@ -738,6 +739,42 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
   };
 }
 
+async function createCampaignPassPdfAssets(context: CampaignPassContext) {
+  const photoPath = context.applicant.photo_storage_path;
+  if (!photoPath) throw new Error('This approved pass has no applicant photo to include in the ID PDF.');
+  const { data: photoFile, error: photoError } = await getSupabaseAdminClient()
+    .storage.from('campaign_documents').download(photoPath);
+  if (photoError || !photoFile) throw new Error('The applicant photo could not be loaded for the ID PDF.');
+  const photoImage = Buffer.from(await photoFile.arrayBuffer());
+  if (!photoImage.length) throw new Error('The applicant photo is empty and cannot be included in the ID PDF.');
+
+  const validFrom = new Date(context.validFrom).getTime();
+  const status: CampaignPassCardData['status'] = context.isExpired
+    ? 'expired'
+    : validFrom > Date.now() ? 'scheduled' : 'active';
+  const card: CampaignPassCardData = {
+    fullName: context.applicant.full_name,
+    registrationId: context.applicant.application_number,
+    idNumber: context.idNumber,
+    category: context.applicant.category,
+    accreditationType: context.applicant.event ? 'Match-day pass' : 'Season pass',
+    assignedRole: context.applicant.assigned_role?.name || 'Workforce staff',
+    assignedMatch: context.assignedMatch,
+    assignedZone: context.applicant.assigned_zone || 'To be assigned',
+    assignedShift: context.applicant.assigned_shift || 'To be assigned',
+    validFrom: context.validFrom,
+    validUntil: context.validUntil,
+    eventVenue: context.eventVenue,
+    status,
+    photoImage,
+    qrImage: context.qrImage,
+  };
+  const svg = await renderCampaignPassCardSvg(card);
+  const pdf = await renderCampaignPassPdfFromSvg(svg);
+  const safeId = context.idNumber.replace(/[^a-z0-9-]/gi, '');
+  return { svg, pdf, filename: `NUSC-Workforce-ID-${safeId}.pdf` };
+}
+
 /** Prepare a manager-only preview/download payload without exposing the QR token. */
 export async function prepareCampaignPassPreview(applicationId: string) {
   try {
@@ -745,12 +782,16 @@ export async function prepareCampaignPassPreview(applicationId: string) {
     // Managers can inspect and print an expired card for records. Delivery remains
     // blocked by emailCampaignPass, and the attendance RPC still rejects its QR.
     const context = await loadCampaignPassContext(applicationId, { allowExpiredPreview: true });
+    const artwork = await createCampaignPassPdfAssets(context);
     return {
       success: true as const,
       idNumber: context.idNumber,
       passUrl: context.passUrl,
       qrImageBase64: context.qrImage.toString('base64'),
       isExpired: context.isExpired,
+      svgBase64: Buffer.from(artwork.svg, 'utf8').toString('base64'),
+      pdfBase64: artwork.pdf.toString('base64'),
+      pdfFilename: artwork.filename,
       pass: {
         idNumber: context.idNumber,
         registrationId: context.applicant.application_number,
@@ -804,23 +845,22 @@ export async function emailCampaignPass(applicationId: string) {
       throw new Error('This applicant does not have a valid email address.');
     }
     const resendFrom = senderName ? `${senderName} <${senderAddress}>` : senderAddress;
-    const qrImageBase64 = context.qrImage.toString('base64');
+    const artwork = await createCampaignPassPdfAssets(context);
     const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[char]!));
     const passUrl = escapeHtml(context.passUrl);
-    const text = `Your NUSC campaign pass is ready.\n\nPass ID: ${context.idNumber}\n${context.passUrl}\n\nYour QR code is embedded below and attached as a PNG. Show it at the gate or your assigned booth for each match day. Keep this private; it grants event access.`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC campaign pass</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your registration has been approved.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.applicant.assigned_role?.name)}<br><strong>Zone:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}</p><p>Show this QR at the gate or your assigned booth for each match day. If it does not display, open the attached PNG image.</p><p><a href="${passUrl}"><img src="cid:nusc-campaign-pass-qr" alt="Your secure NUSC campaign QR pass" width="240" height="240" style="display:block;border:1px solid #ddd;padding:8px;background:#fff"></a></p><p><a href="${passUrl}">Open or print your pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
+    const text = `Your NUSC Workforce ID is attached as a PDF.\n\nPass ID: ${context.idNumber}\nRole: ${context.applicant.assigned_role?.name || 'Workforce staff'}\nGate / Checkpoint: ${context.applicant.assigned_zone || 'To be assigned'}\nShift: ${context.applicant.assigned_shift || 'To be assigned'}\n${context.passUrl}\n\nKeep this private; it grants event access. Present your photo ID if staff ask to verify your identity.`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC Workforce ID</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your approved workforce credential is attached as a PDF.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.applicant.assigned_role?.name || 'Workforce staff')}<br><strong>Gate / Checkpoint:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}</p><p><a href="${passUrl}">Open or print your digital pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: resendFrom, to: [recipient], subject: 'Your NUSC Campaign Pass', text, html,
         attachments: [{
-          filename: 'nusc-campaign-pass-qr.png', content: qrImageBase64,
-          content_type: 'image/png', content_id: 'nusc-campaign-pass-qr',
-        }, {
-          filename: `${context.idNumber}-QR.png`, content: qrImageBase64, content_type: 'image/png',
+          filename: artwork.filename,
+          content: artwork.pdf.toString('base64'),
+          content_type: 'application/pdf',
         }],
       }),
       cache: 'no-store',

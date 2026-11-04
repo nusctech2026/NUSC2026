@@ -384,12 +384,21 @@ test('campaign pass preview is manager-only, allows scheduled and expired inspec
   const pass={id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',qr_token:token,
     valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
     is_active:true,revoked_at:null,application:{application_number:'NUSC-AHB-011',full_name:'Synthetic Candidate',email:'candidate@example.invalid',
-      category:'ahibi',application_status:'approved',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
+      category:'ahibi',application_status:'approved',photo_storage_path:'synthetic/photo.png',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
   try {
     const calls=[];
     const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
       assertStaffRole:async roles=>{assert.deepEqual(roles,['super_admin','campaign_manager']);return {email:'manager@example.invalid'};},
-      getSupabaseAdminClient:()=>({from:table=>{calls.push(['from',table]);return query(pass,calls,table);}}),
+      getSupabaseAdminClient:()=>({
+        from:table=>{calls.push(['from',table]);return query(pass,calls,table);},
+        storage:{from:()=>({
+          createSignedUrl:async()=>({data:{signedUrl:'https://photo.example.invalid/signed'},error:null}),
+          download:async()=>({data:new Blob([new Uint8Array([1,2,3,4])],{type:'image/png'}),error:null}),
+        })},
+      }),
+    },'../utils/campaignPassPdf':{
+      renderCampaignPassCardSvg:async()=>'<svg/>',
+      renderCampaignPassPdfFromSvg:async()=>Buffer.from('%PDF-1.4 synthetic'),
     }});
     const preview=await api.prepareCampaignPassPreview('application-id');
     assert.equal(preview.success,true);
@@ -428,8 +437,8 @@ test('pass email reports setup or provider errors as a visible result and can se
   const token='b'.repeat(64);
   const pass={id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',qr_token:token,
     valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
-    is_active:true,revoked_at:null,application:{full_name:'Synthetic Candidate',email:'candidate@example.invalid',
-      application_status:'approved',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
+    is_active:true,revoked_at:null,application:{application_number:'NUSC-AHB-011',full_name:'Synthetic Candidate',email:'candidate@example.invalid',
+      category:'ahibi',application_status:'approved',photo_storage_path:'synthetic/photo.png',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
   try {
     process.env.NEXT_PUBLIC_SITE_URL='https://campaign.example.invalid';
     process.env.RESEND_API_KEY='synthetic-resend-key';
@@ -438,14 +447,25 @@ test('pass email reports setup or provider errors as a visible result and can se
     globalThis.fetch=async(url,init)=>{requests.push([url,JSON.parse(init.body)]);return new Response('{}',{status:200});};
     const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
       assertStaffRole:async()=>({email:'manager@example.invalid'}),
-      getSupabaseAdminClient:()=>({from:table=>query(pass,[],table)}),
+      getSupabaseAdminClient:()=>({
+        from:table=>query(pass,[],table),
+        storage:{from:()=>({
+          createSignedUrl:async()=>({data:{signedUrl:'https://photo.example.invalid/signed'},error:null}),
+          download:async()=>({data:new Blob([new Uint8Array([1,2,3,4])],{type:'image/png'}),error:null}),
+        })},
+      }),
+    },'../utils/campaignPassPdf':{
+      renderCampaignPassCardSvg:async()=>'<svg/>',
+      renderCampaignPassPdfFromSvg:async()=>Buffer.from('%PDF-1.4 synthetic'),
     }});
     const sent=await api.emailCampaignPass('application-id');
     assert.deepEqual(sent,{success:true,recipient:'candidate@example.invalid'});
     assert.equal(requests.length,1);
     assert.equal(requests[0][0],'https://api.resend.com/emails');
     assert.equal(requests[0][1].to[0],'candidate@example.invalid');
-    assert.equal(requests[0][1].attachments.some(file=>file.filename==='NUSC-AHB-011-QR.png'),true);
+    assert.equal(requests[0][1].attachments.length,1);
+    assert.equal(requests[0][1].attachments[0].content_type,'application/pdf');
+    assert.match(requests[0][1].attachments[0].filename,/\.pdf$/i);
 
     pass.valid_until=new Date(Date.now()-1000).toISOString();
     const expiredDelivery=await api.emailCampaignPass('application-id');

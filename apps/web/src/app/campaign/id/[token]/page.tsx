@@ -6,6 +6,7 @@ import { Footer } from '@/components/sections/Footer';
 import { getCampaignPass } from '../../actions';
 import PassCardView from './PassCardView';
 import '../../campaign.css';
+import './pass-card-print.css';
 
 export const metadata: Metadata = {
   title: 'Official Matchday Pass | Nagaland United SC',
@@ -54,12 +55,12 @@ export default async function CampaignIdPage({
   }
 
   return (
-    <>
+    <div className="campaign-pass-document">
       <Nav theme="light" forceScrolled={true} />
-      <main className="campaign-page-wrapper">
+      <main className="campaign-page-wrapper" id="campaign-pass-print-page">
         <PassCardView pass={result.pass} />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

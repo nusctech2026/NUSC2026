@@ -1,0 +1,168 @@
+@page {
+  size: 86mm 144mm;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: 86mm !important;
+    height: 144mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
+  .campaign-pass-document {
+    display: block !important;
+    width: 86mm !important;
+    height: 144mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .campaign-pass-document > :not(#campaign-pass-print-page) {
+    display: none !important;
+  }
+
+  #campaign-pass-print-page {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 86mm !important;
+    height: 144mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #campaign-pass-print-page .campaign-container {
+    position: static !important;
+    z-index: auto !important;
+    width: 86mm !important;
+    max-width: none !important;
+    height: 144mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #campaign-pass-print-page .id-pass-card {
+    position: absolute !important;
+    inset: 0 !important;
+    box-sizing: border-box !important;
+    width: 86mm !important;
+    max-width: none !important;
+    height: 144mm !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #campaign-pass-print-page .id-pass-header {
+    padding: 10px 12px !important;
+  }
+
+  #campaign-pass-print-page .id-pass-body {
+    padding: 12px !important;
+  }
+
+  #campaign-pass-print-page .id-pass-profile {
+    gap: 12px !important;
+    margin-bottom: 10px !important;
+  }
+
+  #campaign-pass-print-page .id-pass-photo {
+    flex: 0 0 72px !important;
+    width: 72px !important;
+    height: 90px !important;
+  }
+
+  #campaign-pass-print-page .id-pass-details h2 {
+    margin: 0 0 3px !important;
+    font-size: 1rem !important;
+    line-height: 1.1 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #campaign-pass-print-page .id-pass-details .role-badge {
+    margin-bottom: 5px !important;
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  #campaign-pass-print-page .id-pass-meta-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 6px 8px !important;
+    margin-bottom: 10px !important;
+    padding: 8px !important;
+    font-size: 9px !important;
+  }
+
+  #campaign-pass-print-page .id-pass-meta-item .label {
+    margin-bottom: 1px !important;
+    font-size: 7px !important;
+    line-height: 1.1 !important;
+  }
+
+  #campaign-pass-print-page .id-pass-meta-item .val {
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #campaign-pass-print-page .id-pass-qr-box {
+    padding: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  #campaign-pass-print-page .id-pass-qr-box > div:first-child {
+    width: 130px !important;
+    height: 130px !important;
+  }
+
+  #campaign-pass-print-page .id-pass-qr-box > div:nth-of-type(2) {
+    margin-top: 5px !important;
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  #campaign-pass-print-page .id-pass-qr-box > div:nth-of-type(3) {
+    margin-top: 1px !important;
+    font-size: 7px !important;
+    line-height: 1.1 !important;
+  }
+
+  #campaign-pass-print-page .id-pass-footer {
+    padding: 7px 12px !important;
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  #campaign-pass-print-page .id-pass-footer > div:nth-child(2) {
+    margin-top: 2px !important;
+    font-size: 7px !important;
+  }
+
+  #campaign-pass-print-page .no-print,
+  #campaign-pass-print-page .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  #campaign-pass-print-page .id-pass-card,
+  #campaign-pass-print-page .id-pass-card * {
+    visibility: visible !important;
+  }
+}
