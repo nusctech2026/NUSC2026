@@ -8,6 +8,10 @@ const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || '.next',
+  outputFileTracingIncludes: {
+    '/admin/\\[\\[\\.\\.\\.segments\\]\\]': ['./src/utils/fonts/*.ttf'],
+    '/admin/campaign/applications/*': ['./src/utils/fonts/*.ttf'],
+  },
   images: {
     localPatterns: [
       {
@@ -27,7 +31,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(dirname, '../../'),
   },
-  serverExternalPackages: ['pg'],
+  serverExternalPackages: ['pg', '@resvg/resvg-js'],
 }
 
 export default withPayload(nextConfig, { devBundleServerPackages: false })

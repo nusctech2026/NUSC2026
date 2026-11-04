@@ -1,4 +1,7 @@
 import sharp from 'sharp';
+import { Resvg } from '@resvg/resvg-js';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { CAMPAIGN_PASS_CREST_PNG } from './campaignPassCrest';
 
@@ -8,6 +11,21 @@ export const CAMPAIGN_PASS_HEIGHT_MM = 144;
 const SVG_WIDTH = 860;
 const SVG_HEIGHT = 1440;
 const RENDER_DPI = 300;
+const SANS_FONT = 'Arimo, Arial, Helvetica, sans-serif';
+const MONO_FONT = 'Cousine, Courier New, monospace';
+const FONT_FILES = ['Arimo-Variable.ttf', 'Cousine-Regular.ttf', 'Cousine-Bold.ttf'];
+
+function getBundledFontPaths() {
+  return FONT_FILES.map((filename) => {
+    const candidates = [
+      resolve(process.cwd(), 'src/utils/fonts', filename),
+      resolve(process.cwd(), 'apps/admin/src/utils/fonts', filename),
+    ];
+    const fontPath = candidates.find((candidate) => existsSync(candidate));
+    if (!fontPath) throw new Error('The bundled Workforce ID font could not be loaded: ' + filename);
+    return fontPath;
+  });
+}
 const DEPARTMENT_LABELS: Record<string, string> = {
   ahibi: 'Ahibi',
   volunteer: 'Volunteers',
@@ -88,7 +106,7 @@ function svgText(
   maxLines = 1,
   lineHeight = Math.round(size * 1.16),
   letterSpacing = 0,
-  fontFamily = 'Arial, Helvetica, sans-serif',
+  fontFamily = SANS_FONT,
   averageCharacterWidth = 0.58,
 ) {
   const fitted = fitText(value, width, size, maxLines, averageCharacterWidth);
@@ -145,15 +163,15 @@ function infoFieldSvg(
   )) / 2);
   const labelBaseline = y + valueTopOffset + 14.2;
   const label = '<text x="' + labelX + '" y="' + labelBaseline + '" fill="#53627a"'
-    + ' font-family="Arial, Helvetica, sans-serif" font-size="17.2" font-weight="900" letter-spacing=".7">'
+    + ' font-family="' + SANS_FONT + '" font-size="17.2" font-weight="900" letter-spacing=".7">'
     + escapeXml(field.label.toUpperCase()) + '</text>';
   const note = field.note
-    ? '<text x="' + labelX + '" y="' + (y + valueTopOffset + labelLineHeight + copyGap + 12.3) + '" fill="#68768c" font-family="Arial, Helvetica, sans-serif"'
+    ? '<text x="' + labelX + '" y="' + (y + valueTopOffset + labelLineHeight + copyGap + 12.3) + '" fill="#68768c" font-family="' + SANS_FONT + '"'
       + ' font-size="15.9" font-weight="600">' + escapeXml(field.note) + '</text>'
     : '';
   const valueTop = valueTopOffset + labelLineHeight + copyGap + (field.note ? copyGap + noteLineHeight : 0);
   const valueY = y + valueTop + valueSize * 0.84;
-  const value = svgText(field.value, labelX, valueY, width - 92, valueSize, '#0c1d38', 800, 3, valueLineHeight, 0, 'Arial, Helvetica, sans-serif', 0.63);
+  const value = svgText(field.value, labelX, valueY, width - 92, valueSize, '#0c1d38', 800, 3, valueLineHeight, 0, SANS_FONT, 0.63);
   const iconTabX = x + 15.9;
   const iconTabY = y + (height - 58.2) / 2;
   const iconLeft = iconTabX + 11;
@@ -258,11 +276,11 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
     '<rect x="340" y="21" width="180" height="37" rx="19" fill="url(#id-slot)" stroke="#aab4c4" stroke-width="3"/>',
     '<image x="34" y="104" width="138" height="157" preserveAspectRatio="xMidYMid meet" href="' + crestUri + '"/>',
     '<path d="M186 128v114" stroke="#fff" stroke-opacity=".62" stroke-width="2"/>',
-    '<text x="207" y="170" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="33" font-weight="900" letter-spacing="1.3">NAGALAND</text>',
-    '<text x="207" y="207" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="33" font-weight="900" letter-spacing="1.3">UNITED SC</text>',
-    '<text x="207" y="244" fill="#e7edf5" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" letter-spacing="2.4">OFFICIAL MATCHDAY ID</text>',
+    '<text x="207" y="170" fill="#fff" font-family="' + SANS_FONT + '" font-size="33" font-weight="900" letter-spacing="1.3">NAGALAND</text>',
+    '<text x="207" y="207" fill="#fff" font-family="' + SANS_FONT + '" font-size="33" font-weight="900" letter-spacing="1.3">UNITED SC</text>',
+    '<text x="207" y="244" fill="#e7edf5" font-family="' + SANS_FONT + '" font-size="20" font-weight="700" letter-spacing="2.4">OFFICIAL MATCHDAY ID</text>',
     '<rect x="688" y="146" width="137" height="54" rx="8" fill="' + statusBackground + '" stroke="' + statusBorder + '" stroke-width="3"/>',
-    '<text x="756.5" y="180" fill="' + statusForeground + '" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="900" letter-spacing=".7">' + statusLabel + '</text>',
+    '<text x="756.5" y="180" fill="' + statusForeground + '" text-anchor="middle" font-family="' + SANS_FONT + '" font-size="18" font-weight="900" letter-spacing=".7">' + statusLabel + '</text>',
     '<rect x="0" y="346" width="860" height="1094" fill="url(#id-body)"/>',
     '<svg x="0" y="782" width="860" height="628" viewBox="0 0 340 240" preserveAspectRatio="none" opacity=".72" aria-hidden="true">',
     '<path d="M0 147 70 93l25 20 46-53 53 53 36-28 53 47 57-29v137H0Z" fill="#f4f7fb"/>',
@@ -276,14 +294,14 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
     '</svg>',
     '<rect x="30" y="372" width="201" height="249" rx="26" fill="#e8edf4" stroke="#aab9ce" stroke-width="3"/>',
     '<image x="32" y="374" width="197" height="245" preserveAspectRatio="xMidYMid slice" clip-path="url(#photo-clip)" href="' + photoUri + '"/>',
-    '<text x="' + identityX + '" y="414" fill="#d71927" font-family="Arial, Helvetica, sans-serif" font-size="23.8" font-weight="900" letter-spacing="1.4">' + escapeXml(department.toUpperCase()) + '</text>',
+    '<text x="' + identityX + '" y="414" fill="#d71927" font-family="' + SANS_FONT + '" font-size="23.8" font-weight="900" letter-spacing="1.4">' + escapeXml(department.toUpperCase()) + '</text>',
     svgText(data.fullName, identityX, nameBaseline, identityWidth, 42.3, '#091d3b', 900, 2, 44),
     '<path d="M' + identityX + ' ' + roleTop + 'H' + (identityX + identityWidth) + 'L' + (identityX + identityWidth - 34) + ' ' + (roleTop + roleHeight) + 'H' + identityX + 'Z" fill="#e21e2b"/>',
     svgText((data.assignedRole || 'Workforce staff').toUpperCase(), identityX + 21, roleTop + 29, identityWidth - 42, 21.17, '#fff', 900, 2, 24.56, 0.8),
-    '<text x="' + identityX + '" y="' + passBaseline + '" fill="#56657d" font-family="Arial, Helvetica, sans-serif" font-size="18.5" font-weight="800" letter-spacing="1.3">WORKFORCE ID</text>',
-    svgText(data.idNumber || data.registrationId, identityX + 190, passBaseline, identityWidth - 190, 26.46, '#091d3b', 900, 1, 30.4, 0, 'Courier New, monospace'),
+    '<text x="' + identityX + '" y="' + passBaseline + '" fill="#56657d" font-family="' + SANS_FONT + '" font-size="18.5" font-weight="800" letter-spacing="1.3">WORKFORCE ID</text>',
+    svgText(data.idNumber || data.registrationId, identityX + 190, passBaseline, identityWidth - 190, 26.46, '#091d3b', 900, 1, 30.4, 0, MONO_FONT),
     data.registrationId && data.registrationId !== data.idNumber
-      ? '<text x="' + identityX + '" y="' + registrationBaseline + '" fill="#64748b" font-family="Arial, Helvetica, sans-serif" font-size="18.5" font-weight="700">Application ' + escapeXml(data.registrationId) + '</text>'
+      ? '<text x="' + identityX + '" y="' + registrationBaseline + '" fill="#64748b" font-family="' + SANS_FONT + '" font-size="18.5" font-weight="700">Application ' + escapeXml(data.registrationId) + '</text>'
       : '',
     fieldSvg,
     '<rect x="' + qrFrameX + '" y="' + qrFrameY + '" width="' + qrFrameSize + '" height="' + qrFrameSize + '" rx="11" fill="#fff" stroke="#bdc9d9" stroke-width="3"/>',
@@ -295,8 +313,8 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
       + 'M' + (qrFrameX + qrFrameSize - 25) + ' ' + (qrFrameY + qrFrameSize + 4)
       + 'H' + (qrFrameX + qrFrameSize + 4) + 'V' + (qrFrameY + qrFrameSize - 25)
       + '" fill="none" stroke="#e21e2b" stroke-width="5" stroke-linecap="square"/>',
-    '<text x="430" y="' + qrTitleY + '" fill="#091d3b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="900" letter-spacing="1.4">ENTRY &amp; ATTENDANCE QR</text>',
-    '<text x="430" y="' + qrNoteY + '" fill="#53627a" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="600">Non-transferable · scan this same ID on every authorized match day.</text>',
+    '<text x="430" y="' + qrTitleY + '" fill="#091d3b" text-anchor="middle" font-family="' + SANS_FONT + '" font-size="18" font-weight="900" letter-spacing="1.4">ENTRY &amp; ATTENDANCE QR</text>',
+    '<text x="430" y="' + qrNoteY + '" fill="#53627a" text-anchor="middle" font-family="' + SANS_FONT + '" font-size="16" font-weight="600">Non-transferable \u00b7 scan this same ID on every authorized match day.</text>',
     '<svg x="0" y="1366" width="860" height="72" viewBox="0 0 340 28" preserveAspectRatio="none" aria-hidden="true">',
     '<path d="M0 7 80 18Q170 28 260 18l80-11v21H0Z" fill="#091d3b"/>',
     '<path d="M0 7 80 18Q170 27 260 18l80-11v5l-80 12Q170 33 80 23L0 12Z" fill="#e21e2b"/>',
@@ -344,11 +362,33 @@ function createSinglePagePdf(rgbPixels: Buffer, pixelWidth: number, pixelHeight:
   return Buffer.concat(chunks);
 }
 
+export async function renderCampaignPassSvgToPng(svg: string) {
+  const width = Math.round(CAMPAIGN_PASS_WIDTH_MM / 25.4 * RENDER_DPI);
+  const height = Math.round(CAMPAIGN_PASS_HEIGHT_MM / 25.4 * RENDER_DPI);
+  const rendered = new Resvg(svg, {
+    dpi: RENDER_DPI,
+    font: {
+      loadSystemFonts: false,
+      fontFiles: getBundledFontPaths(),
+      defaultFontFamily: 'Arimo',
+      sansSerifFamily: 'Arimo',
+      monospaceFamily: 'Cousine',
+    },
+    shapeRendering: 2,
+    textRendering: 2,
+    imageRendering: 0,
+  }).render();
+  if (rendered.width !== width || rendered.height !== height) {
+    throw new Error('The workforce ID could not be rendered at print resolution.');
+  }
+  return rendered.asPng();
+}
+
 export async function renderCampaignPassPdfFromSvg(svg: string) {
   const width = Math.round(CAMPAIGN_PASS_WIDTH_MM / 25.4 * RENDER_DPI);
   const height = Math.round(CAMPAIGN_PASS_HEIGHT_MM / 25.4 * RENDER_DPI);
-  const { data: pixels, info } = await sharp(Buffer.from(svg))
-    .resize(width, height, { fit: 'fill' })
+  const png = await renderCampaignPassSvgToPng(svg);
+  const { data: pixels, info } = await sharp(png)
     .flatten({ background: '#ffffff' })
     .removeAlpha()
     .raw()

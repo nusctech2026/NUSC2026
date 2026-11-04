@@ -25,6 +25,7 @@
     "@payloadcms/richtext-lexical": "3.90.1",
     "@payloadcms/storage-s3": "^3.90.1",
     "@payloadcms/ui": "3.90.1",
+    "@resvg/resvg-js": "2.6.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "@swc/helpers": "^0.5.23",

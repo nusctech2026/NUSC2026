@@ -9,7 +9,7 @@ const passCrest = loadSource('apps/admin/src/utils/campaignPassCrest.ts', {});
 const passPdfRenderer = loadSource('apps/admin/src/utils/campaignPassPdf.ts', {
   './campaignPassCrest': passCrest,
 });
-const { renderCampaignPassCardSvg, renderCampaignPassPdf } = passPdfRenderer;
+const { renderCampaignPassCardSvg, renderCampaignPassSvgToPng, renderCampaignPassPdf } = passPdfRenderer;
 
 const qrToken = 'a'.repeat(64);
 
@@ -28,11 +28,11 @@ async function accreditationData(shift) {
     accreditationType: 'Match-day pass',
     assignedRole: 'Gate 1 Scanning',
     assignedMatch: 'Nagaland United vs Kohima United',
-    assignedZone: 'North Stand · Gate 1 checkpoint',
+    assignedZone: 'North Stand \u00b7 Gate 1 checkpoint',
     assignedShift: shift,
     validFrom: '2026-11-04T00:00:00.000Z',
     validUntil: '2026-12-31T23:59:59.000Z',
-    eventVenue: 'Chümoukedima Football Stadium, Nagaland',
+    eventVenue: 'Ch\u00fcmoukedima Football Stadium, Nagaland',
     photoImage,
     qrImage,
   };
@@ -59,9 +59,9 @@ for (const shift of ['Morning', 'Evening']) {
     assert.ok(svg.includes('Kohima United'));
     for (const text of [
       'APPROVED', 'VOLUNTEERS', 'GATE 1 SCANNING', 'WORKFORCE ID', 'NUSC-ID-2026-ABCDEF12',
-      'North Stand · Gate 1 checkpoint', shift, 'Match-day pass',
+      'North Stand \u00b7 Gate 1 checkpoint', shift, 'Match-day pass',
       'VALID FROM', 'VALID UNTIL', '4 Nov 2026', '1 Jan 2027',
-      'VENUE', 'Chümoukedima Football Stadium, Nagaland',
+      'VENUE', 'Ch\u00fcmoukedima Football Stadium, Nagaland',
     ]) assert.ok(svg.includes(text), `SVG preview should contain ${text}`);
     assert.match(svg, /data:image\/jpeg;base64,/);
     assert.match(svg, /data:image\/png;base64,/);
@@ -138,9 +138,9 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
       media_designation: null,
       other_role: null,
       assigned_role: { name: 'Gate 1 Scanning', code: 'gate_1_scanning' },
-      assigned_zone: 'North Stand · Gate 1 checkpoint',
+      assigned_zone: 'North Stand \u00b7 Gate 1 checkpoint',
       assigned_shift: 'Morning',
-      event: { title: 'Nagaland United vs Kohima United', venue: 'Chümoukedima Football Stadium, Nagaland' },
+      event: { title: 'Nagaland United vs Kohima United', venue: 'Ch\u00fcmoukedima Football Stadium, Nagaland' },
     },
   };
   const photoImage = await sharp({ create: { width: 420, height: 524, channels: 3, background: '#9b664b' } }).png().toBuffer();
@@ -216,8 +216,7 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
     const pdfImage = extractPdfImage(emailedPdf);
     assert.equal(pdfImage.width, 1016);
     assert.equal(pdfImage.height, 1701);
-    const expectedPixels = await sharp(Buffer.from(adminPreviewSvg))
-      .resize(1016, 1701, { fit: 'fill' })
+    const expectedPixels = await sharp(await renderCampaignPassSvgToPng(adminPreviewSvg))
       .flatten({ background: '#ffffff' })
       .removeAlpha()
       .raw()
