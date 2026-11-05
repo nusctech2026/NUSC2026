@@ -217,7 +217,7 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
     { label: 'Shift', value: data.assignedShift || 'To be assigned', icon: 'shift' },
     { label: 'Valid from', value: formatPassDate(data.validFrom), icon: 'calendar' },
     { label: 'Valid until', value: formatPassDate(data.validUntil), icon: 'clock' },
-    { label: 'Venue', value: data.eventVenue || 'NUSC home match venues', icon: 'venue' },
+    { label: 'Venue', value: data.eventVenue || 'Chumukedima Football Stadium, Nagaland', icon: 'venue' },
   ];
   const valueLayouts = fields.map(field => fitText(field.value, fieldWidth - 92, 21.17, 3, 0.63));
   const copyHeight = fields.map((field, index) =>
@@ -384,10 +384,9 @@ export async function renderCampaignPassSvgToPng(svg: string) {
   return rendered.asPng();
 }
 
-export async function renderCampaignPassPdfFromSvg(svg: string) {
+export async function renderCampaignPassPdfFromPng(png: Buffer) {
   const width = Math.round(CAMPAIGN_PASS_WIDTH_MM / 25.4 * RENDER_DPI);
   const height = Math.round(CAMPAIGN_PASS_HEIGHT_MM / 25.4 * RENDER_DPI);
-  const png = await renderCampaignPassSvgToPng(svg);
   const { data: pixels, info } = await sharp(png)
     .flatten({ background: '#ffffff' })
     .removeAlpha()
@@ -397,6 +396,10 @@ export async function renderCampaignPassPdfFromSvg(svg: string) {
     throw new Error('The workforce ID could not be rasterized at print resolution.');
   }
   return createSinglePagePdf(pixels, info.width, info.height);
+}
+
+export async function renderCampaignPassPdfFromSvg(svg: string) {
+  return renderCampaignPassPdfFromPng(await renderCampaignPassSvgToPng(svg));
 }
 
 export async function renderCampaignPassPdf(data: CampaignPassCardData) {

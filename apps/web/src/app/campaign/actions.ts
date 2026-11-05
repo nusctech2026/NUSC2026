@@ -1106,7 +1106,7 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
       kaki: 'Kaki', print_media: 'Print Media', press_media: 'Press Media', broadcast_tv: 'Broadcast / TV',
       digital_online_media: 'Digital / Online Media', independent_freelance: 'Independent / Freelance', other: 'Other',
     };
-    const eventVenue = event?.venue || 'ChÃ¼moukedima Football Stadium, Nagaland';
+    const eventVenue = 'Chumukedima Football Stadium, Nagaland';
 
     return {
       success: true,

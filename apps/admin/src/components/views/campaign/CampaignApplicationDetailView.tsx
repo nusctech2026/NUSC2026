@@ -41,7 +41,14 @@ function createCampaignPassPdfFile(base64: string, filename: string) {
   return new File([bytes], filename, { type: 'application/pdf' });
 }
 
-function downloadCampaignPassPdf(file: File) {
+function createCampaignPassImageFile(base64: string, filename: string) {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], filename, { type: 'image/png' });
+}
+
+function downloadCampaignPassFile(file: File) {
   const downloadUrl = URL.createObjectURL(file);
   const anchor = document.createElement('a');
   anchor.href = downloadUrl;
@@ -103,6 +110,8 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   const [passPreviewSvgBase64, setPassPreviewSvgBase64] = useState<string | null>(null);
   const [passPdfBase64, setPassPdfBase64] = useState<string | null>(null);
   const [passPdfFilename, setPassPdfFilename] = useState<string | null>(null);
+  const [passImageBase64, setPassImageBase64] = useState<string | null>(null);
+  const [passImageFilename, setPassImageFilename] = useState<string | null>(null);
   const [passPreviewDetails, setPassPreviewDetails] = useState<any>(null);
   const [deliveryNotice, setDeliveryNotice] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
@@ -146,7 +155,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     ? `91${whatsappDigits}`
     : whatsappDigits.length === 12 && whatsappDigits.startsWith('91') ? whatsappDigits : null;
   const whatsappDraftUrl = passCanBeShared && previewLinkUrl && whatsappRecipient && (passPreviewIdNumber || app?.issuedId?.id_number)
-    ? `https://wa.me/${whatsappRecipient}?text=${encodeURIComponent(`Your NUSC workforce ID ${passPreviewIdNumber || app.issuedId.id_number} is ready. View your pass and QR: ${previewLinkUrl}. Keep this private and show it at your assigned gate or booth.`)}`
+    ? `https://wa.me/${whatsappRecipient}?text=${encodeURIComponent(`Your NUSC workforce ID ${passPreviewIdNumber || app.issuedId.id_number} is ready. I will attach the ID PDF and PNG image. View the private pass: ${previewLinkUrl}. Keep this private and show it at your assigned gate or booth.`)}`
     : null;
 
   const safePortfolioUrl = (() => {
@@ -316,6 +325,8 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
       setPassPreviewSvgBase64(null);
       setPassPdfBase64(null);
       setPassPdfFilename(null);
+      setPassImageBase64(null);
+      setPassImageFilename(null);
       setPassPreviewDetails(null);
       await loadDetail();
       onStatusUpdated?.();
@@ -334,7 +345,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     try {
       const result = await emailCampaignPass(applicationId);
       if (result.success) {
-        setDeliveryNotice({ kind: 'success', message: `Pass and QR accepted by the email provider for ${result.recipient}.` });
+        setDeliveryNotice({ kind: 'success', message: `ID PDF and image accepted by the email provider for ${result.recipient}.` });
       } else {
         setDeliveryNotice({ kind: 'error', message: result.message });
       }
@@ -354,6 +365,8 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     setPassPreviewSvgBase64(null);
     setPassPdfBase64(null);
     setPassPdfFilename(null);
+    setPassImageBase64(null);
+    setPassImageFilename(null);
     setPassPreviewDetails(null);
     setDeliveryNotice(null);
     try {
@@ -367,6 +380,8 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
       setPassPreviewSvgBase64(result.svgBase64);
       setPassPdfBase64(result.pdfBase64);
       setPassPdfFilename(result.pdfFilename);
+      setPassImageBase64(result.imageBase64);
+      setPassImageFilename(result.imageFilename);
       setPassPreviewDetails({ ...result.pass, isExpired: result.isExpired });
     } catch {
       setPassPreviewError('The pass preview could not be prepared. Try again or contact a campaign manager.');
@@ -385,50 +400,66 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     }
   };
 
-  const handleDownloadPassPdf = () => {
-    if (!passPdfBase64 || !passPdfFilename) return;
+  const handleDownloadPassFiles = () => {
+    if (!passPdfBase64 || !passPdfFilename || !passImageBase64 || !passImageFilename) return;
     try {
-      downloadCampaignPassPdf(createCampaignPassPdfFile(passPdfBase64, passPdfFilename));
-      setDeliveryNotice({ kind: 'success', message: 'The ID PDF was downloaded.' });
+      downloadCampaignPassFile(createCampaignPassPdfFile(passPdfBase64, passPdfFilename));
+      downloadCampaignPassFile(createCampaignPassImageFile(passImageBase64, passImageFilename));
+      setDeliveryNotice({ kind: 'success', message: 'The ID PDF and PNG image were downloaded.' });
     } catch {
-      setDeliveryNotice({ kind: 'error', message: 'The ID PDF could not be downloaded. Try again or contact a campaign manager.' });
+      setDeliveryNotice({ kind: 'error', message: 'The ID files could not be downloaded. Try again or contact a campaign manager.' });
     }
   };
 
-  const handleSharePassPdf = async () => {
-    if (!passPdfBase64 || !passPdfFilename || !passCanBeShared) return;
+  const handleSharePassFiles = async () => {
+    if (!passPdfBase64 || !passPdfFilename || !passImageBase64 || !passImageFilename || !passCanBeShared) return;
     setDeliveryNotice(null);
     try {
-      const file = createCampaignPassPdfFile(passPdfBase64, passPdfFilename);
+      const pdfFile = createCampaignPassPdfFile(passPdfBase64, passPdfFilename);
+      const imageFile = createCampaignPassImageFile(passImageBase64, passImageFilename);
       const shareApi = navigator as Navigator & {
         canShare?: (data: ShareData) => boolean;
         share?: (data: ShareData) => Promise<void>;
       };
       const shareData: ShareData = {
         title: 'NUSC Workforce ID',
-        text: `Approved NUSC workforce ID for ${app.full_name}. Select WhatsApp to share the PDF.`,
-        files: [file],
+        text: `Approved NUSC workforce ID for ${app.full_name}. Select WhatsApp to share the PDF and PNG image.`,
+        files: [pdfFile, imageFile],
       };
 
       if (shareApi.share && shareApi.canShare?.(shareData)) {
         try {
           await shareApi.share(shareData);
-          setDeliveryNotice({ kind: 'success', message: 'The device share sheet closed. Confirm the PDF was sent in WhatsApp.' });
+          setDeliveryNotice({ kind: 'success', message: 'The share sheet closed. Confirm both ID files are attached before sending in WhatsApp.' });
         } catch (error) {
           if (error instanceof DOMException && error.name === 'AbortError') {
-            setDeliveryNotice({ kind: 'error', message: 'Sharing was cancelled. The PDF was not sent.' });
+            setDeliveryNotice({ kind: 'error', message: 'Sharing was cancelled. The ID files were not sent.' });
             return;
           }
-          downloadCampaignPassPdf(file);
-          setDeliveryNotice({ kind: 'success', message: 'The share sheet could not open. The ID PDF was downloaded; attach it in WhatsApp.' });
+          downloadCampaignPassFile(pdfFile);
+          downloadCampaignPassFile(imageFile);
+          setDeliveryNotice({ kind: 'success', message: 'The share sheet could not open. Both ID files were downloaded; attach both in WhatsApp.' });
         }
         return;
       }
 
-      downloadCampaignPassPdf(file);
-      setDeliveryNotice({ kind: 'success', message: 'This browser cannot share files. The ID PDF was downloaded. Open WhatsApp and attach this file in the applicant chat.' });
+      downloadCampaignPassFile(pdfFile);
+      downloadCampaignPassFile(imageFile);
+      setDeliveryNotice({ kind: 'success', message: 'This browser cannot share files. Both ID files were downloaded; attach both in the applicant WhatsApp chat.' });
     } catch {
-      setDeliveryNotice({ kind: 'error', message: 'The ID PDF could not be prepared for sharing.' });
+      setDeliveryNotice({ kind: 'error', message: 'The ID files could not be prepared for sharing.' });
+    }
+  };
+
+  const handleOpenWhatsAppDraft = () => {
+    if (!whatsappDraftUrl || !passPdfBase64 || !passPdfFilename || !passImageBase64 || !passImageFilename) return;
+    try {
+      downloadCampaignPassFile(createCampaignPassPdfFile(passPdfBase64, passPdfFilename));
+      downloadCampaignPassFile(createCampaignPassImageFile(passImageBase64, passImageFilename));
+      window.open(whatsappDraftUrl, '_blank', 'noopener,noreferrer');
+      setDeliveryNotice({ kind: 'success', message: 'Both ID files were downloaded and a WhatsApp draft was opened. Attach the PDF and PNG before sending.' });
+    } catch {
+      setDeliveryNotice({ kind: 'error', message: 'The WhatsApp draft or ID files could not be prepared. Try Share ID PDF + image instead.' });
     }
   };
 
@@ -1064,23 +1095,23 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                 </div>}
                 <button
                   type="button"
-                  onClick={handleSharePassPdf}
-                  disabled={!passPdfBase64 || !passCanBeShared}
-                  style={{ padding: '12px', borderRadius: 6, border: '1px solid #14532d', background: '#14532d', color: '#fff', fontWeight: 800, cursor: passPdfBase64 && passCanBeShared ? 'pointer' : 'not-allowed', opacity: passPdfBase64 && passCanBeShared ? 1 : 0.6 }}
+                  onClick={handleSharePassFiles}
+                  disabled={!passPdfBase64 || !passImageBase64 || !passCanBeShared}
+                  style={{ padding: '12px', borderRadius: 6, border: '1px solid #14532d', background: '#14532d', color: '#fff', fontWeight: 800, cursor: passPdfBase64 && passImageBase64 && passCanBeShared ? 'pointer' : 'not-allowed', opacity: passPdfBase64 && passImageBase64 && passCanBeShared ? 1 : 0.6 }}
                 >
-                  Share ID PDF
+                  Share ID PDF + image
                 </button>
                 <p style={{ margin: '-4px 0 0', color: '#475569', fontSize: 12, lineHeight: 1.45 }}>
-                  Choose WhatsApp in the device share sheet. If this browser cannot share files, the PDF downloads so you can attach it in WhatsApp.
+                  Choose WhatsApp in the device share sheet to share both files. If this browser cannot share files, both downloads are available to attach in WhatsApp.
                 </p>
 
                 <button
                   type="button"
-                  onClick={handleDownloadPassPdf}
-                  disabled={!passPdfBase64}
-                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #14532d', background: '#fff', color: '#14532d', fontWeight: 700, cursor: passPdfBase64 ? 'pointer' : 'not-allowed', opacity: passPdfBase64 ? 1 : 0.6 }}
+                  onClick={handleDownloadPassFiles}
+                  disabled={!passPdfBase64 || !passImageBase64}
+                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #14532d', background: '#fff', color: '#14532d', fontWeight: 700, cursor: passPdfBase64 && passImageBase64 ? 'pointer' : 'not-allowed', opacity: passPdfBase64 && passImageBase64 ? 1 : 0.6 }}
                 >
-                  Download ID PDF
+                  Download ID PDF + image
                 </button>
 
                 {passCanBeShared && passPreviewUrl && <a
@@ -1102,21 +1133,21 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                 <button
                   type="button"
                   onClick={handleEmailPass}
-                  disabled={actionLoading || !app.email || !passPdfBase64 || !passCanBeShared}
-                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #15803d', background: '#15803d', color: '#fff', fontWeight: 700, cursor: actionLoading || !app.email || !passPdfBase64 || !passCanBeShared ? 'not-allowed' : 'pointer', opacity: actionLoading || !app.email || !passPdfBase64 || !passCanBeShared ? 0.6 : 1 }}
+                  disabled={actionLoading || !app.email || !passPdfBase64 || !passImageBase64 || !passCanBeShared}
+                  style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #15803d', background: '#15803d', color: '#fff', fontWeight: 700, cursor: actionLoading || !app.email || !passPdfBase64 || !passImageBase64 || !passCanBeShared ? 'not-allowed' : 'pointer', opacity: actionLoading || !app.email || !passPdfBase64 || !passImageBase64 || !passCanBeShared ? 0.6 : 1 }}
                 >
-                  {actionLoading ? 'Sending email…' : `Email ID PDF to ${app.email || 'applicant email'}`}
+                  {actionLoading ? 'Sending email…' : `Email ID PDF + image to ${app.email || 'applicant email'}`}
                 </button>
 
                 {passCanBeShared && whatsappDraftUrl ? (
-                  <a
-                    href={whatsappDraftUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'block', textAlign: 'center', padding: '10px 12px', borderRadius: 6, background: '#16a34a', color: '#fff', textDecoration: 'none', fontWeight: 700 }}
+                  <button
+                    type="button"
+                    onClick={handleOpenWhatsAppDraft}
+                    disabled={!passPdfBase64 || !passImageBase64}
+                    style={{ display: 'block', width: '100%', textAlign: 'center', padding: '10px 12px', borderRadius: 6, border: 0, background: '#16a34a', color: '#fff', fontWeight: 700, cursor: passPdfBase64 && passImageBase64 ? 'pointer' : 'not-allowed', opacity: passPdfBase64 && passImageBase64 ? 1 : 0.6 }}
                   >
-                    Share pass link in WhatsApp (fallback)
-                  </a>
+                    Download both files and open WhatsApp draft
+                  </button>
                 ) : passCanBeShared ? (
                   <div style={{ padding: 10, borderRadius: 6, background: '#fff7ed', color: '#9a3412' }}>
                     {whatsappRecipient ? 'The pass link could not be prepared for WhatsApp. Close this preview and try again.' : 'Add a valid 10-digit Indian phone number to open a WhatsApp draft.'}
@@ -1126,9 +1157,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                     Email and WhatsApp delivery will be available when this pass is active and unexpired.
                   </div>
                 )}
-                <div style={{ padding: 10, borderRadius: 6, background: '#f8fafc', color: '#475569', lineHeight: 1.5 }}>
-                  The link-only fallback shares the private pass URL. To share the PDF, use Share ID PDF or download it and attach the file in WhatsApp.
-                </div>
                 {deliveryNotice && <p
                   role={deliveryNotice.kind === 'error' ? 'alert' : 'status'}
                   style={{ margin: 0, padding: 10, borderRadius: 6, background: deliveryNotice.kind === 'error' ? '#fef2f2' : '#dcfce7', color: deliveryNotice.kind === 'error' ? '#991b1b' : '#166534', lineHeight: 1.5 }}

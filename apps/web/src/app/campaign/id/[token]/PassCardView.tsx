@@ -93,7 +93,7 @@ export default function PassCardView({ pass }: PassCardViewProps) {
     ...(pass.mediaOrganisationType ? [{ label: 'Media organisation', value: pass.mediaOrganisationType, icon: 'access' }] : []),
     { label: 'Valid from', value: formatPassDate(pass.validFrom), icon: 'calendar' },
     { label: 'Valid until', value: formatPassDate(pass.validUntil), icon: 'clock' },
-    { label: 'Venue', value: pass.eventVenue || 'NUSC home match venues', icon: 'venue' },
+    { label: 'Venue', value: pass.eventVenue || 'Chumukedima Football Stadium, Nagaland', icon: 'venue' },
   ];
 
   return (

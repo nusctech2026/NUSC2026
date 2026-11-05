@@ -4,8 +4,15 @@ import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getSupabaseAdminClient, assertStaffRole } from '../utils/supabaseServerClient';
 import { campaignRoleLabel } from '../utils/campaignRoleLabel';
-import { renderCampaignPassCardSvg, renderCampaignPassPdfFromSvg, type CampaignPassCardData } from '../utils/campaignPassPdf';
+import {
+  renderCampaignPassCardSvg,
+  renderCampaignPassPdfFromPng,
+  renderCampaignPassSvgToPng,
+  type CampaignPassCardData,
+} from '../utils/campaignPassPdf';
 import { createPerformanceTrace } from '@nusc/db/src/performance';
+
+const CAMPAIGN_PASS_VENUE = 'Chumukedima Football Stadium, Nagaland';
 
 function normalizeWorkforcePhone(value: string) {
   const digits = value.replace(/\D/g, '');
@@ -735,7 +742,7 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
     isExpired: Date.now() > validUntil,
     signedPhotoUrl: photo.data?.signedUrl || null,
     assignedMatch: event?.title || 'Season pass · all NUSC home matches',
-    eventVenue: event?.venue || 'NUSC home match venues',
+    eventVenue: CAMPAIGN_PASS_VENUE,
   };
 }
 
@@ -770,9 +777,16 @@ async function createCampaignPassPdfAssets(context: CampaignPassContext) {
     qrImage: context.qrImage,
   };
   const svg = await renderCampaignPassCardSvg(card);
-  const pdf = await renderCampaignPassPdfFromSvg(svg);
+  const image = await renderCampaignPassSvgToPng(svg);
+  const pdf = await renderCampaignPassPdfFromPng(image);
   const safeId = context.idNumber.replace(/[^a-z0-9-]/gi, '');
-  return { svg, pdf, filename: `NUSC-Workforce-ID-${safeId}.pdf` };
+  return {
+    svg,
+    image,
+    pdf,
+    filename: `NUSC-Workforce-ID-${safeId}.pdf`,
+    imageFilename: `NUSC-Workforce-ID-${safeId}.png`,
+  };
 }
 
 /** Prepare a manager-only preview/download payload without exposing the QR token. */
@@ -792,6 +806,8 @@ export async function prepareCampaignPassPreview(applicationId: string) {
       svgBase64: Buffer.from(artwork.svg, 'utf8').toString('base64'),
       pdfBase64: artwork.pdf.toString('base64'),
       pdfFilename: artwork.filename,
+      imageBase64: artwork.image.toString('base64'),
+      imageFilename: artwork.imageFilename,
       pass: {
         idNumber: context.idNumber,
         registrationId: context.applicant.application_number,
@@ -817,7 +833,7 @@ export async function prepareCampaignPassPreview(applicationId: string) {
   }
 }
 
-/** Send the approved candidate their private pass and scannable QR by email. */
+/** Send the approved candidate their private workforce ID as a PDF and PNG. */
 export async function emailCampaignPass(applicationId: string) {
   try {
     await assertStaffRole(['super_admin', 'campaign_manager']);
@@ -850,8 +866,8 @@ export async function emailCampaignPass(applicationId: string) {
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[char]!));
     const passUrl = escapeHtml(context.passUrl);
-    const text = `Your NUSC Workforce ID is attached as a PDF.\n\nPass ID: ${context.idNumber}\nRole: ${context.applicant.assigned_role?.name || 'Workforce staff'}\nGate / Checkpoint: ${context.applicant.assigned_zone || 'To be assigned'}\nShift: ${context.applicant.assigned_shift || 'To be assigned'}\n${context.passUrl}\n\nKeep this private; it grants event access. Present your photo ID if staff ask to verify your identity.`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC Workforce ID</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your approved workforce credential is attached as a PDF.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.applicant.assigned_role?.name || 'Workforce staff')}<br><strong>Gate / Checkpoint:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}</p><p><a href="${passUrl}">Open or print your digital pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
+    const text = `Your NUSC Workforce ID is attached as a PDF and PNG image.\n\nPass ID: ${context.idNumber}\nRole: ${context.applicant.assigned_role?.name || 'Workforce staff'}\nGate / Checkpoint: ${context.applicant.assigned_zone || 'To be assigned'}\nShift: ${context.applicant.assigned_shift || 'To be assigned'}\nVenue: ${context.eventVenue}\n${context.passUrl}\n\nKeep this private; it grants event access. Present your photo ID if staff ask to verify your identity.`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC Workforce ID</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your approved workforce ID is attached as a PDF and PNG image.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.applicant.assigned_role?.name || 'Workforce staff')}<br><strong>Gate / Checkpoint:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}<br><strong>Venue:</strong> ${escapeHtml(context.eventVenue)}</p><p><a href="${passUrl}">Open or print your digital pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -861,6 +877,10 @@ export async function emailCampaignPass(applicationId: string) {
           filename: artwork.filename,
           content: artwork.pdf.toString('base64'),
           content_type: 'application/pdf',
+        }, {
+          filename: artwork.imageFilename,
+          content: artwork.image.toString('base64'),
+          content_type: 'image/png',
         }],
       }),
       cache: 'no-store',
@@ -949,6 +969,79 @@ export async function verifyAndCheckInGateScan(qrToken: string, gate: string, ev
   }
 
   // If candidate photo is present, generate a 15-min signed URL so gate staff can visually verify
+  if (data?.candidate?.photo_storage_path) {
+    const { data: signedData } = await supabase.storage
+      .from('campaign_documents')
+      .createSignedUrl(data.candidate.photo_storage_path, 900);
+    data.candidate.signedPhotoUrl = signedData?.signedUrl || null;
+  }
+
+  return data;
+}
+
+/** Record a gate check-in or close the candidate's open gate session. */
+export async function recordCampaignAttendanceScan(
+  qrToken: string,
+  action: 'check_in' | 'check_out',
+  gate: string,
+  eventId: string,
+) {
+  const staff = await assertStaffRole(['super_admin', 'campaign_manager', 'gate_staff']);
+  const supabase = getSupabaseAdminClient();
+  let cleanToken = typeof qrToken === 'string' ? qrToken.trim() : '';
+  const cleanAction = typeof action === 'string' ? action.trim() : '';
+  const cleanGate = typeof gate === 'string' ? gate.trim() : '';
+
+  if (!/^[0-9a-f-]{36}$/i.test(eventId || '')) {
+    return { success: false, code: 'MATCH_REQUIRED', message: 'Choose a match before scanning' };
+  }
+  if (!['check_in', 'check_out'].includes(cleanAction)) {
+    return { success: false, code: 'INVALID_ACTION', message: 'Choose check-in or check-out' };
+  }
+  if (!['Gate 1', 'Gate 2', 'Gate 3', 'Gate 4'].includes(cleanGate)) {
+    return { success: false, code: 'INVALID_CHECKPOINT', message: 'Choose a valid gate before scanning' };
+  }
+
+  // Manual fallback accepts the printed ID, but only this authorized server action resolves it.
+  if (/^NUSC-ID-\d{4}-[A-Z0-9]{6,32}$/i.test(cleanToken)) {
+    const { data: idRecord, error: idError } = await supabase.from('campaign_ids')
+      .select('qr_token')
+      .eq('id_number', cleanToken.toUpperCase())
+      .maybeSingle();
+    if (idError || !idRecord) {
+      return { success: false, code: 'INVALID_TOKEN', message: 'Credential not recognised' };
+    }
+    cleanToken = idRecord.qr_token;
+  }
+  if (!/^[0-9a-f]{64}$/i.test(cleanToken)) {
+    return { success: false, code: 'INVALID_TOKEN', message: 'Credential not recognised' };
+  }
+
+  const { data, error } = cleanAction === 'check_in'
+    ? await supabase.rpc('verify_and_check_in_campaign_id', {
+      p_qr_token: cleanToken,
+      p_gate: cleanGate,
+      p_event_id: eventId,
+      p_scanned_by: staff.email,
+    })
+    : await supabase.rpc('record_campaign_attendance_scan', {
+      p_qr_token: cleanToken,
+      p_action: cleanAction,
+      p_checkpoint_type: 'gate',
+      p_checkpoint: cleanGate,
+      p_event_id: eventId,
+      p_scanned_by: staff.email,
+    });
+
+  if (error) {
+    console.error(`${cleanAction === 'check_in' ? 'verify_and_check_in_campaign_id' : 'record_campaign_attendance_scan'} RPC error:`, error);
+    return {
+      success: false,
+      code: 'SYSTEM_ERROR',
+      message: 'Attendance recording is temporarily unavailable. Please retry.',
+    };
+  }
+
   if (data?.candidate?.photo_storage_path) {
     const { data: signedData } = await supabase.storage
       .from('campaign_documents')

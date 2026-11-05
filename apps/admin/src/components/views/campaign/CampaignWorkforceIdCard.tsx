@@ -99,7 +99,7 @@ export default function CampaignWorkforceIdCard({ details, qrImage, status }: Ca
     { label: 'Shift', value: details.assignedShift || 'To be assigned', icon: 'shift' },
     { label: 'Valid from', value: formatPassDate(details.validFrom), icon: 'calendar' },
     { label: 'Valid until', value: formatPassDate(details.validUntil), icon: 'clock' },
-    { label: 'Venue', value: details.eventVenue || 'NUSC home match venues', icon: 'venue' },
+    { label: 'Venue', value: details.eventVenue || 'Chumukedima Football Stadium, Nagaland', icon: 'venue' },
   ];
 
   return (
