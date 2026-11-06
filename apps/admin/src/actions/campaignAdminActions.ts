@@ -163,8 +163,8 @@ export async function getCampaignApplicationDetail(applicationId: string) {
         .eq('application_id', app.id).maybeSingle(),
       supabase.from('campaign_roles').select('id, name, code')
         .eq('category', app.category).eq('is_active', true).order('name'),
-      supabase.from('campaign_events').select('id, title, venue, start_date, end_date, is_active')
-        .order('start_date', { ascending: false }),
+      supabase.from('campaign_events').select('id, title, venue, start_date, end_date, is_active, is_test')
+        .eq('is_test', false).order('start_date', { ascending: false }),
       supabase.from('campaign_application_change_history')
         .select('id, changed_at, changed_by, changed_fields')
         .eq('application_id', app.id).order('changed_at', { ascending: false }).limit(25),
@@ -1052,6 +1052,20 @@ export async function recordCampaignAttendanceScan(
   return data;
 }
 
+async function constrainCampaignAttendanceMatches(query: any, supabase: any, matchFilter: string) {
+  if (matchFilter === 'all') return { query };
+  if (matchFilter === 'official' || matchFilter === 'test') {
+    const { data, error } = await supabase.from('campaign_events').select('id').eq('is_test', matchFilter === 'test');
+    if (error) throw new Error('Unable to filter attendance matches');
+    const ids = (data || []).map((event: { id: string }) => event.id)
+      .filter((id: unknown): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id));
+    if (matchFilter === 'test') return { query: ids.length ? query.in('event_id', ids) : null };
+    return { query: ids.length ? query.or('event_id.is.null,event_id.in.(' + ids.join(',') + ')') : query.is('event_id', null) };
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(matchFilter)) throw new Error('Invalid match filter');
+  return { query: query.eq('event_id', matchFilter) };
+}
+
 /**
  * 9. Attendance Logs Query (Audit History)
  */
@@ -1060,7 +1074,7 @@ export async function getCampaignAttendanceHistory(
   pageSize = 30,
   gateFilter?: string,
   actionFilter?: string,
-  eventId?: string,
+  eventId = 'official',
   checkpointTypeFilter?: string,
   personFilter?: string,
   departmentFilter?: string,
@@ -1085,7 +1099,7 @@ export async function getCampaignAttendanceHistory(
       .select(`
       id,
       action,
-      event:campaign_events!event_id (title, start_date),
+      event:campaign_events!event_id (title, start_date, is_test),
       gate,
       scanned_by,
       scanned_at,
@@ -1105,7 +1119,8 @@ export async function getCampaignAttendanceHistory(
       )
     `, { count: 'exact' });
 
-    if (eventId && eventId !== 'all') query = query.eq('event_id', eventId);
+    query = (await constrainCampaignAttendanceMatches(query, supabase, eventId || 'official')).query;
+    if (!query) return { logs: [], totalCount: 0, page, pageSize, totalPages: 1 };
 
     if (gateFilter && gateFilter !== 'all') {
       query = query.eq('gate', gateFilter);
@@ -1187,7 +1202,7 @@ export async function exportCampaignAttendanceCsv(filters: CampaignAttendanceFil
     const applicantJoin = hasApplicantFilter ? '!inner' : '';
     let query = supabase.from('campaign_attendance').select(`
       action, checkpoint_type, gate, scanned_by, scanned_at, notes,
-      event:campaign_events!event_id (title),
+      event:campaign_events!event_id (title, is_test),
       application:campaign_applications!application_id${applicantJoin} (
         application_number, full_name, category, other_role, assigned_role_id,
         assigned_role:campaign_roles!assigned_role_id (name, code)
@@ -1195,7 +1210,8 @@ export async function exportCampaignAttendanceCsv(filters: CampaignAttendanceFil
       campaign_id_record:campaign_ids!campaign_id (id_number)
     `).order('scanned_at', { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
 
-    if (filters.eventId && filters.eventId !== 'all') query = query.eq('event_id', filters.eventId);
+    query = (await constrainCampaignAttendanceMatches(query, supabase, filters.eventId || 'official')).query;
+    if (!query) return rows.join('\r\n');
     if (filters.gate && filters.gate !== 'all') query = query.eq('gate', filters.gate);
     if (filters.action && filters.action !== 'all') query = query.eq('action', filters.action);
     if (filters.checkpointType && filters.checkpointType !== 'all') {
@@ -1228,7 +1244,7 @@ export async function exportCampaignAttendanceCsv(filters: CampaignAttendanceFil
       const role = Array.isArray(application?.assigned_role) ? application.assigned_role[0] : application?.assigned_role;
       const pass = Array.isArray(record.campaign_id_record) ? record.campaign_id_record[0] : record.campaign_id_record;
       rows.push([
-        record.scanned_at, event?.title || 'Legacy: match not recorded', application?.application_number,
+        record.scanned_at, event?.is_test ? `TEST - ${event.title}` : event?.title || 'Legacy: match not recorded', application?.application_number,
         application?.full_name, pass?.id_number, application?.category,
         campaignRoleLabel(role, application?.other_role), record.action, record.checkpoint_type,
         record.gate, record.scanned_by, record.notes,
@@ -1353,12 +1369,14 @@ export async function getApprovedCandidatesForExport() {
   return data || [];
 }
 
-export async function getCampaignMatches() {
+export async function getCampaignMatches(includeTestMatches = false) {
   const trace = createPerformanceTrace('admin.campaign_matches_list');
   try {
     await trace.measure('authorize', () => assertStaffRole(['super_admin', 'campaign_manager', 'reviewer', 'gate_staff']));
-    const { data, error } = await trace.measure('query', () => getSupabaseAdminClient().from('campaign_events')
-      .select('id, title, venue, start_date, end_date, is_active').order('start_date', { ascending: false }));
+    let query = getSupabaseAdminClient().from('campaign_events')
+      .select('id, title, venue, start_date, end_date, is_active, is_test').order('start_date', { ascending: false });
+    if (includeTestMatches !== true) query = query.eq('is_test', false);
+    const { data, error } = await trace.measure('query', () => query);
     if (error) throw new Error('Unable to load matches');
     return data || [];
   } finally { trace.finish(); }
@@ -1389,11 +1407,47 @@ export async function saveCampaignMatch(input: {
     }
     const supabase = getSupabaseAdminClient();
     const values = { title: input.title.trim(), venue: input.venue.trim(), start_date: start.toISOString(),
-      end_date: end.toISOString(), is_active: input.isActive, updated_at: new Date().toISOString() };
+      end_date: end.toISOString(), is_active: input.isActive, is_test: false, updated_at: new Date().toISOString() };
     const result = await trace.measure(input.id ? 'update' : 'insert', () => input.id
-      ? supabase.from('campaign_events').update(values).eq('id', input.id).select('id').single()
+      ? supabase.from('campaign_events').update(values).eq('id', input.id).eq('is_test', false).select('id').single()
       : supabase.from('campaign_events').insert({ ...values, slug: 'match-' + crypto.randomBytes(8).toString('hex') }).select('id').single());
     if (result.error || !result.data) throw new Error('Unable to save match');
     return { success: true };
   } finally { trace.finish(); }
+}
+
+
+export async function createCampaignTestMatch(title: string, matchDate: string) {
+  await assertStaffRole(['super_admin', 'campaign_manager']);
+  if (typeof title !== 'string' || !title.trim() || title.trim().length > 255) {
+    throw new Error('Enter a test match name up to 255 characters');
+  }
+  const dateProbe = typeof matchDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(matchDate)
+    ? new Date(`${matchDate}T00:00:00.000Z`) : null;
+  if (!dateProbe || !Number.isFinite(dateProbe.getTime()) || dateProbe.toISOString().slice(0, 10) !== matchDate) {
+    throw new Error('Choose a valid test match date');
+  }
+  const startDate = new Date(`${matchDate}T00:00:00+05:30`);
+  const endDate = new Date(`${matchDate}T23:59:59.999+05:30`);
+  const { data, error } = await getSupabaseAdminClient().rpc('create_campaign_test_match', {
+    p_title: title.trim(), p_start_date: startDate.toISOString(), p_end_date: endDate.toISOString(),
+  });
+  if (error || !data?.success || !data?.id) throw new Error('Unable to create TEST match');
+  return { success: true, match: data };
+}
+
+export async function deleteCampaignTestMatch(eventId: string) {
+  await assertStaffRole(['super_admin', 'campaign_manager']);
+  if (typeof eventId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) {
+    throw new Error('Select a valid TEST match');
+  }
+  const { data, error } = await getSupabaseAdminClient().rpc('delete_campaign_test_match', { p_event_id: eventId });
+  if (error) {
+    if (/workforce application/i.test(error.message || '')) {
+      throw new Error('This TEST match is referenced by a workforce application and cannot be deleted.');
+    }
+    throw new Error('Unable to delete TEST match. Its records were left unchanged.');
+  }
+  if (!data?.success) throw new Error('Unable to delete TEST match. Its records were left unchanged.');
+  return { success: true, title: data.title as string, deletedAttendanceCount: Number(data.deleted_attendance_count) || 0 };
 }

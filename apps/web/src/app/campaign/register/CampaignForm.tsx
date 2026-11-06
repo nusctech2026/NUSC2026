@@ -96,7 +96,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
   const [preferredRoleId, setPreferredRoleId] = useState('');
   const [availabilityMatches, setAvailabilityMatches] = useState<CampaignAvailabilityMatch[]>([]);
   const [loadingAvailabilityMatches, setLoadingAvailabilityMatches] = useState(true);
-  const [availabilityMode, setAvailabilityMode] = useState<'' | 'all' | 'selected'>('');
+  const [availabilityMode, setAvailabilityMode] = useState<'' | 'all' | 'selected'>('all');
   const [availabilityMatchIds, setAvailabilityMatchIds] = useState<string[]>([]);
   const [mediaAccessTypes, setMediaAccessTypes] = useState<string[]>([]);
 

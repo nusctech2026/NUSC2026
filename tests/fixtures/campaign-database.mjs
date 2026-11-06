@@ -60,7 +60,7 @@ export async function workforceDatabase({ beforeIntegrity = async () => {} } = {
   return db;
 }
 
-export async function accreditationDatabase({ beforeReliability = async () => {} } = {}) {
+export async function accreditationDatabase({ beforeReliability = async () => {}, withAttendanceMigration = false } = {}) {
   const db = await workforceDatabase();
   await db.exec(`
     GRANT USAGE ON SCHEMA storage TO anon, authenticated;
@@ -76,6 +76,7 @@ export async function accreditationDatabase({ beforeReliability = async () => {}
       RETURNS jsonb LANGUAGE sql AS $$ SELECT jsonb_build_object('role','Others: Camera operator') $$;
   `);
   await beforeReliability(db);
+  if (withAttendanceMigration) await db.exec(await campaignSql('20261102100000_campaign_gate_and_booth_attendance.sql'));
   await db.exec(await campaignSql(campaignReliabilityMigration));
   await db.exec(`
     INSERT INTO auth.users(id,email) VALUES
