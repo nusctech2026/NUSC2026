@@ -88,7 +88,6 @@ export default function PassCardView({ pass }: PassCardViewProps) {
     { label: accessLabel, value: pass.assignedMatch || 'Not specified', note: pass.accreditationType, icon: 'access' },
     { label: zoneLabel, value: pass.assignedZone || 'To be assigned', icon: 'zone' },
     { label: 'Shift', value: pass.assignedShift || 'To be assigned', icon: 'shift' },
-    ...(pass.affiliation ? [{ label: 'Management affiliation', value: pass.affiliation, icon: 'access' }] : []),
     ...(pass.mediaOutlet ? [{ label: 'Media outlet', value: pass.mediaOutlet, icon: 'access' }] : []),
     ...(pass.mediaOrganisationType ? [{ label: 'Media organisation', value: pass.mediaOrganisationType, icon: 'access' }] : []),
     { label: 'Valid from', value: formatPassDate(pass.validFrom), icon: 'calendar' },

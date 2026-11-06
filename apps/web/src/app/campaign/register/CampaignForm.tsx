@@ -8,11 +8,10 @@ import {
   discardCampaignMediaAuthorisationUpload,
   createOfficialCredentialUploadUrl,
   discardOfficialCredentialUpload,
-  getCampaignAvailabilityMatches,
   getCampaignRoles,
   submitCampaignApplication,
 } from '../actions';
-import type { CampaignAvailabilityMatch, CampaignRoleItem } from '../actions';
+import type { CampaignRoleItem } from '../actions';
 import { createClient as createBrowserSupabaseClient } from '@nusc/db/src/client/browser';
 import '../campaign.css';
 
@@ -94,10 +93,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
   const [roles, setRoles] = useState<CampaignRoleItem[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(Boolean(fixedCategory));
   const [preferredRoleId, setPreferredRoleId] = useState('');
-  const [availabilityMatches, setAvailabilityMatches] = useState<CampaignAvailabilityMatch[]>([]);
-  const [loadingAvailabilityMatches, setLoadingAvailabilityMatches] = useState(true);
-  const [availabilityMode, setAvailabilityMode] = useState<'' | 'all' | 'selected'>('all');
-  const [availabilityMatchIds, setAvailabilityMatchIds] = useState<string[]>([]);
   const [mediaAccessTypes, setMediaAccessTypes] = useState<string[]>([]);
 
   const [fullName, setFullName] = useState('');
@@ -144,15 +139,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
       setCategory(requestedCategory as CampaignCategory);
     }
   }, [fixedCategory]);
-
-  useEffect(() => {
-    let active = true;
-    getCampaignAvailabilityMatches()
-      .then((matches) => { if (active) setAvailabilityMatches(matches); })
-      .catch(() => { if (active) setAvailabilityMatches([]); })
-      .finally(() => { if (active) setLoadingAvailabilityMatches(false); });
-    return () => { active = false; };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -335,16 +321,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
       setErrorMessage('Upload an official media ID card or authorisation letter.');
       return;
     }
-    if (!availabilityMode) {
-      rejectField('availabilityMode', 'Choose your match availability.');
-      setErrorMessage('Choose your match availability.');
-      return;
-    }
-    if (availabilityMode === 'selected' && availabilityMatchIds.length === 0) {
-      rejectField('availabilityMatchIds', 'Select at least one match or choose All 10 matches.');
-      setErrorMessage('Select at least one match or choose another availability option.');
-      return;
-    }
     if (isOtherRoleSelected && otherRole.trim().length < 2) {
       rejectField('otherRole', 'Please specify your role using at least 2 characters.');
       setErrorMessage('Please specify your role.');
@@ -505,8 +481,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
         if (needsOtherOrganisation) formData.append('organisationOther', organisationOther);
         formData.append('designation', designation);
       }
-      formData.append('availabilityMode', availabilityMode);
-      availabilityMatchIds.forEach((matchId) => formData.append('availabilityMatchId', matchId));
       if (category === 'media') {
         formData.append('mediaOutlet', mediaOutlet);
         formData.append('mediaOrganisationType', mediaOrganisationType);
@@ -1278,65 +1252,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
           </div>
         )}
 
-        <h2 className="form-section-title">3. Match availability</h2>
-        <fieldset className="workforce-availability">
-          <legend>Which NUSC home matches can you work? <span className="req" aria-hidden="true">*</span></legend>
-          <p className="workforce-availability-help">This helps with scheduling. NUSC administrators assign your match duties and access permissions.</p>
-          <div className="workforce-availability-options">
-            {([
-              ['all', 'All 10 matches'],
-              ['selected', 'Selected matches'],
-            ] as const).map(([value, label]) => (
-              <label key={value} className="workforce-availability-option">
-                <input
-                  type="radio"
-                  name="availabilityMode"
-                  value={value}
-                  checked={availabilityMode === value}
-                  aria-invalid={Boolean(fieldErrors.availabilityMode)}
-                  aria-describedby={fieldErrors.availabilityMode ? 'availabilityMode-error' : undefined}
-                  onInvalid={() => setFieldErrors((current) => ({ ...current, availabilityMode: 'Choose your match availability.' }))}
-                  required
-                  disabled={value === 'selected' && (loadingAvailabilityMatches || availabilityMatches.length === 0)}
-                  onChange={() => {
-                    setAvailabilityMode(value);
-                    if (value !== 'selected') setAvailabilityMatchIds([]);
-                  }}
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </div>
-          {inlineError('availabilityMode')}
-          {inlineError('availabilityMatchIds')}
-          {availabilityMode === 'selected' && (
-            <div className="workforce-match-list" aria-label="Choose available matches">
-              <p className="workforce-availability-help">Select up to 10 matches. {availabilityMatchIds.length} selected.</p>
-              {loadingAvailabilityMatches ? (
-                <p role="status">Loading match schedule…</p>
-              ) : availabilityMatches.length > 0 ? (
-                availabilityMatches.map((match) => (
-                  <label key={match.id} className="workforce-match-option">
-                    <input
-                      type="checkbox"
-                      value={match.id}
-                      checked={availabilityMatchIds.includes(match.id)}
-                      disabled={!availabilityMatchIds.includes(match.id) && availabilityMatchIds.length >= 10}
-                      onChange={(event) => setAvailabilityMatchIds((current) => event.target.checked
-                        ? [...current, match.id]
-                        : current.filter((id) => id !== match.id))}
-                    />
-                    <span>{match.title} <small>{new Date(match.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</small></span>
-                  </label>
-                ))
-              ) : (
-                <p role="status">Specific matches are not configured yet. Choose all 10 matches.</p>
-              )}
-            </div>
-          )}
-        </fieldset>
-
-        <h2 className="form-section-title">4. Profile photograph</h2>
+        <h2 className="form-section-title">3. Profile photograph</h2>
         <div className="form-group">
           <div className="photo-upload-container">
             <div className="photo-preview-box">
@@ -1374,7 +1290,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
 
         {inlineError('photo')}
 
-        <h2 className="form-section-title">5. Declaration</h2>
+        <h2 className="form-section-title">4. Declaration</h2>
         <div className="workforce-declaration">
           <input
             id="declaration"

@@ -411,8 +411,6 @@ export async function updateCampaignRegistrationDetails(
     otherRole: string;
     organisation: string;
     designation: string;
-    availabilityMode: 'all' | 'selected';
-    availabilityMatchIds: string[];
     mediaAccessTypes: string[];
     mediaOutlet: string;
     mediaOrganisationType: string;
@@ -440,10 +438,6 @@ export async function updateCampaignRegistrationDetails(
   const otherRole = readText(input.otherRole);
   const organisation = readText(input.organisation);
   const designation = readText(input.designation);
-  const availabilityMode = input.availabilityMode;
-  const availabilityMatchIds = Array.isArray(input.availabilityMatchIds)
-    ? input.availabilityMatchIds.filter((id): id is string => typeof id === 'string').map((id) => id.trim()).filter(Boolean)
-    : [];
   const mediaAccessValues = Array.isArray(input.mediaAccessTypes) ? input.mediaAccessTypes : [];
   if (mediaAccessValues.some((value) => typeof value !== 'string')) {
     throw new Error('Choose valid media access areas');
@@ -475,13 +469,6 @@ export async function updateCampaignRegistrationDetails(
     'mixed_zone_interview_area',
     'broadcast_video_coverage_area',
   ]);
-  if (!['all', 'selected'].includes(availabilityMode)
-      || availabilityMatchIds.length > 10
-      || new Set(availabilityMatchIds).size !== availabilityMatchIds.length
-      || (availabilityMode === 'selected' && availabilityMatchIds.length === 0)
-      || (availabilityMode !== 'selected' && availabilityMatchIds.length > 0)) {
-    throw new Error('Choose a valid match availability and match selection');
-  }
   if (mediaAccessTypes.length > allowedMediaAccessTypes.size
       || new Set(mediaAccessTypes).size !== mediaAccessTypes.length
       || mediaAccessTypes.some((value) => !allowedMediaAccessTypes.has(value))) {
@@ -490,7 +477,7 @@ export async function updateCampaignRegistrationDetails(
 
   const supabase = getSupabaseAdminClient();
   const { data: app, error: appError } = await supabase.from('campaign_applications')
-    .select('category, preferred_role_id, application_status, availability_match_ids, phone, email, idempotency_key, potential_duplicate')
+    .select('category, preferred_role_id, application_status, phone, email, idempotency_key, potential_duplicate')
     .eq('id', applicationId).single();
   if (appError || !app) throw new Error('Registration not found');
   if (app.idempotency_key && !email) {
@@ -585,17 +572,6 @@ export async function updateCampaignRegistrationDetails(
     throw new Error('Crew affiliation details are only valid for Crew registrations');
   }
 
-  if (availabilityMode === 'selected') {
-    const { data: activeMatches, error: matchError } = await supabase.from('campaign_events')
-      .select('id').eq('is_active', true).in('id', availabilityMatchIds);
-    if (matchError || !activeMatches) throw new Error('Unable to validate selected matches');
-    const activeIds = new Set(activeMatches.map((match) => match.id));
-    const existingIds = new Set(Array.isArray(app.availability_match_ids) ? app.availability_match_ids : []);
-    if (availabilityMatchIds.some((id) => !activeIds.has(id) && !existingIds.has(id))) {
-      throw new Error('One or more selected matches are unavailable');
-    }
-  }
-
   const currentPhone = typeof app.phone === 'string' ? normalizeWorkforcePhone(app.phone) : '';
   const currentEmail = typeof app.email === 'string' ? app.email.trim().toLowerCase() : '';
   if (phone !== currentPhone) {
@@ -615,9 +591,6 @@ export async function updateCampaignRegistrationDetails(
     }
   }
 
-  const availabilitySummary = availabilityMode === 'all'
-    ? 'Available for all 10 NUSC home matches'
-    : 'Available for selected NUSC home matches';
   let conflictOfInterest: boolean | null = null;
   if (conflictOfInterestAnswer === 'yes') conflictOfInterest = true;
   if (conflictOfInterestAnswer === 'no') conflictOfInterest = false;
@@ -629,9 +602,9 @@ export async function updateCampaignRegistrationDetails(
     organisation: app.category === 'management' ? organisation : null,
     organisation_other: null,
     designation: app.category === 'management' || app.category === 'media' ? designation : null,
-    availability: availabilitySummary,
-    availability_mode: availabilityMode,
-    availability_match_ids: availabilityMode === 'selected' ? availabilityMatchIds : [],
+    availability: 'Available for all 10 NUSC home matches',
+    availability_mode: 'all',
+    availability_match_ids: [],
     media_outlet: app.category === 'media' ? mediaOutlet || null : null,
     media_organisation_type: app.category === 'media' ? mediaOrganisationType : null,
     portfolio_url: app.category === 'media' ? portfolioUrl : null,
@@ -676,6 +649,9 @@ type CampaignPassContext = {
     full_name: string;
     email: string;
     category: string;
+    organisation: string | null;
+    organisation_other: string | null;
+    designation: string | null;
     photo_storage_path: string | null;
     assigned_role: { name: string } | null;
     assigned_zone: string | null;
@@ -684,6 +660,7 @@ type CampaignPassContext = {
   };
   idNumber: string;
   passUrl: string;
+  displayRole: string;
   qrImage: Buffer;
   qrImageBase64: string;
   validFrom: string;
@@ -707,7 +684,8 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
   const { data, error } = await supabase.from('campaign_ids').select(`
     id_number, pass_slug, qr_token, valid_from, valid_until, is_active, revoked_at,
     application:campaign_applications!application_id (
-      application_number, full_name, email, category, application_status, photo_storage_path,
+      application_number, full_name, email, category, organisation, organisation_other, designation,
+      application_status, photo_storage_path,
       assigned_role:campaign_roles!assigned_role_id (name), assigned_zone, assigned_shift,
       event:campaign_events!event_id (title, venue)
     )
@@ -715,6 +693,14 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
   const applicant = Array.isArray(data?.application) ? data.application[0] : data?.application;
   const assignedRole = Array.isArray(applicant?.assigned_role) ? applicant.assigned_role[0] : applicant?.assigned_role;
   const event = Array.isArray(applicant?.event) ? applicant.event[0] : applicant?.event;
+  const isOtherManagementOrganisation = ['other', 'others'].includes((applicant?.organisation || '').trim().toLowerCase());
+  const managementAffiliation = applicant?.category === 'management'
+    ? (isOtherManagementOrganisation ? applicant.organisation_other?.trim() || 'Other' : applicant.organisation?.trim() || null)
+    : null;
+  const displayRoleBase = managementAffiliation || assignedRole?.name || 'Workforce staff';
+  const displayRole = applicant?.category === 'management' && applicant.designation?.trim()
+    ? `${displayRoleBase} · ${applicant.designation.trim()}`
+    : displayRoleBase;
   const validFrom = data ? new Date(data.valid_from).getTime() : Number.NaN;
   const validUntil = data ? new Date(data.valid_until).getTime() : Number.NaN;
   if (error || !data || !applicant || applicant.application_status !== 'approved' || !data.is_active || data.revoked_at
@@ -735,13 +721,14 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
     applicant: { ...applicant, assigned_role: assignedRole, event: event || null },
     idNumber: data.id_number,
     passUrl: new URL(`/campaign/id/${encodeURIComponent(data.pass_slug)}`, origin).toString(),
+    displayRole,
     qrImage,
     qrImageBase64: qrImage.toString('base64'),
     validFrom: data.valid_from,
     validUntil: data.valid_until,
     isExpired: Date.now() > validUntil,
     signedPhotoUrl: photo.data?.signedUrl || null,
-    assignedMatch: event?.title || 'Season pass · all NUSC home matches',
+    assignedMatch: 'Season pass · all NUSC home matches',
     eventVenue: CAMPAIGN_PASS_VENUE,
   };
 }
@@ -764,8 +751,8 @@ async function createCampaignPassPdfAssets(context: CampaignPassContext) {
     registrationId: context.applicant.application_number,
     idNumber: context.idNumber,
     category: context.applicant.category,
-    accreditationType: context.applicant.event ? 'Match-day pass' : 'Season pass',
-    assignedRole: context.applicant.assigned_role?.name || 'Workforce staff',
+    accreditationType: 'Season pass',
+    assignedRole: context.displayRole,
     assignedMatch: context.assignedMatch,
     assignedZone: context.applicant.assigned_zone || 'To be assigned',
     assignedShift: context.applicant.assigned_shift || 'To be assigned',
@@ -813,7 +800,7 @@ export async function prepareCampaignPassPreview(applicationId: string) {
         registrationId: context.applicant.application_number,
         fullName: context.applicant.full_name,
         category: context.applicant.category,
-        assignedRole: context.applicant.assigned_role?.name,
+        assignedRole: context.displayRole,
         assignedMatch: context.assignedMatch,
         assignedZone: context.applicant.assigned_zone,
         assignedShift: context.applicant.assigned_shift,
@@ -866,8 +853,8 @@ export async function emailCampaignPass(applicationId: string) {
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[char]!));
     const passUrl = escapeHtml(context.passUrl);
-    const text = `Your NUSC Workforce ID is attached as a PDF and PNG image.\n\nPass ID: ${context.idNumber}\nRole: ${context.applicant.assigned_role?.name || 'Workforce staff'}\nGate / Checkpoint: ${context.applicant.assigned_zone || 'To be assigned'}\nShift: ${context.applicant.assigned_shift || 'To be assigned'}\nVenue: ${context.eventVenue}\n${context.passUrl}\n\nKeep this private; it grants event access. Present your photo ID if staff ask to verify your identity.`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC Workforce ID</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your approved workforce ID is attached as a PDF and PNG image.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.applicant.assigned_role?.name || 'Workforce staff')}<br><strong>Gate / Checkpoint:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}<br><strong>Venue:</strong> ${escapeHtml(context.eventVenue)}</p><p><a href="${passUrl}">Open or print your digital pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
+    const text = `Your NUSC Workforce ID is attached as a PDF and PNG image.\n\nPass ID: ${context.idNumber}\nRole: ${context.displayRole}\nMatch access: all 10 NUSC home matches\nGate / Checkpoint: ${context.applicant.assigned_zone || 'To be assigned'}\nShift: ${context.applicant.assigned_shift || 'To be assigned'}\nVenue: ${context.eventVenue}\n${context.passUrl}\n\nKeep this private; it grants event access. Present your photo ID if staff ask to verify your identity.`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC Workforce ID</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your approved workforce ID is attached as a PDF and PNG image.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.displayRole)}<br><strong>Match access:</strong> all 10 NUSC home matches<br><strong>Gate / Checkpoint:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}<br><strong>Venue:</strong> ${escapeHtml(context.eventVenue)}</p><p><a href="${passUrl}">Open or print your digital pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },

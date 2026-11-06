@@ -121,8 +121,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   const [editOtherRole, setEditOtherRole] = useState('');
   const [editOrganisation, setEditOrganisation] = useState('');
   const [editDesignation, setEditDesignation] = useState('');
-  const [editAvailabilityMode, setEditAvailabilityMode] = useState<'' | 'all' | 'selected'>('');
-  const [editAvailabilityMatchIds, setEditAvailabilityMatchIds] = useState<string[]>([]);
   const [editMediaOutlet, setEditMediaOutlet] = useState('');
   const [editMediaOrganisationType, setEditMediaOrganisationType] = useState('');
   const [editPortfolioUrl, setEditPortfolioUrl] = useState('');
@@ -179,9 +177,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
       ? data.organisation_other || ''
       : data.organisation || '');
     setEditDesignation(data.designation || '');
-    setEditAvailabilityMode(data.availability_mode === 'all' || data.availability_mode === 'selected'
-      ? data.availability_mode : '');
-    setEditAvailabilityMatchIds(Array.isArray(data.availability_match_ids) ? data.availability_match_ids : []);
     setEditMediaOutlet(data.media_outlet || ''); setEditPortfolioUrl(data.portfolio_url || '');
     setEditMediaOrganisationType(data.media_organisation_type || '');
     setEditMediaAccessTypes(Array.isArray(data.media_access_types) ? data.media_access_types : []);
@@ -246,10 +241,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   };
 
   const handleSaveDetails = async () => {
-    if (!editAvailabilityMode) {
-      setActionWarning('Choose all matches or selected matches before saving.');
-      return;
-    }
     if (app?.category === 'media' && editMediaOutlet.trim().length < 2) {
       setActionWarning('Enter the name of the media organisation or publication.');
       return;
@@ -283,8 +274,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
         otherRole: editOtherRole,
         organisation: editOrganisation,
         designation: editDesignation,
-        availabilityMode: editAvailabilityMode,
-        availabilityMatchIds: editAvailabilityMatchIds,
         mediaOutlet: editMediaOutlet,
         mediaOrganisationType: editMediaOrganisationType,
         portfolioUrl: editPortfolioUrl,
@@ -563,15 +552,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
             {app.designation && <div style={{ marginTop: '6px' }}><strong>{app.category === 'media' ? 'Designation / Role:' : 'Designation / position:'}</strong> {app.designation}</div>}
             {app.address && <div style={{ marginTop: '6px' }}><strong>Residential Address:</strong> {app.address}</div>}
             {app.availability && <div style={{ marginTop: '6px' }}><strong>Availability:</strong> {app.availability}</div>}
-            {app.availability_mode === 'selected' && Array.isArray(app.availability_match_ids) && app.availability_match_ids.length > 0 && (
-              <div style={{ marginTop: '4px' }}>
-                <strong>Selected matches:</strong>{' '}
-                {app.availability_match_ids.map((id: string) => {
-                  const match = matches.find((item) => item.id === id);
-                  return match ? `${match.title} (${new Date(match.start_date).toLocaleDateString()})` : 'Match details unavailable';
-                }).join(', ')}
-              </div>
-            )}
             {app.category === 'media' && <div style={{ marginTop: '6px' }}><strong>Name of Media Organisation / Publication:</strong> {app.media_outlet || 'Not provided'}</div>}
             {app.category === 'media' && <div style={{ marginTop: '6px' }}><strong>Type of Media Organisation:</strong> {MEDIA_ORGANISATION_TYPES.find((type) => type.value === app.media_organisation_type)?.label || 'Not provided'}</div>}
             {app.category === 'media' && <div style={{ marginTop: '6px' }}><strong>Official Media ID Card / Authorisation Letter:</strong>{' '}{app.signedMediaAuthorisationUrl ? <a href={app.signedMediaAuthorisationUrl} target="_blank" rel="noopener noreferrer">View submitted document</a> : 'Not provided'}</div>}
@@ -655,45 +635,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                       </label>
                     </>
                   )}
-                  <div style={{ margin: '12px 0', padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
-                      Match availability
-                      <select
-                        value={editAvailabilityMode}
-                        onChange={event => {
-                          const mode = event.target.value as '' | 'all' | 'selected';
-                          setEditAvailabilityMode(mode);
-                          if (mode !== 'selected') setEditAvailabilityMatchIds([]);
-                        }}
-                        style={{ display: 'block', width: '100%', padding: '8px', marginTop: '4px' }}
-                      >
-                        <option value="">Choose availability</option>
-                        <option value="all">Available for all 10 home matches</option>
-                        <option value="selected">Available for selected matches</option>
-                      </select>
-                    </label>
-                    {editAvailabilityMode === 'selected' && (
-                      <div style={{ display: 'grid', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
-                        <div style={{ color: '#64748b', fontSize: '12px' }}>{editAvailabilityMatchIds.length} of 10 matches selected.</div>
-                        {matches.filter((match) => match.is_active || editAvailabilityMatchIds.includes(match.id)).map((match) => (
-                          <label key={match.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12px' }}>
-                            <input
-                              type="checkbox"
-                              checked={editAvailabilityMatchIds.includes(match.id)}
-                              disabled={!editAvailabilityMatchIds.includes(match.id) && editAvailabilityMatchIds.length >= 10}
-                              onChange={event => setEditAvailabilityMatchIds((current) => event.target.checked
-                                ? [...current, match.id]
-                                : current.filter((id) => id !== match.id))}
-                            />
-                            <span>{match.title} · {new Date(match.start_date).toLocaleDateString()}{!match.is_active ? ' (inactive, existing selection)' : ''}</span>
-                          </label>
-                        ))}
-                        {matches.filter((match) => match.is_active || editAvailabilityMatchIds.includes(match.id)).length === 0 && (
-                          <span style={{ color: '#64748b', fontSize: '12px' }}>No matches are available to select.</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
                   {app.category === 'media' && (
                     <>
                       <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>

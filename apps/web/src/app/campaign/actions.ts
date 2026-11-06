@@ -29,20 +29,20 @@ const WORKFORCE_PHOTO_PATH_PATTERN = /^NUSC-(?:AHB|VOL|MED|CRW|MGT|OFC|HLT)-\d{3
 const WORKFORCE_DOCUMENT_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
 const SUBMISSION_SCALAR_FIELDS = [
   'idempotencyKey', 'fullName', 'phone', 'email', 'category', 'preferredRoleId', 'otherRole',
-  'organisation', 'organisationOther', 'designation', 'availabilityMode', 'mediaOutlet',
+  'organisation', 'organisationOther', 'designation', 'mediaOutlet',
   'mediaOrganisationType', 'mediaDesignation', 'portfolioUrl', 'professionalBody',
   'professionalQualification', 'professionalRegistrationNumber', 'professionalExperience',
   'conflictOfInterest', 'conflictDetails', 'technicalSpecialty', 'experience',
   'crewWorkArrangement', 'crewOrganisation', 'crewLeadName', 'crewLeadPhone', 'termsAccepted',
   'mediaAuthorisationPath', 'officialCredentialPath',
 ] as const;
-const SUBMISSION_REPEAT_FIELDS = ['availabilityMatchId', 'mediaAccessType'] as const;
+const SUBMISSION_REPEAT_FIELDS = ['mediaAccessType'] as const;
 const SUBMISSION_ALLOWED_FIELDS = new Set<string>([
   ...SUBMISSION_SCALAR_FIELDS, ...SUBMISSION_REPEAT_FIELDS, 'photo',
 ]);
 const SUBMISSION_FIELD_LIMITS: Record<(typeof SUBMISSION_SCALAR_FIELDS)[number], number> = {
   idempotencyKey: 36, fullName: 255, phone: 50, email: 255, category: 50, preferredRoleId: 36,
-  otherRole: 255, organisation: 255, organisationOther: 255, designation: 255, availabilityMode: 10,
+  otherRole: 255, organisation: 255, organisationOther: 255, designation: 255,
   mediaOutlet: 255, mediaOrganisationType: 40, mediaDesignation: 255, portfolioUrl: 2048,
   professionalBody: 255, professionalQualification: 255, professionalRegistrationNumber: 100,
   professionalExperience: 2000, conflictOfInterest: 3, conflictDetails: 2000, technicalSpecialty: 255,
@@ -282,12 +282,6 @@ export interface CampaignRoleItem {
   description: string | null;
 }
 
-export interface CampaignAvailabilityMatch {
-  id: string;
-  title: string;
-  start_date: string;
-}
-
 /**
  * Fetch active roles for a given category (or all categories)
  */
@@ -312,25 +306,6 @@ export async function getCampaignRoles(category?: string): Promise<CampaignRoleI
     return data as CampaignRoleItem[];
   } catch (err) {
     console.error('getCampaignRoles exception:', err);
-    return [];
-  }
-}
-
-/** Return only the public fields needed to let applicants mark match availability. */
-export async function getCampaignAvailabilityMatches(): Promise<CampaignAvailabilityMatch[]> {
-  try {
-    const { data, error } = await createAdminClient().from('campaign_events')
-      .select('id, title, start_date')
-      .eq('is_active', true)
-      .eq('is_test', false)
-      .order('start_date', { ascending: true });
-    if (error || !data) {
-      console.error('Unable to load workforce availability matches');
-      return [];
-    }
-    return data as CampaignAvailabilityMatch[];
-  } catch {
-    console.error('Unable to load workforce availability matches');
     return [];
   }
 }
@@ -370,12 +345,6 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
     const organisation = readText('organisation');
     const organisationOther = readText('organisationOther');
     const designation = readText('designation');
-    const availabilityMode = readText('availabilityMode');
-    const availabilityMatchValues = formData.getAll('availabilityMatchId');
-    const availabilityMatchIds = availabilityMatchValues
-      .filter((value): value is string => typeof value === 'string')
-      .map((value) => value.trim())
-      .filter(Boolean);
     const mediaAccessValues = formData.getAll('mediaAccessType');
     const mediaAccessTypes = mediaAccessValues
       .filter((value): value is string => typeof value === 'string')
@@ -418,24 +387,6 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
     }
     if (!departments.includes(category)) {
       return { success: false, error: 'Select one of the seven available departments.' };
-    }
-    if (!['all', 'selected'].includes(availabilityMode)) {
-      return { success: false, error: 'Choose your match availability.' };
-    }
-    if (availabilityMatchValues.some((value) => typeof value !== 'string')
-      || availabilityMatchValues.length > 10
-      || availabilityMatchIds.length !== availabilityMatchValues.length
-      || new Set(availabilityMatchIds).size !== availabilityMatchIds.length) {
-      return { success: false, error: 'Choose valid available matches.' };
-    }
-    if (availabilityMode === 'selected' && availabilityMatchIds.length === 0) {
-      return { success: false, error: 'Select at least one match or choose another availability option.' };
-    }
-    if (availabilityMode !== 'selected' && availabilityMatchIds.length > 0) {
-      return { success: false, error: 'Match selections are only valid with selected-match availability.' };
-    }
-    if (availabilityMatchIds.some((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))) {
-      return { success: false, error: 'Choose valid available matches.' };
     }
     if (mediaAccessValues.some((value) => typeof value !== 'string')
       || mediaAccessValues.length > MEDIA_ACCESS_TYPES.length
@@ -618,17 +569,6 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       return { success: false, error: 'The selected role is not available in that department.' };
     }
 
-    if (availabilityMode === 'selected') {
-      const { data: availableMatches, error: matchError } = await supabase.from('campaign_events')
-        .select('id')
-        .eq('is_active', true)
-        .eq('is_test', false)
-        .in('id', availabilityMatchIds);
-      if (matchError || !availableMatches || availableMatches.length !== availabilityMatchIds.length) {
-        return { success: false, error: 'One or more selected matches are no longer available. Refresh and choose again.' };
-      }
-    }
-
     const isOtherRole = Boolean(roleRecord && (roleRecord.code.endsWith('_others') || roleRecord.name === 'Others'));
     if (isOtherRole && (otherRole.length < 2 || otherRole.length > 255)) {
       return { success: false, error: 'Please specify your role in 2 to 255 characters.' };
@@ -703,8 +643,7 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
 
     const idempotencyRequestHash = createHash('sha256').update(JSON.stringify({
       fullName, phone, email, category, preferredRoleId, otherRole,
-      organisation, organisationOther, designation, availabilityMode,
-      availabilityMatchIds: [...availabilityMatchIds].sort(), mediaAccessTypes: [...mediaAccessTypes].sort(),
+      organisation, organisationOther, designation, mediaAccessTypes: [...mediaAccessTypes].sort(),
       mediaOutlet, mediaOrganisationType, mediaDesignation, portfolioUrl: portfolioUrl || portfolioUrlInput,
       professionalBody, professionalQualification, professionalRegistrationNumber, professionalExperience,
       conflictOfInterestAnswer, conflictDetails, technicalSpecialty, experience,
@@ -782,9 +721,6 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
     }
     uploadedStoragePaths.push(photoStoragePath);
 
-    const availabilitySummary = availabilityMode === 'all'
-      ? 'Available for all 10 NUSC home matches'
-      : 'Available for selected NUSC home matches';
     const { error: dbError } = await trace.measure('record_insert', () => supabase.from('campaign_applications').insert({
       application_number: registrationId,
       full_name: fullName,
@@ -821,9 +757,9 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       crew_organisation: category === 'crew' && crewWorkArrangement === 'organisation' ? crewOrganisation : null,
       crew_lead_name: category === 'crew' && crewWorkArrangement === 'organisation' ? crewLeadName : null,
       crew_lead_phone: category === 'crew' && crewWorkArrangement === 'organisation' ? crewLeadPhone : null,
-      availability: availabilitySummary,
-      availability_mode: availabilityMode,
-      availability_match_ids: availabilityMatchIds,
+      availability: 'Available for all 10 NUSC home matches',
+      availability_mode: 'all',
+      availability_match_ids: [],
       reason_for_joining: null,
       emergency_contact_name: null,
       emergency_contact_phone: null,
@@ -1058,7 +994,6 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
           full_name,
           category,
           photo_storage_path,
-          event_id,
           assigned_zone,
           assigned_shift,
           organisation,
@@ -1068,8 +1003,7 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
           media_outlet,
           media_organisation_type,
           application_status,
-          assigned_role:campaign_roles!assigned_role_id (name, code),
-          event:campaign_events!event_id (title, venue)
+          assigned_role:campaign_roles!assigned_role_id (name, code)
         )
       `)
       .eq('pass_slug', cleanSlug)
@@ -1102,8 +1036,12 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
     }
 
     const baseRole = campaignRoleLabel(app.assigned_role, app.other_role);
-    const assignedRole = app.designation ? baseRole + ' · ' + app.designation : baseRole;
-    const event = Array.isArray(app.event) ? app.event[0] : app.event;
+    const isOtherManagementOrganisation = ['other', 'others'].includes((app.organisation || '').trim().toLowerCase());
+    const managementAffiliation = app.category === 'management'
+      ? (isOtherManagementOrganisation ? app.organisation_other?.trim() || 'Other' : app.organisation?.trim() || null)
+      : null;
+    const assignedRoleBase = managementAffiliation || baseRole;
+    const assignedRole = app.designation ? assignedRoleBase + ' · ' + app.designation : assignedRoleBase;
     const mediaOrganisationLabels: Record<string, string> = {
       kaki: 'Kaki', print_media: 'Print Media', press_media: 'Press Media', broadcast_tv: 'Broadcast / TV',
       digital_online_media: 'Digital / Online Media', independent_freelance: 'Independent / Freelance', other: 'Other',
@@ -1119,13 +1057,11 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
         fullName: app.full_name,
         category: app.category,
         assignedRole,
-        accreditationType: app.event_id ? 'Match-day pass' : 'Season pass',
-        assignedMatch: event?.title || 'All 10 NUSC home matches',
+        accreditationType: 'Season pass',
+        assignedMatch: 'All 10 NUSC home matches',
         assignedZone: app.assigned_zone || 'Awaiting staff assignment',
         assignedShift: app.assigned_shift || 'Awaiting staff assignment',
-        affiliation: app.category === 'management'
-          ? (app.organisation === 'Others' ? app.organisation_other : app.organisation) || null
-          : null,
+        affiliation: managementAffiliation,
         mediaOutlet: app.category === 'media' ? app.media_outlet || null : null,
         mediaOrganisationType: app.category === 'media'
           ? mediaOrganisationLabels[app.media_organisation_type] || app.media_organisation_type || null
