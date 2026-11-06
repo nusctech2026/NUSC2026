@@ -7,7 +7,7 @@ import { getCampaignMatches, recordCampaignAttendanceScan } from '../../../actio
 import { CampaignWorkspaceNav } from '../../nav/CampaignWorkspaceNav';
 import { isCampaignOnlyStaff } from '../../../auth/staffRoles';
 
-type Match = { id: string; title: string; start_date: string; end_date: string; is_active: boolean };
+type Match = { id: string; title: string; start_date: string; end_date: string; is_active: boolean; is_test: boolean };
 type ScanResult = {
   success: boolean; action?: 'check_in' | 'check_out'; message?: string; match_title?: string; first_scanned_at?: string; first_gate?: string;
   candidate?: { full_name?: string; id_number?: string; assigned_role?: string; assigned_zone?: string; assigned_shift?: string; signedPhotoUrl?: string };
@@ -43,7 +43,7 @@ export const CampaignScannerView = () => {
 
   useEffect(() => {
     let active = true;
-    getCampaignMatches().then(data => { if (active) setMatches(data); })
+    getCampaignMatches(true).then(data => { if (active) setMatches(data); })
       .catch(() => { if (active) setError('Unable to load matches. Refresh and try again.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -163,7 +163,7 @@ export const CampaignScannerView = () => {
       <label htmlFor="campaign-scan-match">Match
         <select id="campaign-scan-match" value={eventId} onChange={e => { setEventId(e.target.value); setResult(null); }} disabled={scanning || busy || loading}>
           <option value="">{loading ? 'Loading matches…' : 'Select a match'}</option>
-          {available.map(match => <option key={match.id} value={match.id}>{match.title} · {new Date(match.start_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</option>)}
+          {available.map(match => <option key={match.id} value={match.id}>{match.is_test ? "TEST - " : ""}{match.title} · {new Date(match.start_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</option>)}
         </select>
       </label>
       <label htmlFor="campaign-scan-gate">Entry point
@@ -176,6 +176,8 @@ export const CampaignScannerView = () => {
     {!loading && available.length === 0 && <div className="campaign-empty-banner" role="status">
       <strong>{attendanceAction === 'check_in' ? 'No active match is ready for check-in.' : 'No match is available for check-out.'}</strong> {manager ? <>A campaign manager can <Link href="/admin/campaign/matches">add or activate a match</Link>.</> : 'Contact your campaign manager to activate the match.'}
     </div>}
+
+    {matches.find(match => match.id === eventId)?.is_test && <p role="status">TEST MODE: this attendance stays separate from official match records.</p>}
 
     <section className="campaign-scanner-card" aria-label="QR scanner">
       <div className="campaign-camera-frame">

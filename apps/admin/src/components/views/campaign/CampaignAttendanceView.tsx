@@ -17,7 +17,7 @@ export const CampaignAttendanceView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [gateFilter, setGateFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
-  const [matchFilter, setMatchFilter] = useState('all');
+  const [matchFilter, setMatchFilter] = useState('official');
   const [checkpointTypeFilter, setCheckpointTypeFilter] = useState('all');
   const [personInput, setPersonInput] = useState('');
   const [personFilter, setPersonFilter] = useState('');
@@ -41,7 +41,7 @@ export const CampaignAttendanceView: React.FC = () => {
   useEffect(() => {
     fetchLogs();
   }, [page, gateFilter, actionFilter, matchFilter, checkpointTypeFilter, personFilter, departmentFilter, roleFilter]);
-  useEffect(() => { getCampaignMatches().then(setMatches).catch(() => setError('Unable to load match filters')); }, []);
+  useEffect(() => { getCampaignMatches(true).then(setMatches).catch(() => setError('Unable to load match filters')); }, []);
   useEffect(() => {
     getCampaignRoleOptions(departmentFilter).then(setRoleOptions).catch(() => setError('Unable to load role filters'));
   }, [departmentFilter]);
@@ -145,9 +145,13 @@ export const CampaignAttendanceView: React.FC = () => {
       </div>
 
       <div><label htmlFor="campaign-attendance-match">Match</label> <select id="campaign-attendance-match" value={matchFilter} onChange={handleFilterChange(setMatchFilter)}>
-        <option value="all">All matches (includes legacy records)</option>
-        {matches.map(match => <option key={match.id} value={match.id}>{match.title}</option>)}
+        <option value="official">All official matches (includes legacy records)</option>
+        <option value="test">All TEST matches</option>
+        <option value="all">All matches (including TEST)</option>
+        {matches.map(match => <option key={match.id} value={match.id}>{match.is_test ? "TEST - " : ""}{match.title}</option>)}
       </select></div>
+      {matchFilter === 'test' && <p role="status">TEST attendance is separate from official attendance and is excluded from official totals and exports.</p>}
+      {matchFilter === 'all' && <p role="status">Showing official and TEST attendance together. TEST rows are labeled in the report.</p>}
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '12px 0' }}>
         <label htmlFor="campaign-attendance-person">Person</label>
         <input
@@ -315,7 +319,7 @@ export const CampaignAttendanceView: React.FC = () => {
                         second: '2-digit'
                       }) : '—'}
                     </td>
-                    <td style={{ padding: '12px 16px' }}>{log.event?.title || 'Legacy: match not recorded'}</td>
+                    <td style={{ padding: '12px 16px' }}>{log.event?.is_test ? `TEST - ${log.event.title}` : log.event?.title || 'Legacy: match not recorded'}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <span style={{
                         padding: '3px 8px',

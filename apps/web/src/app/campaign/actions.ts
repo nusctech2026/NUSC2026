@@ -322,6 +322,7 @@ export async function getCampaignAvailabilityMatches(): Promise<CampaignAvailabi
     const { data, error } = await createAdminClient().from('campaign_events')
       .select('id, title, start_date')
       .eq('is_active', true)
+      .eq('is_test', false)
       .order('start_date', { ascending: true });
     if (error || !data) {
       console.error('Unable to load workforce availability matches');
@@ -621,6 +622,7 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       const { data: availableMatches, error: matchError } = await supabase.from('campaign_events')
         .select('id')
         .eq('is_active', true)
+        .eq('is_test', false)
         .in('id', availabilityMatchIds);
       if (matchError || !availableMatches || availableMatches.length !== availabilityMatchIds.length) {
         return { success: false, error: 'One or more selected matches are no longer available. Refresh and choose again.' };
