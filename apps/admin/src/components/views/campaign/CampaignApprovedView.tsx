@@ -100,7 +100,6 @@ export const CampaignApprovedView: React.FC = () => {
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Category</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Assigned Role</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Assigned Zone</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Assigned Shift</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Phone</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Actions</th>
             </tr>
@@ -108,13 +107,13 @@ export const CampaignApprovedView: React.FC = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                   Loading approved candidates...
                 </td>
               </tr>
             ) : approvedList.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                   No candidates currently in approved status.
                 </td>
               </tr>
@@ -135,9 +134,6 @@ export const CampaignApprovedView: React.FC = () => {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     {row.assigned_zone || <span style={{ color: '#596579' }}>Pending zone</span>}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {row.assigned_shift || <span style={{ color: '#596579' }}>Pending shift</span>}
                   </td>
                   <td style={{ padding: '12px 16px', color: '#64748b' }}>
                     {row.phone}

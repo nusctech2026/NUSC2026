@@ -384,7 +384,7 @@ test('campaign pass preview is manager-only, allows scheduled and expired inspec
   const pass={id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',qr_token:token,
     valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
     is_active:true,revoked_at:null,application:{application_number:'NUSC-AHB-011',full_name:'Synthetic Candidate',email:'candidate@example.invalid',
-      category:'ahibi',application_status:'approved',photo_storage_path:'synthetic/photo.png',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
+      category:'ahibi',application_status:'approved',photo_storage_path:'synthetic/photo.png',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1'}};
   try {
     const calls=[];
     const api=loadSource('apps/admin/src/actions/campaignAdminActions.ts',{'../utils/supabaseServerClient':{
@@ -438,7 +438,7 @@ test('pass email reports setup or provider errors as a visible result and can se
   const pass={id_number:'NUSC-AHB-011',pass_slug:'synthetic-pass',qr_token:token,
     valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
     is_active:true,revoked_at:null,application:{application_number:'NUSC-AHB-011',full_name:'Synthetic Candidate',email:'candidate@example.invalid',
-      category:'ahibi',application_status:'approved',photo_storage_path:'synthetic/photo.png',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1',assigned_shift:'Morning'}};
+      category:'ahibi',application_status:'approved',photo_storage_path:'synthetic/photo.png',assigned_role:{name:'Gate 1 Scanning'},assigned_zone:'Gate 1'}};
   try {
     process.env.NEXT_PUBLIC_SITE_URL='https://campaign.example.invalid';
     process.env.RESEND_API_KEY='synthetic-resend-key';
@@ -680,7 +680,7 @@ test('public pass presentation can be previewed before the first valid match day
     valid_from:new Date(Date.now()+86400000).toISOString(),valid_until:new Date(Date.now()+172800000).toISOString(),
     issued_at:new Date().toISOString(),is_active:true,revoked_at:null,
     application:{application_number:'NUSC-AHB-011',full_name:'Synthetic Candidate',category:'ahibi',
-      photo_storage_path:null,event_id:null,assigned_zone:'Gate 1',assigned_shift:'Morning',other_role:null,designation:null,
+      photo_storage_path:null,event_id:null,assigned_zone:'Gate 1',other_role:null,designation:null,
       application_status:'approved',assigned_role:{name:'Gate 1 Scanning',code:'ahibi_gate_1_scanning'},event:null}};
   const api=loadSource('apps/web/src/app/campaign/actions.ts',{
     '@nusc/db':{createAdminClient:()=>({from:()=>query(pass),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://photo.example.invalid/signed'}})})}})},
@@ -713,7 +713,7 @@ test('pass presentation includes management affiliation and Press and Media deta
       issued_at: '2026-01-01T00:00:00.000Z', is_active: true, revoked_at: null,
       application: {
         application_number: 'NUSC-MED-001', full_name: 'Synthetic Candidate', category,
-        photo_storage_path: null, event_id: null, assigned_zone: null, assigned_shift: null,
+        photo_storage_path: null, event_id: null, assigned_zone: null,
         other_role: 'Camera Operator', designation: null, application_status: 'approved',
         assigned_role: { name: 'Other', code: `${category}_others` }, event: null, ...application,
       },

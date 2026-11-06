@@ -472,7 +472,7 @@ export const CampaignApplicationsView: React.FC = () => {
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Category</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Preferred Role</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Status</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Assigned Zone / Shift</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Assigned Zone</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Submitted</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Actions</th>
             </tr>
@@ -527,7 +527,7 @@ export const CampaignApplicationsView: React.FC = () => {
                   </td>
                   <td style={{ padding: '12px 16px' }}>{getStatusBadge(row.application_status)}</td>
                   <td style={{ padding: '12px 16px', color: '#475569', fontSize: '12px' }}>
-                    {row.assigned_zone ? `${row.assigned_zone} (${row.assigned_shift || 'Shift'})` : <span style={{ color: '#596579' }}>Unassigned</span>}
+                    {row.assigned_zone || <span style={{ color: '#596579' }}>Unassigned</span>}
                   </td>
                   <td style={{ padding: '12px 16px', color: '#64748b' }}>
                     {new Date(row.submitted_at).toLocaleDateString()}
@@ -606,7 +606,7 @@ export const CampaignApplicationsView: React.FC = () => {
             <dl>
               <div><dt>Category</dt><dd>{row.category}</dd></div>
               <div><dt>Preferred role</dt><dd>{campaignRoleLabel(row.preferred_role, row.other_role)}</dd></div>
-              <div><dt>Assignment</dt><dd>{row.assigned_zone ? `${row.assigned_zone} · ${row.assigned_shift || 'Shift unassigned'}` : 'Not assigned yet'}</dd></div>
+              <div><dt>Assigned zone</dt><dd>{row.assigned_zone || 'Not assigned yet'}</dd></div>
               <div><dt>Submitted</dt><dd>{new Date(row.submitted_at).toLocaleDateString()}</dd></div>
             </dl>
             <button className="campaign-primary-button campaign-open-application" type="button" onClick={() => setSelectedAppId(row.id)}>Open application</button>

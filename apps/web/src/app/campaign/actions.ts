@@ -242,7 +242,6 @@ export interface CampaignStatusResult {
     submittedAt: string;
     assignedRoleName?: string | null;
     assignedZone?: string | null;
-    assignedShift?: string | null;
     passSlug?: string | null;
     validFrom?: string | null;
     validUntil?: string | null;
@@ -262,7 +261,6 @@ export interface CampaignPassData {
     accreditationType: string;
     assignedMatch: string;
     assignedZone: string;
-    assignedShift: string;
     affiliation: string | null;
     mediaOutlet: string | null;
     mediaOrganisationType: string | null;
@@ -312,7 +310,7 @@ export async function getCampaignRoles(category?: string): Promise<CampaignRoleI
 
 /**
  * Submit campaign application with strict server-side validation and field allowlisting.
- * Clients cannot control application_status, assigned roles/zones/shifts, or registration IDs.
+ * Clients cannot control application_status, assigned roles/zones, or registration IDs.
  */
 export async function submitCampaignApplication(formData: FormData): Promise<CampaignSubmissionResult> {
   const trace = createPerformanceTrace('registration.workforce');
@@ -900,7 +898,6 @@ export async function checkCampaignStatus(
         application_status,
         submitted_at,
         assigned_zone,
-        assigned_shift,
         preferred_role:campaign_roles!preferred_role_id (name, code),
         assigned_role:campaign_roles!assigned_role_id (name, code),
         other_role
@@ -951,7 +948,6 @@ export async function checkCampaignStatus(
         submittedAt: app.submitted_at,
         assignedRoleName,
         assignedZone: app.assigned_zone,
-        assignedShift: app.assigned_shift,
         passSlug,
         validFrom,
         validUntil,
@@ -966,7 +962,7 @@ export async function checkCampaignStatus(
 
 /**
  * Fetch digital ID pass presentation details using pass_slug.
- * Exposes ONLY minimal credential data: full name, role, zone, shift, validity, and a 15-min signed photo URL.
+ * Exposes ONLY minimal credential data: full name, role, zone, validity, and a 15-min signed photo URL.
  * NEVER leaks DOB, home address, phone, email, emergency contacts, or internal notes.
  */
 export async function getCampaignPass(passSlug: string): Promise<CampaignPassData> {
@@ -996,7 +992,6 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
           category,
           photo_storage_path,
           assigned_zone,
-          assigned_shift,
           organisation,
           organisation_other,
           other_role,
@@ -1063,7 +1058,6 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
         accreditationType: 'Season pass',
         assignedMatch: 'All 10 NUSC home matches',
         assignedZone: app.assigned_zone || 'Awaiting staff assignment',
-        assignedShift: app.assigned_shift || 'Awaiting staff assignment',
         affiliation: managementAffiliation,
         mediaOutlet: app.category === 'media' ? app.media_outlet || null : null,
         mediaOrganisationType: app.category === 'media'

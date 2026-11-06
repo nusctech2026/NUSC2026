@@ -45,7 +45,6 @@ export interface CampaignPassCardData {
   assignedRole: string;
   assignedMatch: string;
   assignedZone: string;
-  assignedShift: string;
   validFrom: string;
   validUntil: string;
   eventVenue: string;
@@ -134,7 +133,6 @@ function infoIcon(name: string, x: number, y: number) {
   const paths: Record<string, string> = {
     access: '<path d="M4 7.5h16v12H4z"/><path d="M8 7.5V5h8v2.5M8 12h4M8 15h8"/>',
     zone: '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.2"/>',
-    shift: '<circle cx="8" cy="8" r="2.5"/><path d="M3 19v-1a5 5 0 0 1 10 0v1M16 5.5a2.5 2.5 0 0 1 0 5M17 14a4 4 0 0 1 4 4v1"/>',
     calendar: '<rect x="4" y="5.5" width="16" height="15" rx="1.5"/><path d="M8 3v5M16 3v5M4 10h16M8 14h3M8 17h6"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
     venue: '<path d="M3 9 12 4l9 5v10H3z"/><path d="M6 19v-6h12v6M8 10h.01M12 10h.01M16 10h.01M10 13v6M14 13v6"/>',
@@ -215,16 +213,20 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
   const fields = [
     { label: 'Match access', value: data.assignedMatch || 'All NUSC home matches', note: data.accreditationType || 'Match-day pass', icon: 'access' },
     { label: 'Gate / Checkpoint', value: data.assignedZone || 'To be assigned', icon: 'zone' },
-    { label: 'Shift', value: data.assignedShift || 'To be assigned', icon: 'shift' },
     { label: 'Valid from', value: formatPassDate(data.validFrom), icon: 'calendar' },
     { label: 'Valid until', value: formatPassDate(data.validUntil), icon: 'clock' },
     { label: 'Venue', value: data.eventVenue || 'Chumukedima Football Stadium, Nagaland', icon: 'venue' },
   ];
-  const valueLayouts = fields.map(field => fitText(field.value, fieldWidth - 92, 21.17, 3, 0.63));
+  const fullRowWidth = fieldWidth * 2 + fieldGapX;
+  const rowCount = Math.ceil(fields.length / 2);
+  const valueLayouts = fields.map((field, index) => {
+    const spansFullRow = fields.length % 2 === 1 && index === fields.length - 1;
+    return fitText(field.value, (spansFullRow ? fullRowWidth : fieldWidth) - 92, 21.17, 3, 0.63);
+  });
   const copyHeight = fields.map((field, index) =>
     18.56 + 2.65 + (field.note ? 2.65 + 15.88 : 0) + valueLayouts[index].lines.length * 23.9,
   );
-  const rowHeights = [0, 1, 2].map(row => Math.max(
+  const rowHeights = Array.from({ length: rowCount }, (_, row) => Math.max(
     92.61,
     ...copyHeight.slice(row * 2, row * 2 + 2).map(height => height + 26.46),
   ));
@@ -235,10 +237,12 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
   const fieldSvg = fields.map((field, index) => {
     const column = index % 2;
     const row = Math.floor(index / 2);
-    const x = fieldX + column * (fieldWidth + fieldGapX);
-    return infoFieldSvg(field, x, rowTops[row], fieldWidth, rowHeights[row], valueLayouts[index]);
+    const spansFullRow = fields.length % 2 === 1 && index === fields.length - 1;
+    const x = spansFullRow ? fieldX : fieldX + column * (fieldWidth + fieldGapX);
+    const width = spansFullRow ? fullRowWidth : fieldWidth;
+    return infoFieldSvg(field, x, rowTops[row], width, rowHeights[row], valueLayouts[index]);
   }).join('');
-  const detailsBottom = rowTops[2] + rowHeights[2];
+  const detailsBottom = rowTops[rowCount - 1] + rowHeights[rowCount - 1];
   const qrFrameSize = 243.42;
   const qrImageSize = 211.67;
   const qrFrameX = (SVG_WIDTH - qrFrameSize) / 2;
@@ -251,7 +255,7 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
   const qrUri = dataUri('image/png', qr);
   const crestUri = dataUri('image/png', crest);
   const desc = [
-    department, data.assignedRole, data.assignedMatch, data.assignedZone, data.assignedShift,
+    department, data.assignedRole, data.assignedMatch, data.assignedZone,
     formatPassDate(data.validFrom), formatPassDate(data.validUntil), data.eventVenue,
   ].filter(Boolean).map(escapeXml).join(', ');
 

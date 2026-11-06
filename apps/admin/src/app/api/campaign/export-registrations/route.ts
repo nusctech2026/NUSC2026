@@ -45,13 +45,13 @@ export async function GET() {
       'Organisation / Affiliation', 'Designation / Role / Position', 'Availability', 'Available Match Dates',
       'Media Organisation / Publication', 'Type of Media Organisation', 'Public Portfolio URL', 'Media Access Requested', 'Professional Body', 'Professional Qualification',
       'Professional Registration Number', 'Technical Specialty', 'Relevant Experience', 'Status',
-      'Assigned Match', 'Assigned Zone', 'Assigned Shift', 'Possible Duplicate', 'Submitted At',
+      'Assigned Match', 'Assigned Zone', 'Possible Duplicate', 'Submitted At',
     ]];
 
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
       const { data, error } = await supabase.from('campaign_applications')
-        .select('application_number, full_name, phone, email, category, other_role, organisation, organisation_other, designation, availability, availability_mode, availability_match_ids, media_outlet, media_organisation_type, portfolio_url, media_access_types, professional_body, professional_qualification, professional_registration_number, technical_specialty, experience, application_status, event_id, assigned_zone, assigned_shift, potential_duplicate, submitted_at, preferred_role:campaign_roles!preferred_role_id (name, code), event:campaign_events!event_id (title)')
+        .select('application_number, full_name, phone, email, category, other_role, organisation, organisation_other, designation, availability, availability_mode, availability_match_ids, media_outlet, media_organisation_type, portfolio_url, media_access_types, professional_body, professional_qualification, professional_registration_number, technical_specialty, experience, application_status, event_id, assigned_zone, potential_duplicate, submitted_at, preferred_role:campaign_roles!preferred_role_id (name, code), event:campaign_events!event_id (title)')
         .order('submitted_at', { ascending: true })
         .range(offset, offset + pageSize - 1);
       if (error) throw new Error('Registration export query failed');
@@ -103,7 +103,6 @@ export async function GET() {
           registration.application_status,
           event?.title || (registration.event_id ? 'Assigned match' : 'All 10 home matches'),
           registration.assigned_zone,
-          registration.assigned_shift,
           registration.potential_duplicate ? 'Yes' : 'No',
           registration.submitted_at,
         ]);

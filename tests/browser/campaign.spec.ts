@@ -109,7 +109,7 @@ const approvedIdFixture = {
   preferred_role:{name:'Gate 1 Scanning',code:'volunteer_gate_1_scanning'},
   assigned_role:{name:'Gate 1 Scanning',code:'volunteer_gate_1_scanning'},
   application_status:'approved', email:'rishav@example.invalid', phone:'9000000000', assigned_zone:'North Stand · Gate 1',
-  assigned_shift:'Morning', submitted_at:new Date().toISOString(),
+  submitted_at:new Date().toISOString(),
   issuedId:{id:'credential',id_number:'NUSC-ID-2026-ABCDEF',pass_slug:'private-pass',is_active:true,isExpired:false,valid_until:'2099-01-01'},
 };
 

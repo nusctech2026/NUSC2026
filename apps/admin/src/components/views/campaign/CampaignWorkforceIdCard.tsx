@@ -10,7 +10,6 @@ export interface CampaignWorkforceIdDetails {
   accreditationType?: string;
   assignedMatch: string;
   assignedZone: string;
-  assignedShift: string;
   validFrom: string;
   validUntil: string;
   signedPhotoUrl: string | null;
@@ -63,7 +62,6 @@ function InfoIcon({ name }: { name: string }) {
     <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" {...common}>
       {name === 'access' && <><path d="M4 7.5h16v12H4z" /><path d="M8 7.5V5h8v2.5M8 12h4M8 15h8" /></>}
       {name === 'zone' && <><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.2" /></>}
-      {name === 'shift' && <><circle cx="8" cy="8" r="2.5" /><path d="M3 19v-1a5 5 0 0 1 10 0v1M16 5.5a2.5 2.5 0 0 1 0 5M17 14a4 4 0 0 1 4 4v1" /></>}
       {name === 'calendar' && <><rect x="4" y="5.5" width="16" height="15" rx="1.5" /><path d="M8 3v5M16 3v5M4 10h16M8 14h3M8 17h6" /></>}
       {name === 'clock' && <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>}
       {name === 'venue' && <><path d="M3 9 12 4l9 5v10H3z" /><path d="M6 19v-6h12v6M8 10h.01M12 10h.01M16 10h.01M10 13v6M14 13v6" /></>}
@@ -96,7 +94,6 @@ export default function CampaignWorkforceIdCard({ details, qrImage, status }: Ca
   const fields = [
     { label: accessLabel, value: details.assignedMatch || 'Not specified', note: details.accreditationType, icon: 'access' },
     { label: zoneLabel, value: details.assignedZone || 'To be assigned', icon: 'zone' },
-    { label: 'Shift', value: details.assignedShift || 'To be assigned', icon: 'shift' },
     { label: 'Valid from', value: formatPassDate(details.validFrom), icon: 'calendar' },
     { label: 'Valid until', value: formatPassDate(details.validUntil), icon: 'clock' },
     { label: 'Venue', value: details.eventVenue || 'Chumukedima Football Stadium, Nagaland', icon: 'venue' },

@@ -297,6 +297,10 @@
   background: rgb(255 255 255 / 88%);
 }
 
+.detailsGrid > .infoField:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .iconTab {
   display: grid;
   place-items: center;

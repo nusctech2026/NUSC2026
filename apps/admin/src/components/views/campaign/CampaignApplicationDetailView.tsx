@@ -7,7 +7,7 @@ import { campaignPassUrl } from '../../../utils/campaignPassUrl';
 import {
   getCampaignApplicationDetail,
   updateApplicationStatus,
-  assignRoleZoneShift,
+  assignRoleZoneAndMatch,
   updateCampaignRegistrationDetails,
   issueCampaignId,
   emailCampaignPass,
@@ -97,7 +97,6 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
   const [eventId, setEventId] = useState('');
   const [roles, setRoles] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
-  const [assignedShift, setAssignedShift] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -170,7 +169,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     setError(null); setApp(data); setRoles(data.roleOptions); setMatches(data.matches);
     setAssignedRoleId(data.assigned_role_id || data.preferred_role_id || '');
     setEventId(data.event_id || ''); setAssignedZone(data.assigned_zone || '');
-    setAssignedShift(data.assigned_shift || ''); setAdminNotes(data.admin_notes || '');
+    setAdminNotes(data.admin_notes || '');
     setEditFullName(data.full_name || ''); setEditPhone(data.phone || ''); setEditEmail(data.email || '');
     setEditOtherRole(data.other_role || '');
     setEditOrganisation(data.organisation === 'Others'
@@ -208,7 +207,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     try {
       if (newStatus === 'approved') {
         // Approval should use the exact assignment currently shown in the form.
-        await assignRoleZoneShift(applicationId, assignedRoleId, assignedZone, assignedShift, eventId || null);
+        await assignRoleZoneAndMatch(applicationId, assignedRoleId, assignedZone, eventId || null);
       }
       await updateApplicationStatus(applicationId, newStatus, adminNotes);
       if (newStatus === 'approved') {
@@ -229,8 +228,8 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
     setActionLoading(true);
     setActionSuccess(null);
     try {
-      await assignRoleZoneShift(applicationId, assignedRoleId, assignedZone, assignedShift, eventId || null);
-      setActionSuccess('Zone and shift assignments saved.');
+      await assignRoleZoneAndMatch(applicationId, assignedRoleId, assignedZone, eventId || null);
+      setActionSuccess('Role, zone, and match access saved.');
       await loadDetail();
       onStatusUpdated?.();
     } catch (err: any) {
@@ -844,7 +843,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
           {canManage && (
             <div style={{ background: '#f0fdf4', padding: '20px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#166534', textTransform: 'uppercase', marginBottom: '10px' }}>
-                Matchday Deployment Assignment
+                Workforce Assignment
               </div>
               <label htmlFor="campaign-assigned-role" style={{ display: 'block', marginBottom: '10px' }}>
                 Assigned role
@@ -860,33 +859,18 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                 {matches.map(match => <option key={match.id} value={match.id}>{match.title}</option>)}
               </select>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                <div>
-                  <label htmlFor="campaign-zone" style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#15803d', marginBottom: '3px' }}>
-                    Assigned Zone
-                  </label>
-                  <input
-                    id="campaign-zone"
-                    type="text"
-                    value={assignedZone}
-                    onChange={(e) => setAssignedZone(e.target.value)}
-                    placeholder="e.g. Main Stand - Gate 1"
-                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #86efac', fontSize: '13px' }}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="campaign-shift" style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#15803d', marginBottom: '3px' }}>
-                    Assigned Shift
-                  </label>
-                  <input
-                    id="campaign-shift"
-                    type="text"
-                    value={assignedShift}
-                    onChange={(e) => setAssignedShift(e.target.value)}
-                    placeholder="e.g. Morning Shift A"
-                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #86efac', fontSize: '13px' }}
-                  />
-                </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label htmlFor="campaign-zone" style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#15803d', marginBottom: '3px' }}>
+                  Assigned Zone
+                </label>
+                <input
+                  id="campaign-zone"
+                  type="text"
+                  value={assignedZone}
+                  onChange={(e) => setAssignedZone(e.target.value)}
+                  placeholder="e.g. Main Stand - Gate 1"
+                  style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #86efac', fontSize: '13px' }}
+                />
               </div>
 
               <button

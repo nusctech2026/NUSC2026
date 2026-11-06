@@ -101,7 +101,7 @@ export const CampaignIdsView: React.FC = () => {
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Pass ID #</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Candidate Name</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Category</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Assigned Zone / Shift</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Assigned Zone</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Status</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Valid Until</th>
               <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Issued By</th>
@@ -139,7 +139,7 @@ export const CampaignIdsView: React.FC = () => {
                       {DEPARTMENT_LABELS[app?.category] || app?.category || '—'}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '12px', color: '#475569' }}>
-                      {app?.assigned_zone || 'General'} ({app?.assigned_shift || 'Matchday'})
+                      {app?.assigned_zone || 'General'}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       {isPassActive ? (

@@ -70,7 +70,6 @@ export async function getCampaignApplicationsList(filters: CampaignListFilters =
       assigned_role_id,
       application_status,
       assigned_zone,
-      assigned_shift,
       submitted_at,
       potential_duplicate,
       preferred_role:campaign_roles!preferred_role_id (name, code),
@@ -374,14 +373,14 @@ export async function updateApplicationStatus(applicationId: string, newStatus: 
 }
 
 /**
- * 5. Assign Role, Zone, and Shift to Candidate
+ * 5. Assign Role, Zone, and Match Access to Candidate
  */
-export async function assignRoleZoneShift(
-  applicationId: string, assignedRoleId: string, assignedZone: string, assignedShift: string, eventId?: string | null
+export async function assignRoleZoneAndMatch(
+  applicationId: string, assignedRoleId: string, assignedZone: string, eventId?: string | null
 ) {
   const staff = await assertStaffRole(['super_admin', 'campaign_manager']);
   const supabase = getSupabaseAdminClient();
-  if (assignedZone.length > 100 || assignedShift.length > 100) throw new Error('Zone and shift must be at most 100 characters');
+  if (assignedZone.length > 100) throw new Error('Zone must be at most 100 characters');
   const { data: app, error: appError } = await supabase.from('campaign_applications').select('category, other_role').eq('id', applicationId).single();
   if (appError || !app) throw new Error('Applicant not found');
   const { data: role, error: roleError } = await supabase.from('campaign_roles').select('id, code').eq('id', assignedRoleId)
@@ -393,7 +392,7 @@ export async function assignRoleZoneShift(
     if (error || !event) throw new Error('Match is unavailable');
   }
   const { error } = await supabase.from('campaign_applications').update({
-    assigned_role_id: role.id, assigned_zone: assignedZone.trim(), assigned_shift: assignedShift.trim(),
+    assigned_role_id: role.id, assigned_zone: assignedZone.trim(),
     ...(eventId !== undefined ? { event_id: eventId || null } : {}),
     last_updated_by: staff.email,
     updated_at: new Date().toISOString(),
@@ -654,7 +653,6 @@ type CampaignPassContext = {
     photo_storage_path: string | null;
     assigned_role: { name: string } | null;
     assigned_zone: string | null;
-    assigned_shift: string | null;
     event: { title: string; venue: string } | null;
   };
   idNumber: string;
@@ -685,7 +683,7 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
     application:campaign_applications!application_id (
       application_number, full_name, email, category, organisation, organisation_other, designation,
       application_status, photo_storage_path,
-      assigned_role:campaign_roles!assigned_role_id (name), assigned_zone, assigned_shift,
+      assigned_role:campaign_roles!assigned_role_id (name), assigned_zone,
       event:campaign_events!event_id (title, venue)
     )
   `).eq('application_id', applicationId).maybeSingle();
@@ -754,7 +752,6 @@ async function createCampaignPassPdfAssets(context: CampaignPassContext) {
     assignedRole: context.displayRole,
     assignedMatch: context.assignedMatch,
     assignedZone: context.applicant.assigned_zone || 'To be assigned',
-    assignedShift: context.applicant.assigned_shift || 'To be assigned',
     validFrom: context.validFrom,
     validUntil: context.validUntil,
     eventVenue: context.eventVenue,
@@ -802,7 +799,6 @@ export async function prepareCampaignPassPreview(applicationId: string) {
         assignedRole: context.displayRole,
         assignedMatch: context.assignedMatch,
         assignedZone: context.applicant.assigned_zone,
-        assignedShift: context.applicant.assigned_shift,
         validFrom: context.validFrom,
         validUntil: context.validUntil,
         isExpired: context.isExpired,
@@ -852,8 +848,8 @@ export async function emailCampaignPass(applicationId: string) {
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[char]!));
     const passUrl = escapeHtml(context.passUrl);
-    const text = `Your NUSC Workforce ID is attached as a PDF and PNG image.\n\nPass ID: ${context.idNumber}\nRole: ${context.displayRole}\nMatch access: all 10 NUSC home matches\nGate / Checkpoint: ${context.applicant.assigned_zone || 'To be assigned'}\nShift: ${context.applicant.assigned_shift || 'To be assigned'}\nVenue: ${context.eventVenue}\n${context.passUrl}\n\nKeep this private; it grants event access. Present your photo ID if staff ask to verify your identity.`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC Workforce ID</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your approved workforce ID is attached as a PDF and PNG image.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.displayRole)}<br><strong>Match access:</strong> all 10 NUSC home matches<br><strong>Gate / Checkpoint:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Shift:</strong> ${escapeHtml(context.applicant.assigned_shift || 'To be assigned')}<br><strong>Venue:</strong> ${escapeHtml(context.eventVenue)}</p><p><a href="${passUrl}">Open or print your digital pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
+    const text = `Your NUSC Workforce ID is attached as a PDF and PNG image.\n\nPass ID: ${context.idNumber}\nRole: ${context.displayRole}\nMatch access: all 10 NUSC home matches\nGate / Checkpoint: ${context.applicant.assigned_zone || 'To be assigned'}\nVenue: ${context.eventVenue}\n${context.passUrl}\n\nKeep this private; it grants event access. Present your photo ID if staff ask to verify your identity.`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0b1730"><h1>Your NUSC Workforce ID</h1><p>Hello ${escapeHtml(context.applicant.full_name)}, your approved workforce ID is attached as a PDF and PNG image.</p><p><strong>Pass ID:</strong> ${escapeHtml(context.idNumber)}<br><strong>Role:</strong> ${escapeHtml(context.displayRole)}<br><strong>Match access:</strong> all 10 NUSC home matches<br><strong>Gate / Checkpoint:</strong> ${escapeHtml(context.applicant.assigned_zone || 'To be assigned')}<br><strong>Venue:</strong> ${escapeHtml(context.eventVenue)}</p><p><a href="${passUrl}">Open or print your digital pass</a></p><p>Keep this pass private. It grants event access. Present your photo ID if staff ask to verify your identity.</p></div>`;
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -955,11 +951,22 @@ export async function verifyAndCheckInGateScan(qrToken: string, gate: string, ev
   }
 
   // If candidate photo is present, generate a 15-min signed URL so gate staff can visually verify
-  if (data?.candidate?.photo_storage_path) {
-    const { data: signedData } = await supabase.storage
-      .from('campaign_documents')
-      .createSignedUrl(data.candidate.photo_storage_path, 900);
-    data.candidate.signedPhotoUrl = signedData?.signedUrl || null;
+  if (data?.candidate) {
+    const candidate = data.candidate;
+    let signedPhotoUrl: string | null = null;
+    if (candidate.photo_storage_path) {
+      const { data: signedData } = await supabase.storage
+        .from('campaign_documents')
+        .createSignedUrl(candidate.photo_storage_path, 900);
+      signedPhotoUrl = signedData?.signedUrl || null;
+    }
+    data.candidate = {
+      full_name: candidate.full_name,
+      id_number: candidate.id_number,
+      assigned_role: candidate.assigned_role,
+      assigned_zone: candidate.assigned_zone,
+      signedPhotoUrl,
+    };
   }
 
   return data;
@@ -1095,7 +1102,6 @@ export async function getCampaignAttendanceHistory(
         full_name,
         category,
         assigned_zone,
-        assigned_shift,
         other_role,
         assigned_role_id,
         assigned_role:campaign_roles!assigned_role_id (name, code)
@@ -1271,7 +1277,6 @@ export async function getIssuedCampaignIds(page = 1, pageSize = 30, activeOnly =
         full_name,
         category,
         assigned_zone,
-        assigned_shift,
         assigned_role:campaign_roles!assigned_role_id (name, code)
       )
     `, { count: 'exact' });
@@ -1333,7 +1338,6 @@ export async function getApprovedCandidatesForExport() {
       crew_lead_name,
       crew_lead_phone,
       assigned_zone,
-      assigned_shift,
       emergency_contact_name,
       emergency_contact_phone,
       preferred_role:campaign_roles!preferred_role_id (name, code),

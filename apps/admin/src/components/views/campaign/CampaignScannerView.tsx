@@ -10,7 +10,7 @@ import { isCampaignOnlyStaff } from '../../../auth/staffRoles';
 type Match = { id: string; title: string; start_date: string; end_date: string; is_active: boolean; is_test: boolean };
 type ScanResult = {
   success: boolean; action?: 'check_in' | 'check_out'; message?: string; match_title?: string; first_scanned_at?: string; first_gate?: string;
-  candidate?: { full_name?: string; id_number?: string; assigned_role?: string; assigned_zone?: string; assigned_shift?: string; signedPhotoUrl?: string };
+  candidate?: { full_name?: string; id_number?: string; assigned_role?: string; assigned_zone?: string; signedPhotoUrl?: string | null };
 };
 const gates = ['Gate 1', 'Gate 2', 'Gate 3', 'Gate 4'];
 
@@ -209,7 +209,7 @@ export const CampaignScannerView = () => {
       {result.match_title && <p className="campaign-result-match">{result.match_title}</p>}
       {result.candidate && <div className="campaign-scanned-candidate">
         {result.candidate.signedPhotoUrl && <img src={result.candidate.signedPhotoUrl} width={88} height={108} alt={`Photo of ${result.candidate.full_name || 'candidate'}`} />}
-        <div><strong>{result.candidate.full_name || 'Candidate'}</strong><p>{result.candidate.id_number}</p><p>{result.candidate.assigned_role}</p><p>{result.candidate.assigned_zone || 'No zone assigned'} · {result.candidate.assigned_shift || 'No shift assigned'}</p></div>
+        <div><strong>{result.candidate.full_name || 'Candidate'}</strong><p>{result.candidate.id_number}</p><p>{result.candidate.assigned_role}</p><p>{result.candidate.assigned_zone || 'No zone assigned'}</p></div>
       </div>}
       {result.first_scanned_at && <p>Session started: {new Date(result.first_scanned_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST at {result.first_gate}</p>}
     </section>}

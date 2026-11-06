@@ -297,15 +297,14 @@
   .campaign-roster-table tbody td:nth-child(3)::before { content: 'Category'; }
   .campaign-roster-table tbody td:nth-child(4)::before { content: 'Assigned role'; }
   .campaign-roster-table tbody td:nth-child(5)::before { content: 'Zone'; }
-  .campaign-roster-table tbody td:nth-child(6)::before { content: 'Shift'; }
-  .campaign-roster-table tbody td:nth-child(7)::before { content: 'Phone'; }
-  .campaign-roster-table tbody td:nth-child(8) { grid-column: 1 / -1; text-align: left !important; }
-  .campaign-roster-table tbody td:nth-child(8)::before { content: none; }
-  .campaign-roster-table tbody td:nth-child(8) button { width: 100%; }
+  .campaign-roster-table tbody td:nth-child(6)::before { content: 'Phone'; }
+  .campaign-roster-table tbody td:nth-child(7) { grid-column: 1 / -1; text-align: left !important; }
+  .campaign-roster-table tbody td:nth-child(7)::before { content: none; }
+  .campaign-roster-table tbody td:nth-child(7) button { width: 100%; }
   .campaign-id-table tbody td:nth-child(1)::before { content: 'Pass ID'; }
   .campaign-id-table tbody td:nth-child(2)::before { content: 'Candidate'; }
   .campaign-id-table tbody td:nth-child(3)::before { content: 'Category'; }
-  .campaign-id-table tbody td:nth-child(4)::before { content: 'Zone / shift'; }
+  .campaign-id-table tbody td:nth-child(4)::before { content: 'Zone'; }
   .campaign-id-table tbody td:nth-child(5)::before { content: 'Status'; }
   .campaign-id-table tbody td:nth-child(6)::before { content: 'Valid until'; }
   .campaign-id-table tbody td:nth-child(7)::before { content: 'Issued by'; }

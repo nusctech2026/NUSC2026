@@ -13,7 +13,7 @@ const { renderCampaignPassCardSvg, renderCampaignPassSvgToPng, renderCampaignPas
 
 const qrToken = 'a'.repeat(64);
 
-async function accreditationData(shift) {
+async function accreditationData() {
   const portrait = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="524"><defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#90a8b2"/><stop offset="1" stop-color="#314d60"/></linearGradient></defs><rect width="420" height="524" fill="url(#bg)"/><path d="M55 524c12-116 65-165 155-165s143 49 155 165" fill="#cf5a42"/><ellipse cx="210" cy="190" rx="93" ry="117" fill="#9b664b"/><path d="M118 186c7-98 49-141 106-141 65 0 105 51 94 144-17-42-39-66-74-69-30 40-68 57-126 66" fill="#201b1b"/><path d="M170 248q40 25 80 0" fill="none" stroke="#693f35" stroke-width="8" stroke-linecap="round"/></svg>`);
   const photoImage = await sharp(portrait).png().toBuffer();
   const qrImage = await QRCode.toBuffer(qrToken, {
@@ -29,7 +29,6 @@ async function accreditationData(shift) {
     assignedRole: 'Gate 1 Scanning',
     assignedMatch: 'Nagaland United vs Kohima United',
     assignedZone: 'North Stand \u00b7 Gate 1 checkpoint',
-    assignedShift: shift,
     validFrom: '2026-11-04T00:00:00.000Z',
     validUntil: '2026-12-31T23:59:59.000Z',
     eventVenue: 'Ch\u00fcmoukedima Football Stadium, Nagaland',
@@ -51,15 +50,14 @@ function extractPdfImage(pdf) {
   };
 }
 
-for (const shift of ['Morning', 'Evening']) {
-  test(`workforce ID PDF renders all fields and decodes its embedded QR for the ${shift} shift`, async () => {
-    const data = await accreditationData(shift);
+test('workforce ID PDF renders all fields and decodes its embedded QR', async () => {
+    const data = await accreditationData();
     const svg = await renderCampaignPassCardSvg(data);
     assert.ok(svg.includes('Nagaland United vs'));
     assert.ok(svg.includes('Kohima United'));
     for (const text of [
       'APPROVED', 'VOLUNTEERS', 'GATE 1 SCANNING', 'WORKFORCE ID', 'NUSC-ID-2026-ABCDEF12',
-      'North Stand \u00b7 Gate 1 checkpoint', shift, 'Match-day pass',
+      'North Stand \u00b7 Gate 1 checkpoint', 'Match-day pass',
       'VALID FROM', 'VALID UNTIL', '4 Nov 2026', '1 Jan 2027',
       'VENUE', 'Ch\u00fcmoukedima Football Stadium, Nagaland',
     ]) assert.ok(svg.includes(text), `SVG preview should contain ${text}`);
@@ -93,15 +91,14 @@ for (const shift of ['Morning', 'Evening']) {
       .toBuffer();
     const decoded = jsQR(new Uint8ClampedArray(qrPixels), size, size);
     assert.equal(decoded?.data, qrToken);
-  });
-}
+});
 
-test('PDF artwork preserves the actual Admin card brand and all six access fields', async () => {
-  const data = await accreditationData('Evening');
+test('PDF artwork preserves the actual Admin card brand and all five access fields', async () => {
+  const data = await accreditationData();
   const svg = await renderCampaignPassCardSvg(data);
   for (const label of [
     'NAGALAND', 'UNITED SC', 'APPROVED', 'WORKFORCE ID', 'MATCH ACCESS',
-    'GATE / CHECKPOINT', 'SHIFT', 'VALID FROM', 'VALID UNTIL', 'VENUE',
+    'GATE / CHECKPOINT', 'VALID FROM', 'VALID UNTIL', 'VENUE',
     'ENTRY &amp; ATTENDANCE QR',
   ]) assert.ok(svg.includes(label), 'Admin ID artwork should include ' + label);
   assert.match(svg, /data:image\/png;base64,/);
@@ -139,7 +136,6 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
       other_role: null,
       assigned_role: { name: 'Gate 1 Scanning', code: 'gate_1_scanning' },
       assigned_zone: 'North Stand \u00b7 Gate 1 checkpoint',
-      assigned_shift: 'Morning',
       event: { title: 'Nagaland United vs Kohima United', venue: 'Ch\u00fcmoukedima Football Stadium, Nagaland' },
     },
   };
@@ -209,7 +205,7 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
     assert.equal(preview.success, true);
     const adminPreviewSvg = Buffer.from(preview.svgBase64, 'base64').toString('utf8');
     for (const text of [
-      'APPROVED', 'GATE 1 SCANNING', 'Gate / Checkpoint', 'Shift', 'Morning',
+      'APPROVED', 'GATE 1 SCANNING', 'Gate / Checkpoint',
       'Valid from', 'Valid until', 'Football Stadium, Nagaland',
     ]) assert.ok(adminPreviewSvg.toLowerCase().includes(text.toLowerCase()), `Admin preview should contain ${text}`);
 

@@ -13,14 +13,14 @@ export async function GET() {
     const candidates = await getApprovedCandidatesForExport();
     const rows: unknown[][] = [[
       'Application Number','Full Name','Category','Preferred Role','Assigned Role','Other Role Description',
-      'Assigned Zone','Assigned Shift','Phone','Email','Emergency Contact Name','Emergency Contact Phone','Issued ID Number','ID Active',
+      'Assigned Zone','Phone','Email','Emergency Contact Name','Emergency Contact Phone','Issued ID Number','ID Active',
     ]];
     for (const candidate of candidates) {
       const id = Array.isArray(candidate.campaign_ids) ? candidate.campaign_ids[0] : candidate.campaign_ids;
       rows.push([candidate.application_number,candidate.full_name,candidate.category,
         campaignRoleLabel(candidate.preferred_role as any,candidate.other_role),
         campaignRoleLabel(candidate.assigned_role as any,candidate.other_role),candidate.other_role,
-        candidate.assigned_zone,candidate.assigned_shift,candidate.phone,candidate.email,
+        candidate.assigned_zone,candidate.phone,candidate.email,
         candidate.emergency_contact_name,candidate.emergency_contact_phone,(id as any)?.id_number || 'Not issued',
         (id as any)?.is_active ? 'Yes' : 'No',
       ]);

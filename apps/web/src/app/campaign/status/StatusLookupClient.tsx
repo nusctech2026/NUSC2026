@@ -205,10 +205,6 @@ export default function StatusLookupClient({ verifiedEmail }: { verifiedEmail: s
                   <span style={{ color: '#15803d', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: 600 }}>Assigned Zone</span>
                   <strong style={{ color: '#14532d' }}>{result.assignedZone || 'Awaiting staff assignment'}</strong>
                 </div>
-                <div>
-                  <span style={{ color: '#15803d', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: 600 }}>Shift</span>
-                  <strong style={{ color: '#14532d' }}>{result.assignedShift || 'Awaiting staff assignment'}</strong>
-                </div>
               </div>
 
               {result.passSlug && (
