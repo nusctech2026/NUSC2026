@@ -128,6 +128,7 @@ ALTER TABLE public.campaign_applications
 CREATE OR REPLACE FUNCTION public.prevent_campaign_application_test_match_scope()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
 AS $$
 BEGIN
