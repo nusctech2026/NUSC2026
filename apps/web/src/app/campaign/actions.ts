@@ -437,8 +437,8 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
         'Department of Youth Resources & Sports',
         'Others',
       ];
-      if (!organisations.includes(organisation) || designation.length < 2 || designation.length > 255) {
-        return { success: false, error: 'Management applicants must select an organisation and enter a designation.' };
+      if (!organisations.includes(organisation)) {
+        return { success: false, error: 'Management applicants must select an organisation.' };
       }
       if (organisation === 'Others' && (organisationOther.length < 2 || organisationOther.length > 255)) {
         return { success: false, error: 'Please specify the management organisation.' };
@@ -643,7 +643,8 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
 
     const idempotencyRequestHash = createHash('sha256').update(JSON.stringify({
       fullName, phone, email, category, preferredRoleId, otherRole,
-      organisation, organisationOther, designation, mediaAccessTypes: [...mediaAccessTypes].sort(),
+      organisation, organisationOther, designation: category === 'management' ? '' : designation,
+      mediaAccessTypes: [...mediaAccessTypes].sort(),
       mediaOutlet, mediaOrganisationType, mediaDesignation, portfolioUrl: portfolioUrl || portfolioUrlInput,
       professionalBody, professionalQualification, professionalRegistrationNumber, professionalExperience,
       conflictOfInterestAnswer, conflictDetails, technicalSpecialty, experience,
@@ -739,7 +740,7 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       other_role: isOtherRole ? otherRole : null,
       organisation: category === 'management' ? organisation : null,
       organisation_other: category === 'management' && organisation === 'Others' ? organisationOther : null,
-      designation: category === 'management' ? designation : category === 'media' ? mediaDesignation : null,
+      designation: category === 'media' ? mediaDesignation : null,
       media_outlet: category === 'media' ? mediaOutlet || null : null,
       media_organisation_type: category === 'media' ? mediaOrganisationType : null,
       portfolio_url: category === 'media' ? portfolioUrl : null,
@@ -1041,7 +1042,9 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
       ? (isOtherManagementOrganisation ? app.organisation_other?.trim() || 'Other' : app.organisation?.trim() || null)
       : null;
     const assignedRoleBase = managementAffiliation || baseRole;
-    const assignedRole = app.designation ? assignedRoleBase + ' · ' + app.designation : assignedRoleBase;
+    const assignedRole = app.category !== 'management' && app.designation
+      ? assignedRoleBase + ' · ' + app.designation
+      : assignedRoleBase;
     const mediaOrganisationLabels: Record<string, string> = {
       kaki: 'Kaki', print_media: 'Print Media', press_media: 'Press Media', broadcast_tv: 'Broadcast / TV',
       digital_online_media: 'Digital / Online Media', independent_freelance: 'Independent / Freelance', other: 'Other',

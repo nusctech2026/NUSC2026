@@ -549,7 +549,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
             <div><strong>Phone:</strong> {app.phone}</div>
             {app.email && <div><strong>Email:</strong> {app.email}</div>}
             {displayOrganisation && <div style={{ marginTop: '6px' }}><strong>Organisation / affiliation:</strong> {displayOrganisation}</div>}
-            {app.designation && <div style={{ marginTop: '6px' }}><strong>{app.category === 'media' ? 'Designation / Role:' : 'Designation / position:'}</strong> {app.designation}</div>}
+            {app.category === 'media' && app.designation && <div style={{ marginTop: '6px' }}><strong>Designation / Role:</strong> {app.designation}</div>}
             {app.address && <div style={{ marginTop: '6px' }}><strong>Residential Address:</strong> {app.address}</div>}
             {app.availability && <div style={{ marginTop: '6px' }}><strong>Availability:</strong> {app.availability}</div>}
             {app.category === 'media' && <div style={{ marginTop: '6px' }}><strong>Name of Media Organisation / Publication:</strong> {app.media_outlet || 'Not provided'}</div>}
@@ -624,16 +624,10 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
                     </label>
                   )}
                   {app.category === 'management' && (
-                    <>
-                      <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
-                        Organisation / affiliation
-                        <input value={editOrganisation} onChange={event => setEditOrganisation(event.target.value)} maxLength={255} style={{ display: 'block', width: '100%', padding: '8px', marginTop: '4px' }} />
-                      </label>
-                      <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
-                        Designation / position
-                        <input value={editDesignation} onChange={event => setEditDesignation(event.target.value)} maxLength={255} style={{ display: 'block', width: '100%', padding: '8px', marginTop: '4px' }} />
-                      </label>
-                    </>
+                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+                      Organisation / affiliation
+                      <input value={editOrganisation} onChange={event => setEditOrganisation(event.target.value)} maxLength={255} style={{ display: 'block', width: '100%', padding: '8px', marginTop: '4px' }} />
+                    </label>
                   )}
                   {app.category === 'media' && (
                     <>

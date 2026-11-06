@@ -101,7 +101,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
   const [otherRole, setOtherRole] = useState('');
   const [organisation, setOrganisation] = useState('');
   const [organisationOther, setOrganisationOther] = useState('');
-  const [designation, setDesignation] = useState('');
   const [mediaDesignation, setMediaDesignation] = useState('');
   const [mediaOutlet, setMediaOutlet] = useState('');
   const [mediaOrganisationType, setMediaOrganisationType] = useState('');
@@ -326,13 +325,9 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
       setErrorMessage('Please specify your role.');
       return;
     }
-    if (isManagement && (!organisation || !designation.trim())) {
-      rejectField(!organisation ? 'organisation' : 'designation', 'Select an organisation and enter your designation.');
-      setErrorMessage('Select an organisation and enter your designation.');
-      return;
-    }
-    if (isManagement && (designation.trim().length < 2 || designation.trim().length > 255)) {
-      rejectField('designation', 'Enter a designation using 2 to 255 characters.');
+    if (isManagement && !organisation) {
+      rejectField('organisation', 'Select an organisation.');
+      setErrorMessage('Select an organisation.');
       return;
     }
     if (needsOtherOrganisation && organisationOther.trim().length < 2) {
@@ -479,7 +474,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
       if (isManagement) {
         formData.append('organisation', organisation);
         if (needsOtherOrganisation) formData.append('organisationOther', organisationOther);
-        formData.append('designation', designation);
       }
       if (category === 'media') {
         formData.append('mediaOutlet', mediaOutlet);
@@ -696,7 +690,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                 setOtherRole('');
                 setOrganisation('');
                 setOrganisationOther('');
-                setDesignation('');
                 setMediaDesignation('');
                 setMediaOutlet('');
                 setMediaOrganisationType('');
@@ -822,22 +815,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                 {inlineError('organisationOther')}
               </div>
             )}
-            <div className="form-group">
-              <label htmlFor="designation">Designation / position <span className="req" aria-hidden="true">*</span></label>
-              <input
-                id="designation"
-                type="text"
-                className="form-control"
-                minLength={2}
-                maxLength={255}
-                aria-invalid={Boolean(fieldErrors.designation)}
-                aria-describedby={fieldErrors.designation ? 'designation-error' : undefined}
-                value={designation}
-                onChange={(event) => setDesignation(event.target.value)}
-                required
-              />
-              {inlineError('designation')}
-            </div>
           </>
         )}
 

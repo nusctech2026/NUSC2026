@@ -513,9 +513,8 @@ export async function updateCampaignRegistrationDetails(
   if (requiresOtherRole && (otherRole.length < 2 || otherRole.length > 255)) {
     throw new Error('Specify the applicant role in 2 to 255 characters');
   }
-  if (app.category === 'management' && (!organisation || organisation.length > 255
-      || designation.length < 2 || designation.length > 255)) {
-    throw new Error('Management registrations need an organisation and designation');
+  if (app.category === 'management' && (!organisation || organisation.length > 255)) {
+    throw new Error('Management registrations need an organisation');
   }
 
   let portfolioUrl: string | null = null;
@@ -601,7 +600,7 @@ export async function updateCampaignRegistrationDetails(
     other_role: requiresOtherRole ? otherRole : null,
     organisation: app.category === 'management' ? organisation : null,
     organisation_other: null,
-    designation: app.category === 'management' || app.category === 'media' ? designation : null,
+    designation: app.category === 'media' ? designation : null,
     availability: 'Available for all 10 NUSC home matches',
     availability_mode: 'all',
     availability_match_ids: [],
@@ -698,7 +697,7 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
     ? (isOtherManagementOrganisation ? applicant.organisation_other?.trim() || 'Other' : applicant.organisation?.trim() || null)
     : null;
   const displayRoleBase = managementAffiliation || assignedRole?.name || 'Workforce staff';
-  const displayRole = applicant?.category === 'management' && applicant.designation?.trim()
+  const displayRole = applicant?.category !== 'management' && applicant?.designation?.trim()
     ? `${displayRoleBase} · ${applicant.designation.trim()}`
     : displayRoleBase;
   const validFrom = data ? new Date(data.valid_from).getTime() : Number.NaN;
