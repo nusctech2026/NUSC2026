@@ -200,7 +200,8 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
   const identityWidth = 572;
   const nameLayout = fitText(data.fullName, identityWidth, 42, 2);
   const nameBaseline = 462 + (nameLayout.lines.length - 1) * 44;
-  const roleLayout = fitText((data.assignedRole || 'Workforce staff').toUpperCase(), identityWidth - 42, 21, 2);
+  const roleTextWidth = identityWidth - 42 - 60;
+  const roleLayout = fitText((data.assignedRole || 'Workforce staff').toUpperCase(), roleTextWidth, 21, 2, 0.8);
   const roleTop = nameBaseline + 23;
   const roleHeight = 26 + roleLayout.lines.length * 25;
   const passBaseline = roleTop + roleHeight + 38;
@@ -297,7 +298,7 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
     '<text x="' + identityX + '" y="414" fill="#d71927" font-family="' + SANS_FONT + '" font-size="23.8" font-weight="900" letter-spacing="1.4">' + escapeXml(department.toUpperCase()) + '</text>',
     svgText(data.fullName, identityX, nameBaseline, identityWidth, 42.3, '#091d3b', 900, 2, 44),
     '<path d="M' + identityX + ' ' + roleTop + 'H' + (identityX + identityWidth) + 'L' + (identityX + identityWidth - 34) + ' ' + (roleTop + roleHeight) + 'H' + identityX + 'Z" fill="#e21e2b"/>',
-    svgText((data.assignedRole || 'Workforce staff').toUpperCase(), identityX + 21, roleTop + 29, identityWidth - 42, 21.17, '#fff', 900, 2, 24.56, 0.8),
+    svgText((data.assignedRole || 'Workforce staff').toUpperCase(), identityX + 21, roleTop + 29, roleTextWidth, 21.17, '#fff', 900, 2, 24.56, 0.8, SANS_FONT, 0.8),
     '<text x="' + identityX + '" y="' + passBaseline + '" fill="#56657d" font-family="' + SANS_FONT + '" font-size="18.5" font-weight="800" letter-spacing="1.3">WORKFORCE ID</text>',
     svgText(data.idNumber || data.registrationId, identityX + 190, passBaseline, identityWidth - 190, 26.46, '#091d3b', 900, 1, 30.4, 0, MONO_FONT),
     data.registrationId && data.registrationId !== data.idNumber

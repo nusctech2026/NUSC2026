@@ -233,10 +233,10 @@
 .roleRibbon {
   display: block;
   max-width: 100%;
-  padding: 5px 11px 5px 8px;
+  padding: 5px 36px 5px 8px;
   color: #fff;
   background: var(--id-red);
-  clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, 96% 100%, 0 100%);
   font-size: 8px;
   font-weight: 900;
   line-height: 1.16;
