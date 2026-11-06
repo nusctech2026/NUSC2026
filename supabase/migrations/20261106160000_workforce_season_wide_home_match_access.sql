@@ -63,7 +63,8 @@ BEGIN
   WHERE application.id = credential.application_id
     AND application.application_status = 'approved'
     AND credential.is_active
-    AND credential.revoked_at IS NULL;
+    AND credential.revoked_at IS NULL
+    AND credential.valid_until >= clock_timestamp();
   RETURN NEW;
 END
 $$;
@@ -117,6 +118,7 @@ WHERE credential.application_id = application.id
   AND application.application_status = 'approved'
   AND credential.is_active = true
   AND credential.revoked_at IS NULL
+  AND credential.valid_until >= clock_timestamp()
   AND official_season.valid_until > credential.valid_until;
 
 CREATE OR REPLACE FUNCTION public.issue_campaign_id(
@@ -152,6 +154,9 @@ BEGIN
 
   SELECT * INTO v_id FROM public.campaign_ids WHERE application_id = p_application_id FOR UPDATE;
   IF FOUND AND NOT p_reissue THEN
+    IF NOT v_id.is_active OR v_id.revoked_at IS NOT NULL OR v_id.valid_until < v_now THEN
+      RAISE EXCEPTION 'Inactive, revoked, or expired credentials require explicit reissue';
+    END IF;
     UPDATE public.campaign_ids
     SET valid_until = GREATEST(valid_until, v_valid_until), updated_at = v_now
     WHERE id = v_id.id RETURNING * INTO v_id;
@@ -192,13 +197,18 @@ BEGIN
   function_definition := regexp_replace(
     function_definition,
     $pattern$IF[[:space:]]+v_app\.event_id[[:space:]]+IS[[:space:]]+NOT[[:space:]]+NULL[[:space:]]+AND[[:space:]]+v_app\.event_id[[:space:]]*<>[[:space:]]*p_event_id[[:space:]]+THEN[[:space:]]+RETURN[[:space:]]+jsonb_build_object\([[:space:]]*'success',[[:space:]]*false,[[:space:]]*'code',[[:space:]]*'WRONG_MATCH',[[:space:]]*'message',[[:space:]]*'This credential is assigned to another match'[[:space:]]*\);[[:space:]]+END IF;$pattern$,
-    $replacement$IF v_event.is_test AND v_app.event_id IS NOT NULL AND v_app.event_id <> p_event_id THEN
-      RETURN jsonb_build_object('success', false, 'code', 'WRONG_MATCH', 'message', 'This credential is assigned to another match');
+    $replacement$IF v_event.is_test THEN
+      IF v_app.event_id IS NOT NULL AND v_app.event_id <> p_event_id THEN
+        RETURN jsonb_build_object('success', false, 'code', 'WRONG_MATCH', 'message', 'This credential is assigned to another match');
+      END IF;
+      IF COALESCE(v_app.availability_mode, 'unsure') <> 'all' THEN
+        RETURN jsonb_build_object('success', false, 'code', 'WRONG_MATCH', 'message', 'TEST matches require season-wide workforce access');
+      END IF;
     END IF;$replacement$,
     'gi'
   );
-  IF position('IF v_event.is_test AND v_app.event_id IS NOT NULL' IN function_definition) = 0
-     OR position('IF v_app.event_id IS NOT NULL AND v_app.event_id <> p_event_id' IN function_definition) > 0 THEN
+  IF position('IF v_event.is_test THEN' IN function_definition) = 0
+     OR position('TEST matches require season-wide workforce access' IN function_definition) = 0 THEN
     RAISE EXCEPTION 'Attendance RPC could not be updated for season-wide official match access';
   END IF;
   EXECUTE function_definition;
