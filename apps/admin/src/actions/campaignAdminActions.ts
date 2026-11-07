@@ -1372,6 +1372,45 @@ export async function getCampaignMatches(includeTestMatches = false) {
   } finally { trace.finish(); }
 }
 
+const campaignTestMatchManagerRoles = ['super_admin', 'campaign_manager'];
+
+export async function getCampaignTestMatchAccess() {
+  const staff = await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer', 'gate_staff']);
+  return {
+    canManageTestMatches: staff.roles.some(role => campaignTestMatchManagerRoles.includes(role)),
+  };
+}
+
+async function assertCampaignTestMatchManager() {
+  try {
+    await assertStaffRole(campaignTestMatchManagerRoles);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Access denied: Required roles:')) {
+      throw new Error('Only a Super Admin or Campaign Manager can create or delete TEST matches.');
+    }
+    throw error;
+  }
+}
+
+function campaignTestMatchRpcErrorMessage(
+  operation: 'create' | 'delete',
+  error: { code?: string; message?: string },
+) {
+  if (error.code === 'PGRST202' || error.code === '42883') {
+    return 'TEST match tools are not installed in the database yet. An administrator must apply the TEST-match setup migration.';
+  }
+  if (error.code === '42501') {
+    return 'The database denied this TEST-match operation. Ask an administrator to check the TEST-match database setup.';
+  }
+  if (operation === 'delete' && /workforce application/i.test(error.message || '')) {
+    return 'This TEST match is linked to a workforce application and cannot be deleted.';
+  }
+  if (/network|fetch failed|timeout/i.test(error.message || '')) {
+    return 'Could not reach the database. Check your connection and try again.';
+  }
+  return `Could not ${operation} the TEST match. No change was confirmed. Try again; if the problem continues, share error code ${error.code || 'unknown'} with an administrator.`;
+}
+
 export async function getCampaignRoleOptions(category: string) {
   await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']);
   let query = getSupabaseAdminClient().from('campaign_roles')
@@ -1408,7 +1447,7 @@ export async function saveCampaignMatch(input: {
 
 
 export async function createCampaignTestMatch(title: string, matchDate: string) {
-  await assertStaffRole(['super_admin', 'campaign_manager']);
+  await assertCampaignTestMatchManager();
   if (typeof title !== 'string' || !title.trim() || title.trim().length > 255) {
     throw new Error('Enter a test match name up to 255 characters');
   }
@@ -1422,22 +1461,28 @@ export async function createCampaignTestMatch(title: string, matchDate: string) 
   const { data, error } = await getSupabaseAdminClient().rpc('create_campaign_test_match', {
     p_title: title.trim(), p_start_date: startDate.toISOString(), p_end_date: endDate.toISOString(),
   });
-  if (error || !data?.success || !data?.id) throw new Error('Unable to create TEST match');
+  if (error) {
+    console.error('create_campaign_test_match failed:', error.code || 'database_error');
+    throw new Error(campaignTestMatchRpcErrorMessage('create', error));
+  }
+  if (!data?.success || !data?.id) {
+    throw new Error('The database did not confirm the TEST match creation. No success was reported.');
+  }
   return { success: true, match: data };
 }
 
 export async function deleteCampaignTestMatch(eventId: string) {
-  await assertStaffRole(['super_admin', 'campaign_manager']);
+  await assertCampaignTestMatchManager();
   if (typeof eventId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) {
     throw new Error('Select a valid TEST match');
   }
   const { data, error } = await getSupabaseAdminClient().rpc('delete_campaign_test_match', { p_event_id: eventId });
   if (error) {
-    if (/workforce application/i.test(error.message || '')) {
-      throw new Error('This TEST match is referenced by a workforce application and cannot be deleted.');
-    }
-    throw new Error('Unable to delete TEST match. Its records were left unchanged.');
+    console.error('delete_campaign_test_match failed:', error.code || 'database_error');
+    throw new Error(campaignTestMatchRpcErrorMessage('delete', error));
   }
-  if (!data?.success) throw new Error('Unable to delete TEST match. Its records were left unchanged.');
+  if (!data?.success) {
+    throw new Error('The database did not confirm the TEST match deletion. No records were reported as deleted.');
+  }
   return { success: true, title: data.title as string, deletedAttendanceCount: Number(data.deleted_attendance_count) || 0 };
 }

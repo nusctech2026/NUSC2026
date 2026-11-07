@@ -346,3 +346,50 @@
   .creator-entry-summary { display: grid; }
   .creator-entry-summary-side { justify-items: start; max-width: none; text-align: left; }
 }
+
+.campaign-match-feedback {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.campaign-match-feedback--error { color: #8a1c1c; background: #fff1f1; border-color: #f1b6b6; }
+.campaign-match-feedback--success { color: #155b36; background: #ecfdf3; border-color: #a6e2bf; }
+.campaign-test-match-panel { margin-top: 34px; padding-top: 22px; border-top: 3px solid #e5a500; }
+.campaign-test-match-eyebrow { margin: 0 0 5px; color: #815600; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.campaign-test-match-panel h2,
+.campaign-test-match-list-section h2 { margin: 0; }
+.campaign-test-match-help { max-width: 700px; margin: 8px 0 0; color: #475467; font-size: 14px; line-height: 1.55; }
+.campaign-test-match-note { margin: 14px 0 0; padding: 12px 14px; color: #344054; background: #f8fafc; border-left: 4px solid #98a2b3; font-size: 14px; line-height: 1.5; }
+.campaign-test-match-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, .72fr) auto; align-items: end; gap: 16px; max-width: 850px; margin-top: 18px; }
+.campaign-test-match-field { display: grid; min-width: 0; gap: 7px; color: #344054; font-size: 14px; font-weight: 700; }
+.campaign-page .campaign-test-match-field input { width: 100%; min-height: 48px; margin: 0; padding: 10px 12px; font-size: 15px !important; }
+.campaign-page .campaign-test-match-create,
+.campaign-page .campaign-danger-button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 750; line-height: 1.25; cursor: pointer; }
+.campaign-page .campaign-test-match-create { color: #fff !important; background: #17452d !important; border: 1px solid #17452d !important; }
+.campaign-page .campaign-test-match-create:hover:not(:disabled) { background: #103820 !important; }
+.campaign-page .campaign-danger-button { color: #9f1d20 !important; background: #fff !important; border: 1px solid #d92d20 !important; }
+.campaign-page .campaign-danger-button:hover:not(:disabled) { color: #fff !important; background: #b42318 !important; }
+.campaign-page .campaign-test-match-create:disabled,
+.campaign-page .campaign-danger-button:disabled { color: #475467 !important; background: #eaecf0 !important; border-color: #d0d5dd !important; opacity: 1 !important; cursor: not-allowed !important; }
+.campaign-test-match-list-section { margin-top: 34px; }
+.campaign-test-match-count { color: #667085; font-size: 14px; font-weight: 600; letter-spacing: 0; }
+.campaign-test-match-list { display: grid; gap: 0; margin: 14px 0 0; padding: 0; list-style: none; }
+.campaign-test-match-item { display: grid; gap: 12px; min-width: 0; padding: 17px 0; border-top: 1px solid #f0c56b; }
+.campaign-test-match-name-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; color: #101828; font-size: 15px; line-height: 1.4; }
+.campaign-test-match-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; color: #694500; background: #fff2cc; border: 1px solid #f2d27a; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.campaign-test-match-status { color: #667085; font-size: 12px; font-weight: 650; }
+.campaign-test-match-status.is-active { color: #17663b; }
+.campaign-test-match-details p { margin: 6px 0 0; color: #475467; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.campaign-test-match-delete-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.campaign-test-match-delete-row p { margin: 0; color: #667085; font-size: 12px; line-height: 1.45; }
+.campaign-page .campaign-danger-button { flex: 0 0 auto; min-height: 44px; }
+
+@media (max-width: 760px) {
+  .campaign-test-match-form { grid-template-columns: 1fr; gap: 13px; }
+  .campaign-page .campaign-test-match-create,
+  .campaign-page .campaign-danger-button { width: 100%; min-height: 48px; white-space: normal; }
+  .campaign-test-match-delete-row { align-items: stretch; flex-direction: column; gap: 9px; }
+}
