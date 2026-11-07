@@ -49,6 +49,10 @@ export const CampaignMatchesView = () => {
     event.preventDefault(); setTestSaving(true); setError(''); setMessage('');
     try {
       const result = await createCampaignTestMatch(testForm.title, testForm.date);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       setTestForm({ title: '', date: '' });
       setMessage(`TEST match "${result.match.title}" created. It is available to authorized TEST attendance scans.`);
       try {
@@ -64,6 +68,10 @@ export const CampaignMatchesView = () => {
     setDeletingTestId(match.id); setError(''); setMessage('');
     try {
       const result = await deleteCampaignTestMatch(match.id);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       setMatches(current => current.filter(item => item.id !== match.id));
       setMessage(`Deleted TEST match "${result.title}" and ${result.deletedAttendanceCount} associated attendance records.`);
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to delete TEST match. Please retry.'); }

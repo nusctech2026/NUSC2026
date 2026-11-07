@@ -1411,6 +1411,36 @@ function campaignTestMatchRpcErrorMessage(
   return `Could not ${operation} the TEST match. No change was confirmed. Try again; if the problem continues, share error code ${error.code || 'unknown'} with an administrator.`;
 }
 
+function campaignTestMatchActionError(error: unknown, operation: 'create' | 'delete') {
+  const detail = error && typeof error === 'object'
+    ? error as { code?: unknown; message?: unknown; name?: unknown }
+    : {};
+  const code = typeof detail.code === 'string' ? detail.code : '';
+  const message = typeof detail.message === 'string' ? detail.message : '';
+  const diagnostic = code || (typeof detail.name === 'string' ? detail.name : 'unexpected_error');
+
+  console.error(`${operation}_campaign_test_match failed:`, diagnostic);
+
+  if (message.startsWith('Authentication required.')) {
+    return 'Your Admin session has expired. Sign in again, then retry.';
+  }
+  if (message.startsWith('Access denied:') || message.startsWith('Only a Super Admin or Campaign Manager')) {
+    return 'Only a Super Admin or Campaign Manager can create or delete TEST matches.';
+  }
+  if (/Missing Supabase Service Role credentials/.test(message)) {
+    return 'The Admin database configuration is incomplete. Ask an administrator to check the deployment settings.';
+  }
+
+  return campaignTestMatchRpcErrorMessage(operation, { code, message });
+}
+
+type CampaignTestMatchCreateResult =
+  | { success: true; match: { id: string; title: string } }
+  | { success: false; error: string };
+type CampaignTestMatchDeleteResult =
+  | { success: true; title: string; deletedAttendanceCount: number }
+  | { success: false; error: string };
+
 export async function getCampaignRoleOptions(category: string) {
   await assertStaffRole(['super_admin', 'campaign_manager', 'reviewer']);
   let query = getSupabaseAdminClient().from('campaign_roles')
@@ -1446,43 +1476,53 @@ export async function saveCampaignMatch(input: {
 }
 
 
-export async function createCampaignTestMatch(title: string, matchDate: string) {
-  await assertCampaignTestMatchManager();
+export async function createCampaignTestMatch(title: string, matchDate: string): Promise<CampaignTestMatchCreateResult> {
+  try {
+    await assertCampaignTestMatchManager();
+  } catch (error) {
+    return { success: false, error: campaignTestMatchActionError(error, 'create') };
+  }
   if (typeof title !== 'string' || !title.trim() || title.trim().length > 255) {
-    throw new Error('Enter a test match name up to 255 characters');
+    return { success: false, error: 'Enter a test match name up to 255 characters.' };
   }
   const dateProbe = typeof matchDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(matchDate)
     ? new Date(`${matchDate}T00:00:00.000Z`) : null;
   if (!dateProbe || !Number.isFinite(dateProbe.getTime()) || dateProbe.toISOString().slice(0, 10) !== matchDate) {
-    throw new Error('Choose a valid test match date');
+    return { success: false, error: 'Choose a valid test match date.' };
   }
   const startDate = new Date(`${matchDate}T00:00:00+05:30`);
   const endDate = new Date(`${matchDate}T23:59:59.999+05:30`);
-  const { data, error } = await getSupabaseAdminClient().rpc('create_campaign_test_match', {
-    p_title: title.trim(), p_start_date: startDate.toISOString(), p_end_date: endDate.toISOString(),
-  });
-  if (error) {
-    console.error('create_campaign_test_match failed:', error.code || 'database_error');
-    throw new Error(campaignTestMatchRpcErrorMessage('create', error));
+  try {
+    const { data, error } = await getSupabaseAdminClient().rpc('create_campaign_test_match', {
+      p_title: title.trim(), p_start_date: startDate.toISOString(), p_end_date: endDate.toISOString(),
+    });
+    if (error) return { success: false, error: campaignTestMatchActionError(error, 'create') };
+    if (!data?.success || !data?.id) {
+      return { success: false, error: 'The database did not confirm TEST match creation. No success was reported.' };
+    }
+    return { success: true, match: { id: data.id, title: data.title } };
+  } catch (error) {
+    return { success: false, error: campaignTestMatchActionError(error, 'create') };
   }
-  if (!data?.success || !data?.id) {
-    throw new Error('The database did not confirm the TEST match creation. No success was reported.');
-  }
-  return { success: true, match: data };
 }
 
-export async function deleteCampaignTestMatch(eventId: string) {
-  await assertCampaignTestMatchManager();
+export async function deleteCampaignTestMatch(eventId: string): Promise<CampaignTestMatchDeleteResult> {
+  try {
+    await assertCampaignTestMatchManager();
+  } catch (error) {
+    return { success: false, error: campaignTestMatchActionError(error, 'delete') };
+  }
   if (typeof eventId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId)) {
-    throw new Error('Select a valid TEST match');
+    return { success: false, error: 'Select a valid TEST match.' };
   }
-  const { data, error } = await getSupabaseAdminClient().rpc('delete_campaign_test_match', { p_event_id: eventId });
-  if (error) {
-    console.error('delete_campaign_test_match failed:', error.code || 'database_error');
-    throw new Error(campaignTestMatchRpcErrorMessage('delete', error));
+  try {
+    const { data, error } = await getSupabaseAdminClient().rpc('delete_campaign_test_match', { p_event_id: eventId });
+    if (error) return { success: false, error: campaignTestMatchActionError(error, 'delete') };
+    if (!data?.success) {
+      return { success: false, error: 'The database did not confirm TEST match deletion. No records were reported as deleted.' };
+    }
+    return { success: true, title: data.title as string, deletedAttendanceCount: Number(data.deleted_attendance_count) || 0 };
+  } catch (error) {
+    return { success: false, error: campaignTestMatchActionError(error, 'delete') };
   }
-  if (!data?.success) {
-    throw new Error('The database did not confirm the TEST match deletion. No records were reported as deleted.');
-  }
-  return { success: true, title: data.title as string, deletedAttendanceCount: Number(data.deleted_attendance_count) || 0 };
 }
