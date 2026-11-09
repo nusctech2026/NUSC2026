@@ -94,6 +94,16 @@ test('workforce ID PDF renders all fields and decodes its embedded QR', async ()
     assert.match(svg, /data:image\/jpeg;base64,/);
     assert.match(svg, /data:image\/png;base64,/);
     assert.match(svg, /<image id="terms-qr"/);
+    const readQrBox = (id) => {
+      const match = svg.match(new RegExp(`<image id="${id}" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"`));
+      assert.ok(match, `${id} image should be present in the card SVG`);
+      return { x: Number(match[1]), y: Number(match[2]), width: Number(match[3]), height: Number(match[4]) };
+    };
+    const attendanceQrBox = readQrBox('pass-qr');
+    const termsQrBox = readQrBox('terms-qr');
+    assert.ok(termsQrBox.width <= attendanceQrBox.width * 0.4, 'Terms QR should remain compact');
+    assert.ok(termsQrBox.y >= attendanceQrBox.y + attendanceQrBox.height, 'Terms QR should sit below the attendance QR');
+    assert.match(svg, /text-anchor="end"[^>]*>TERMS &amp; CONDITIONS<\/text>/);
     assert.match(svg, /MATCH ACCESS/);
     assert.match(svg, /GATE \/ CHECKPOINT/);
 

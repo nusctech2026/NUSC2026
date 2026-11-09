@@ -199,12 +199,12 @@ export default function PassCardView({ pass }: PassCardViewProps) {
               />
             </div>
             <Link href="/terms" className="id-pass-terms-link" aria-label="Open or scan the NUSC Terms and Conditions QR code">
+              <span className="id-pass-terms-label" aria-hidden="true">TERMS &amp; CONDITIONS</span>
               {termsQr ? (
                 <img className="id-pass-terms-qr" src={termsQr} alt="" aria-hidden="true" />
               ) : (
                 <span className="id-pass-terms-qr-fallback" aria-hidden="true">T&amp;C</span>
               )}
-              <span className="id-pass-terms-label" aria-hidden="true">T&amp;C</span>
             </Link>
             {qrError && <p role="alert" className="id-pass-qr-error">QR unavailable. Refresh before printing this ID.</p>}
             {termsQrStatus === 'error' && <p role="alert" className="id-pass-terms-error">Terms QR unavailable. Refresh before printing.</p>}
