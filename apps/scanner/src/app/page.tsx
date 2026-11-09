@@ -3,6 +3,7 @@ import 'server-only'
 import { createAdminClient } from '@nusc/db/src/client/admin'
 import { redirect } from 'next/navigation'
 import { ScannerApp, type ScannerMatch } from '@/components/ScannerApp'
+import { NuscLogo } from '@/components/NuscLogo'
 import { getScannerAuthorization } from '@/lib/scanner-auth'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,7 @@ export default async function HomePage() {
   if (authorization.status === 'unavailable') {
     return (
       <main className="notice-page">
-        <div className="notice-mark" aria-hidden="true">N</div>
+        <NuscLogo className="notice-logo" alt="Nagaland United Sports Club crest" />
         <p className="eyebrow">NUSC workforce</p>
         <h1>Scanner temporarily unavailable</h1>
         <p>We could not verify your staff access. Check your connection and reload this page.</p>

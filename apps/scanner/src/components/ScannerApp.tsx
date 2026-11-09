@@ -8,6 +8,7 @@ import {
   useState,
   type FormEvent,
 } from 'react'
+import { NuscLogo } from './NuscLogo'
 import { SignOutButton } from './SignOutButton'
 
 export type ScannerMatch = {
@@ -345,7 +346,7 @@ export function ScannerApp({
     <main className="scanner-shell">
       <header className="scanner-header">
         <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">N</span>
+          <NuscLogo className="brand-logo" />
           <span className="brand-caption">NAGALAND UNITED<br />SPORTS CLUB</span>
         </div>
         <div className="header-actions">

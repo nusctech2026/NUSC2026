@@ -9,8 +9,11 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   robots: { index: false, follow: false },
   icons: {
-    icon: '/icons/nusc-scanner-192.png',
-    apple: '/icons/nusc-scanner-192.png',
+    icon: [
+      { url: '/icons/nusc-logo-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/nusc-logo-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/nusc-logo-180.png', sizes: '180x180', type: 'image/png' }],
   },
   appleWebApp: {
     capable: true,

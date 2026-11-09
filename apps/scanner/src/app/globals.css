@@ -61,19 +61,7 @@ a:focus-visible {
 
 .brand-lockup { display: inline-flex; align-items: center; gap: 10px; }
 
-.brand-mark, .notice-mark {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 13px 4px 13px 4px;
-  background: var(--forest);
-  color: var(--lime);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1;
-}
+.brand-logo { flex: 0 0 auto; width: 44px; height: 42px; object-fit: contain; }
 
 .brand-caption {
   color: var(--forest);
@@ -534,11 +522,25 @@ a:focus-visible {
 .security-note span { color: #7b9f3c; font-size: 9px; }
 
 .notice-page { width: min(100%, 570px); min-height: 100svh; margin: 0 auto; align-content: center; justify-items: start; }
-.notice-mark { width: 50px; height: 50px; margin-bottom: 22px; font-size: 31px; }
+.notice-logo { width: 58px; height: 54px; margin-bottom: 22px; object-fit: contain; }
 .notice-page h1 { margin-bottom: 11px; }
 .notice-page > p:not(.eyebrow) { max-width: 420px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 .notice-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 22px; }
 .notice-actions .button, .notice-page > .button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; text-decoration: none; }
+
+.loading-page {
+  min-height: 100svh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 15px;
+  padding: 24px;
+  color: var(--forest);
+  text-align: center;
+}
+.loading-logo { width: 104px; height: 96px; object-fit: contain; }
+.loading-indicator { width: 25px; height: 25px; border: 3px solid rgba(16, 45, 35, 0.18); border-top-color: var(--forest); border-radius: 50%; animation: spin 0.75s linear infinite; }
+.loading-page p { margin: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
 
 .spinner { width: 15px; height: 15px; display: inline-block; border: 2px solid rgba(255, 255, 255, 0.36); border-top-color: #fff; border-radius: 50%; animation: spin 0.75s linear infinite; vertical-align: -3px; margin-right: 5px; }
 @keyframes spin { to { transform: rotate(360deg); } }

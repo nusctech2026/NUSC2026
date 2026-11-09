@@ -1,11 +1,12 @@
 import { LoginForm } from '@/components/LoginForm'
+import { NuscLogo } from '@/components/NuscLogo'
 
 export default function LoginPage() {
   return (
     <main className="login-page">
       <div className="login-panel">
         <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">N</span>
+          <NuscLogo className="brand-logo" />
           <span className="brand-caption">NAGALAND UNITED<br />SPORTS CLUB</span>
         </div>
         <p className="eyebrow">Matchday operations</p>

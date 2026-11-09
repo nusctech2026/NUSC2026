@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'nusc-scanner-static-'
-const CACHE_NAME = `${CACHE_PREFIX}v1`
+const CACHE_NAME = `${CACHE_PREFIX}v2`
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
@@ -21,7 +21,11 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
   const safeStaticAsset = url.origin === self.location.origin
-    && (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/'))
+    && (
+      url.pathname.startsWith('/_next/static/')
+      || url.pathname.startsWith('/icons/')
+      || url.pathname === '/images/nusc-crest.png'
+    )
 
   // Never cache pages, auth/session responses, attendance APIs, or candidate data.
   if (!safeStaticAsset) return
