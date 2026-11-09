@@ -24,7 +24,6 @@ const untrackedRoutePrefixes = [
   "/campaign/register",
   "/campaign/status",
   "/dashboard",
-  "/creator-challenge",
   "/forgot-password",
   "/jersey-interest",
   "/login",
