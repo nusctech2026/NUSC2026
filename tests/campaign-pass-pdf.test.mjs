@@ -103,7 +103,7 @@ test('workforce ID PDF renders all fields and decodes its embedded QR', async ()
     const termsQrBox = readQrBox('terms-qr');
     assert.ok(termsQrBox.width <= attendanceQrBox.width * 0.4, 'Terms QR should remain compact');
     assert.ok(termsQrBox.y >= attendanceQrBox.y + attendanceQrBox.height, 'Terms QR should sit below the attendance QR');
-    assert.match(svg, /text-anchor="end"[^>]*>TERMS &amp; CONDITIONS<\/text>/);
+    assert.match(svg, /text-anchor="middle"[^>]*>T&amp;C<\/text>/);
     assert.match(svg, /MATCH ACCESS/);
     assert.match(svg, /GATE \/ CHECKPOINT/);
 

@@ -262,7 +262,7 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
   const termsQrFrameY = qrFrameY + qrFrameSize + 38;
   const termsQrImageX = termsQrFrameX + (termsQrFrameSize - termsQrImageSize) / 2;
   const termsQrImageY = termsQrFrameY + (termsQrFrameSize - termsQrImageSize) / 2;
-  const termsQrLabelY = termsQrFrameY + termsQrFrameSize / 2 + 5;
+  const termsQrLabelY = termsQrFrameY - 8;
   const crestUri = dataUri('image/png', crest);
   const desc = [
     department, data.assignedRole, data.assignedMatch, data.assignedZone,
@@ -333,8 +333,8 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
         + '" rx="8" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>'
         + '<image id="terms-qr" x="' + termsQrImageX + '" y="' + termsQrImageY + '" width="' + termsQrImageSize
         + '" height="' + termsQrImageSize + '" preserveAspectRatio="xMidYMid meet" href="' + termsQrUri + '"/>'
-        + '<text x="' + (termsQrFrameX - 8) + '" y="' + termsQrLabelY + '" fill="#53627a" text-anchor="end"'
-          + ' font-family="' + SANS_FONT + '" font-size="13" font-weight="900" letter-spacing=".3">TERMS &amp; CONDITIONS</text>'
+        + '<text x="' + (termsQrFrameX + termsQrFrameSize / 2) + '" y="' + termsQrLabelY + '" fill="#53627a" text-anchor="middle"'
+          + ' font-family="' + SANS_FONT + '" font-size="13" font-weight="900" letter-spacing=".3">T&amp;C</text>'
       : '',
     '<text x="430" y="' + qrTitleY + '" fill="#091d3b" text-anchor="middle" font-family="' + SANS_FONT + '" font-size="18" font-weight="900" letter-spacing="1.4">ENTRY &amp; ATTENDANCE QR</text>',
     '<text x="430" y="' + qrNoteY + '" fill="#53627a" text-anchor="middle" font-family="' + SANS_FONT + '" font-size="16" font-weight="600">Non-transferable \u00b7 scan this same ID on every authorized match day.</text>',

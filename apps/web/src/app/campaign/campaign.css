@@ -1182,15 +1182,15 @@
 
 .id-pass-terms-link {
   position: absolute;
-  top: 92px;
+  top: 84px;
   right: 0;
   z-index: 2;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 3px;
-  width: 112px;
+  justify-content: flex-start;
+  gap: 2px;
+  width: 30px;
   color: #091d3b;
   font-size: 5.5px;
   font-weight: 900;
@@ -1230,7 +1230,7 @@
 
 .id-pass-terms-label {
   display: block;
-  flex: 0 0 auto;
+  flex: 0 0 5px;
   font-size: 5px;
   letter-spacing: .04em;
   white-space: nowrap;
