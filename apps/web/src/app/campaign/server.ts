@@ -39,3 +39,15 @@ export function campaignRoleLabel(role: Role | Role[] | null | undefined, other?
   if (isOtherRole) return 'Other';
   return value?.name || other || 'Not assigned';
 }
+
+export function campaignPassRoleLabel(role: Role | Role[] | null | undefined, other?: string | null) {
+  const value = Array.isArray(role) ? role[0] : role;
+  const specifiedRole = other?.trim();
+  const roleName = value?.name?.trim().toLowerCase();
+  const roleCode = value?.code?.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_') || '';
+  const isOtherRole = roleName === 'other' || roleName === 'others'
+    || /(?:^|_)(?:other|others)(?:_|$)/.test(roleCode);
+
+  if (isOtherRole && specifiedRole) return specifiedRole;
+  return campaignRoleLabel(value, other);
+}

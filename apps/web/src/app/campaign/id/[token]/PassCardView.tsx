@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import QRCode from 'qrcode';
 import { CampaignPassData } from '../../actions';
 
 interface PassCardViewProps {
@@ -73,6 +74,28 @@ function IdCardScenery() {
 export default function PassCardView({ pass }: PassCardViewProps) {
   const [qrReady, setQrReady] = useState(false);
   const [qrError, setQrError] = useState(false);
+  const [termsQr, setTermsQr] = useState<string | null>(null);
+  const [termsQrStatus, setTermsQrStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    const publicSite = process.env.NEXT_PUBLIC_SITE_URL?.trim() || window.location.origin;
+    void Promise.resolve().then(() => QRCode.toDataURL(new URL('/terms', publicSite).toString(), {
+      errorCorrectionLevel: 'M',
+      margin: 3,
+      width: 256,
+      color: { dark: '#081936', light: '#FFFFFF' },
+    })).then((dataUrl) => {
+      if (!cancelled) {
+        setTermsQr(dataUrl);
+        setTermsQrStatus('ready');
+      }
+    }).catch(() => {
+      if (!cancelled) setTermsQrStatus('error');
+    });
+
+    return () => { cancelled = true; };
+  }, []);
   const handlePrint = () => {
     if (typeof window !== 'undefined') window.print();
   };
@@ -99,7 +122,7 @@ export default function PassCardView({ pass }: PassCardViewProps) {
         <Link href="/campaign/status" className="btn-outline" style={{ fontSize: '13px', padding: '8px 14px' }}>
           ← Back to Status
         </Link>
-        <button onClick={handlePrint} disabled={!qrReady} className="btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
+        <button onClick={handlePrint} disabled={!qrReady || termsQrStatus !== 'ready'} className="btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
           Print / Save ID
         </button>
       </div>
@@ -175,7 +198,16 @@ export default function PassCardView({ pass }: PassCardViewProps) {
                 className="id-pass-qr-image"
               />
             </div>
+            <Link href="/terms" className="id-pass-terms-link" aria-label="Open or scan the NUSC Terms and Conditions QR code">
+              {termsQr ? (
+                <img className="id-pass-terms-qr" src={termsQr} alt="" aria-hidden="true" />
+              ) : (
+                <span className="id-pass-terms-qr-fallback" aria-hidden="true">T&amp;C</span>
+              )}
+              <span className="id-pass-terms-label" aria-hidden="true">T&amp;C</span>
+            </Link>
             {qrError && <p role="alert" className="id-pass-qr-error">QR unavailable. Refresh before printing this ID.</p>}
+            {termsQrStatus === 'error' && <p role="alert" className="id-pass-terms-error">Terms QR unavailable. Refresh before printing.</p>}
             <strong className="id-pass-qr-title">ENTRY &amp; ATTENDANCE QR</strong>
             <span className="id-pass-qr-note">Non-transferable · scan this same ID on every authorized match day.</span>
           </section>

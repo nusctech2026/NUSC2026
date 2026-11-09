@@ -3,7 +3,7 @@
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getSupabaseAdminClient, assertStaffRole } from '../utils/supabaseServerClient';
-import { campaignRoleLabel } from '../utils/campaignRoleLabel';
+import { campaignPassRoleLabel, campaignRoleLabel } from '../utils/campaignRoleLabel';
 import {
   renderCampaignPassCardSvg,
   renderCampaignPassPdfFromPng,
@@ -658,6 +658,7 @@ type CampaignPassContext = {
   idNumber: string;
   passUrl: string;
   displayRole: string;
+  cardRole: string;
   qrImage: Buffer;
   qrImageBase64: string;
   validFrom: string;
@@ -681,9 +682,9 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
   const { data, error } = await supabase.from('campaign_ids').select(`
     id_number, pass_slug, qr_token, valid_from, valid_until, is_active, revoked_at,
     application:campaign_applications!application_id (
-      application_number, full_name, email, category, organisation, organisation_other, designation,
+      application_number, full_name, email, category, organisation, organisation_other, designation, other_role,
       application_status, photo_storage_path,
-      assigned_role:campaign_roles!assigned_role_id (name), assigned_zone,
+      assigned_role:campaign_roles!assigned_role_id (name, code), assigned_zone,
       event:campaign_events!event_id (title, venue)
     )
   `).eq('application_id', applicationId).maybeSingle();
@@ -694,10 +695,16 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
   const managementAffiliation = applicant?.category === 'management'
     ? (isOtherManagementOrganisation ? applicant.organisation_other?.trim() || 'Other' : applicant.organisation?.trim() || null)
     : null;
+  const passRole = campaignPassRoleLabel(assignedRole, applicant?.other_role);
+  const applicationRole = campaignRoleLabel(assignedRole, applicant?.other_role);
   const displayRoleBase = managementAffiliation || assignedRole?.name || 'Workforce staff';
   const displayRole = applicant?.category !== 'management' && applicant?.designation?.trim()
     ? `${displayRoleBase} · ${applicant.designation.trim()}`
     : displayRoleBase;
+  const cardRoleBase = passRole !== applicationRole ? passRole : managementAffiliation || passRole;
+  const cardRole = applicant?.category !== 'management' && applicant?.designation?.trim()
+    ? `${cardRoleBase} · ${applicant.designation.trim()}`
+    : cardRoleBase;
   const validFrom = data ? new Date(data.valid_from).getTime() : Number.NaN;
   const validUntil = data ? new Date(data.valid_until).getTime() : Number.NaN;
   if (error || !data || !applicant || applicant.application_status !== 'approved' || !data.is_active || data.revoked_at
@@ -719,6 +726,7 @@ async function loadCampaignPassContext(applicationId: string, options: { allowEx
     idNumber: data.id_number,
     passUrl: new URL(`/campaign/id/${encodeURIComponent(data.pass_slug)}`, origin).toString(),
     displayRole,
+    cardRole,
     qrImage,
     qrImageBase64: qrImage.toString('base64'),
     validFrom: data.valid_from,
@@ -740,6 +748,10 @@ async function createCampaignPassPdfAssets(context: CampaignPassContext) {
   if (!photoImage.length) throw new Error('The applicant photo is empty and cannot be included in the ID PDF.');
 
   const validFrom = new Date(context.validFrom).getTime();
+  const termsQrImage = await QRCode.toBuffer(new URL('/terms', context.passUrl).toString(), {
+    type: 'png', errorCorrectionLevel: 'M', margin: 3, width: 480,
+    color: { dark: '#081936', light: '#ffffff' },
+  });
   const status: CampaignPassCardData['status'] = context.isExpired
     ? 'expired'
     : validFrom > Date.now() ? 'scheduled' : 'active';
@@ -749,7 +761,7 @@ async function createCampaignPassPdfAssets(context: CampaignPassContext) {
     idNumber: context.idNumber,
     category: context.applicant.category,
     accreditationType: 'Season pass',
-    assignedRole: context.displayRole,
+    assignedRole: context.cardRole,
     assignedMatch: context.assignedMatch,
     assignedZone: context.applicant.assigned_zone || 'To be assigned',
     validFrom: context.validFrom,
@@ -758,6 +770,7 @@ async function createCampaignPassPdfAssets(context: CampaignPassContext) {
     status,
     photoImage,
     qrImage: context.qrImage,
+    termsQrImage,
   };
   const svg = await renderCampaignPassCardSvg(card);
   const image = await renderCampaignPassSvgToPng(svg);
@@ -796,7 +809,7 @@ export async function prepareCampaignPassPreview(applicationId: string) {
         registrationId: context.applicant.application_number,
         fullName: context.applicant.full_name,
         category: context.applicant.category,
-        assignedRole: context.displayRole,
+        assignedRole: context.cardRole,
         assignedMatch: context.assignedMatch,
         assignedZone: context.applicant.assigned_zone,
         validFrom: context.validFrom,

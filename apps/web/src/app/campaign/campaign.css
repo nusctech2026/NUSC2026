@@ -1180,6 +1180,66 @@
   text-align: center;
 }
 
+.id-pass-terms-link {
+  position: absolute;
+  top: 12px;
+  right: 1px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 56px;
+  color: #091d3b;
+  font-size: 5.5px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+}
+
+.id-pass-terms-link:hover,
+.id-pass-terms-link:focus-visible {
+  text-decoration: underline;
+}
+
+.id-pass-terms-qr,
+.id-pass-terms-qr-fallback {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  padding: 2px;
+  background: #fff;
+  border: 1px solid #bdc9d9;
+  border-radius: 3px;
+}
+
+.id-pass-terms-qr {
+  display: block;
+  object-fit: contain;
+}
+
+.id-pass-terms-qr-fallback {
+  color: #081936;
+  font-size: 9px;
+}
+
+.id-pass-terms-label {
+  display: block;
+  font-size: 5.5px;
+  letter-spacing: .04em;
+}
+
+.id-pass-terms-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 6px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .id-pass-footer {
   position: relative;
   z-index: 1;

@@ -51,6 +51,7 @@ export interface CampaignPassCardData {
   status?: 'active' | 'scheduled' | 'expired';
   photoImage: Buffer;
   qrImage: Buffer;
+  termsQrImage?: Buffer;
 }
 
 function escapeXml(value: string) {
@@ -182,10 +183,11 @@ function infoFieldSvg(
 }
 
 export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
-  const [photo, qr] = await Promise.all([
+  const [photo, qr, termsQr] = await Promise.all([
     sharp(data.photoImage).rotate().resize({ width: 420, height: 524, fit: 'cover' })
       .jpeg({ quality: 90, chromaSubsampling: '4:4:4' }).toBuffer(),
     sharp(data.qrImage).png().toBuffer(),
+    data.termsQrImage ? sharp(data.termsQrImage).png().toBuffer() : Promise.resolve(null),
   ]);
   const crest = CAMPAIGN_PASS_CREST_PNG;
   const department = DEPARTMENT_LABELS[data.category] || data.category || 'Workforce';
@@ -253,6 +255,13 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
   const qrNoteY = qrTitleY + 27;
   const photoUri = dataUri('image/jpeg', photo);
   const qrUri = dataUri('image/png', qr);
+  const termsQrUri = termsQr ? dataUri('image/png', termsQr) : null;
+  const termsQrFrameSize = 174;
+  const termsQrImageSize = 142;
+  const termsQrFrameX = SVG_WIDTH - 42 - termsQrFrameSize;
+  const termsQrFrameY = qrFrameY + (qrFrameSize - termsQrFrameSize) / 2;
+  const termsQrImageX = termsQrFrameX + (termsQrFrameSize - termsQrImageSize) / 2;
+  const termsQrImageY = termsQrFrameY + (termsQrFrameSize - termsQrImageSize) / 2;
   const crestUri = dataUri('image/png', crest);
   const desc = [
     department, data.assignedRole, data.assignedMatch, data.assignedZone,
@@ -263,7 +272,7 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
     '<svg xmlns="http://www.w3.org/2000/svg" width="' + CAMPAIGN_PASS_WIDTH_MM + 'mm" height="' + CAMPAIGN_PASS_HEIGHT_MM
       + 'mm" viewBox="0 0 ' + SVG_WIDTH + ' ' + SVG_HEIGHT + '" role="img" aria-labelledby="pass-title pass-description">',
     '<title id="pass-title">Approved NUSC workforce ID for ' + escapeXml(data.fullName) + '</title>',
-    '<desc id="pass-description">' + desc + '. Entry and attendance QR is embedded.</desc>',
+    '<desc id="pass-description">' + desc + '. Entry and attendance QR is embedded. A separate QR links to the Terms and Conditions page.</desc>',
     '<defs>',
     '<linearGradient id="id-header" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#071832"/><stop offset=".72" stop-color="#102b52"/><stop offset="1" stop-color="#0a2143"/></linearGradient>',
     '<linearGradient id="id-body" x1="0" y1="0" x2=".85" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".62" stop-color="#fbfcfe"/><stop offset="1" stop-color="#f0f4f9"/></linearGradient>',
@@ -318,6 +327,14 @@ export async function renderCampaignPassCardSvg(data: CampaignPassCardData) {
       + 'M' + (qrFrameX + qrFrameSize - 25) + ' ' + (qrFrameY + qrFrameSize + 4)
       + 'H' + (qrFrameX + qrFrameSize + 4) + 'V' + (qrFrameY + qrFrameSize - 25)
       + '" fill="none" stroke="#e21e2b" stroke-width="5" stroke-linecap="square"/>',
+    termsQrUri
+      ? '<rect x="' + termsQrFrameX + '" y="' + termsQrFrameY + '" width="' + termsQrFrameSize + '" height="' + termsQrFrameSize
+        + '" rx="8" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>'
+        + '<image id="terms-qr" x="' + termsQrImageX + '" y="' + termsQrImageY + '" width="' + termsQrImageSize
+        + '" height="' + termsQrImageSize + '" preserveAspectRatio="xMidYMid meet" href="' + termsQrUri + '"/>'
+        + '<text x="' + (termsQrFrameX + termsQrFrameSize / 2) + '" y="' + qrTitleY + '" fill="#53627a" text-anchor="middle"'
+        + ' font-family="' + SANS_FONT + '" font-size="14" font-weight="900" letter-spacing=".3">TERMS &amp; CONDITIONS</text>'
+      : '',
     '<text x="430" y="' + qrTitleY + '" fill="#091d3b" text-anchor="middle" font-family="' + SANS_FONT + '" font-size="18" font-weight="900" letter-spacing="1.4">ENTRY &amp; ATTENDANCE QR</text>',
     '<text x="430" y="' + qrNoteY + '" fill="#53627a" text-anchor="middle" font-family="' + SANS_FONT + '" font-size="16" font-weight="600">Non-transferable \u00b7 scan this same ID on every authorized match day.</text>',
     '<svg x="0" y="1366" width="860" height="72" viewBox="0 0 340 28" preserveAspectRatio="none" aria-hidden="true">',

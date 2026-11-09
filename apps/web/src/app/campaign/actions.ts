@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { headers } from 'next/headers';
 import { createAdminClient, createServerClient } from '@nusc/db';
-import { campaignRateLimit, campaignRoleLabel, campaignSiteOrigin, CampaignRateLimitError, CampaignServiceError } from './server';
+import { campaignPassRoleLabel, campaignRateLimit, campaignRoleLabel, campaignSiteOrigin, CampaignRateLimitError, CampaignServiceError } from './server';
 import { createPerformanceTrace } from '@nusc/db/src/performance';
 
 const MEDIA_ACCESS_TYPES = [
@@ -1031,12 +1031,13 @@ export async function getCampaignPass(passSlug: string): Promise<CampaignPassDat
       signedPhotoUrl = signedData?.signedUrl || null;
     }
 
-    const baseRole = campaignRoleLabel(app.assigned_role, app.other_role);
+    const baseRole = campaignPassRoleLabel(app.assigned_role, app.other_role);
+    const applicationRole = campaignRoleLabel(app.assigned_role, app.other_role);
     const isOtherManagementOrganisation = ['other', 'others'].includes((app.organisation || '').trim().toLowerCase());
     const managementAffiliation = app.category === 'management'
       ? (isOtherManagementOrganisation ? app.organisation_other?.trim() || 'Other' : app.organisation?.trim() || null)
       : null;
-    const assignedRoleBase = managementAffiliation || baseRole;
+    const assignedRoleBase = baseRole !== applicationRole ? baseRole : managementAffiliation || baseRole;
     const assignedRole = app.category !== 'management' && app.designation
       ? assignedRoleBase + ' · ' + app.designation
       : assignedRoleBase;

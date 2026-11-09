@@ -684,7 +684,7 @@ test('public pass presentation can be previewed before the first valid match day
       application_status:'approved',assigned_role:{name:'Gate 1 Scanning',code:'ahibi_gate_1_scanning'},event:null}};
   const api=loadSource('apps/web/src/app/campaign/actions.ts',{
     '@nusc/db':{createAdminClient:()=>({from:()=>query(pass),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://photo.example.invalid/signed'}})})}})},
-    './server':{campaignRateLimit:async()=>{},campaignRoleLabel:(role,other)=>other||role?.name||'Not assigned',campaignSiteOrigin:()=> 'https://campaign.example.invalid',CampaignRateLimitError:class extends Error{},CampaignServiceError:class extends Error{}},
+    './server':{campaignRateLimit:async()=>{},campaignRoleLabel:(role,other)=>other||role?.name||'Not assigned',campaignPassRoleLabel:(role,other)=>other?.trim()||role?.name||'Not assigned',campaignSiteOrigin:()=> 'https://campaign.example.invalid',CampaignRateLimitError:class extends Error{},CampaignServiceError:class extends Error{}},
     'next/headers':{headers:async()=>new Headers()},
   });
   const result=await api.getCampaignPass('synthetic-pass');
@@ -699,12 +699,17 @@ test('pass presentation includes management affiliation and Press and Media deta
     {
       category: 'management',
       application: { organisation: 'Others', organisation_other: 'Nagaland United Example Organisation' },
-      expected: { affiliation: 'Nagaland United Example Organisation', mediaOutlet: null, mediaOrganisationType: null },
+      expected: { assignedRole: 'Camera Operator', affiliation: 'Nagaland United Example Organisation', mediaOutlet: null, mediaOrganisationType: null },
     },
     {
       category: 'media',
       application: { media_outlet: 'The Naga Chronicle', media_organisation_type: 'broadcast_tv' },
-      expected: { affiliation: null, mediaOutlet: 'The Naga Chronicle', mediaOrganisationType: 'Broadcast / TV' },
+      expected: { assignedRole: 'Camera Operator', affiliation: null, mediaOutlet: 'The Naga Chronicle', mediaOrganisationType: 'Broadcast / TV' },
+    },
+    {
+      category: 'medical',
+      application: {},
+      expected: { assignedRole: 'Camera Operator', affiliation: null, mediaOutlet: null, mediaOrganisationType: null },
     },
   ]) {
     const pass = {
@@ -722,6 +727,7 @@ test('pass presentation includes management affiliation and Press and Media deta
     const result = await api.getCampaignPass('synthetic-pass');
     assert.equal(result.success, true);
     assert.deepEqual({
+      assignedRole: result.pass.assignedRole,
       affiliation: result.pass.affiliation,
       mediaOutlet: result.pass.mediaOutlet,
       mediaOrganisationType: result.pass.mediaOrganisationType,

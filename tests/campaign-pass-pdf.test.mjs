@@ -10,8 +10,10 @@ const passPdfRenderer = loadSource('apps/admin/src/utils/campaignPassPdf.ts', {
   './campaignPassCrest': passCrest,
 });
 const { renderCampaignPassCardSvg, renderCampaignPassSvgToPng, renderCampaignPassPdf } = passPdfRenderer;
+const { campaignPassRoleLabel } = loadSource('apps/admin/src/utils/campaignRoleLabel.ts', {});
 
 const qrToken = 'a'.repeat(64);
+const termsUrl = 'https://campaign.example.invalid/terms';
 
 async function accreditationData() {
   const portrait = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="524"><defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#90a8b2"/><stop offset="1" stop-color="#314d60"/></linearGradient></defs><rect width="420" height="524" fill="url(#bg)"/><path d="M55 524c12-116 65-165 155-165s143 49 155 165" fill="#cf5a42"/><ellipse cx="210" cy="190" rx="93" ry="117" fill="#9b664b"/><path d="M118 186c7-98 49-141 106-141 65 0 105 51 94 144-17-42-39-66-74-69-30 40-68 57-126 66" fill="#201b1b"/><path d="M170 248q40 25 80 0" fill="none" stroke="#693f35" stroke-width="8" stroke-linecap="round"/></svg>`);
@@ -19,6 +21,10 @@ async function accreditationData() {
   const qrImage = await QRCode.toBuffer(qrToken, {
     type: 'png', errorCorrectionLevel: 'H', margin: 2, width: 480,
     color: { dark: '#050f24', light: '#ffffff' },
+  });
+  const termsQrImage = await QRCode.toBuffer(termsUrl, {
+    type: 'png', errorCorrectionLevel: 'M', margin: 3, width: 480,
+    color: { dark: '#081936', light: '#ffffff' },
   });
   return {
     fullName: 'Rishav N. Kikon',
@@ -34,6 +40,7 @@ async function accreditationData() {
     eventVenue: 'Ch\u00fcmoukedima Football Stadium, Nagaland',
     photoImage,
     qrImage,
+    termsQrImage,
   };
 }
 
@@ -50,6 +57,29 @@ function extractPdfImage(pdf) {
   };
 }
 
+async function decodePdfQr(pdf, svg, imageId) {
+  const image = extractPdfImage(pdf);
+  const position = new RegExp(`<image id="${imageId}" x="([\\d.]+)" y="([\\d.]+)" width="([\\d.]+)" height="([\\d.]+)"`).exec(svg);
+  assert.ok(position, `${imageId} should have a fixed image position`);
+  const scaleX = image.width / 860;
+  const scaleY = image.height / 1440;
+  const left = Math.round(Number(position[1]) * scaleX);
+  const top = Math.round(Number(position[2]) * scaleY);
+  const size = Math.round(Number(position[3]) * scaleX);
+  const pixels = await sharp(image.pixels, { raw: { width: image.width, height: image.height, channels: 3 } })
+    .extract({ left, top, width: size, height: size })
+    .ensureAlpha()
+    .raw()
+    .toBuffer();
+  return jsQR(new Uint8ClampedArray(pixels), size, size)?.data;
+}
+
+test('ID role labels show the applicant specified role for every Other choice', () => {
+  assert.equal(campaignPassRoleLabel({ name: 'Other', code: 'medical_others' }, '  Sports Photographer  '), 'Sports Photographer');
+  assert.equal(campaignPassRoleLabel({ name: 'Others', code: 'volunteer_others' }, 'Gate Supervisor'), 'Gate Supervisor');
+  assert.equal(campaignPassRoleLabel({ name: 'Gate 1 Scanning', code: 'gate_1_scanning' }, 'Custom role'), 'Gate 1 Scanning');
+});
+
 test('workforce ID PDF renders all fields and decodes its embedded QR', async () => {
     const data = await accreditationData();
     const svg = await renderCampaignPassCardSvg(data);
@@ -63,6 +93,7 @@ test('workforce ID PDF renders all fields and decodes its embedded QR', async ()
     ]) assert.ok(svg.includes(text), `SVG preview should contain ${text}`);
     assert.match(svg, /data:image\/jpeg;base64,/);
     assert.match(svg, /data:image\/png;base64,/);
+    assert.match(svg, /<image id="terms-qr"/);
     assert.match(svg, /MATCH ACCESS/);
     assert.match(svg, /GATE \/ CHECKPOINT/);
 
@@ -77,20 +108,8 @@ test('workforce ID PDF renders all fields and decodes its embedded QR', async ()
     assert.equal(image.width, 1016);
     assert.equal(image.height, 1701);
     assert.equal(image.pixels.length, image.width * image.height * 3);
-    const scaleX = image.width / 860;
-    const scaleY = image.height / 1440;
-    const qrPosition = /<image id="pass-qr" x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/.exec(svg);
-    assert.ok(qrPosition, 'the embedded QR should have an explicit image position');
-    const left = Math.round(Number(qrPosition[1]) * scaleX);
-    const top = Math.round(Number(qrPosition[2]) * scaleY);
-    const size = Math.round(Number(qrPosition[3]) * scaleX);
-    const qrPixels = await sharp(image.pixels, { raw: { width: image.width, height: image.height, channels: 3 } })
-      .extract({ left, top, width: size, height: size })
-      .ensureAlpha()
-      .raw()
-      .toBuffer();
-    const decoded = jsQR(new Uint8ClampedArray(qrPixels), size, size);
-    assert.equal(decoded?.data, qrToken);
+    assert.equal(await decodePdfQr(pdf, svg, 'pass-qr'), qrToken);
+    assert.equal(await decodePdfQr(pdf, svg, 'terms-qr'), termsUrl);
 });
 
 test('PDF artwork preserves the actual Admin card brand and all five access fields', async () => {
@@ -110,7 +129,7 @@ test('PDF artwork preserves the actual Admin card brand and all five access fiel
   assert.equal(image.height, 1701);
 });
 
-test('pass email sends exactly one PDF attachment from the approved ID data', async () => {
+test('pass email sends matching PDF and PNG ID attachments from the approved ID data', async () => {
   const calls = [];
   const currentDate = Date.now();
   const row = {
@@ -128,13 +147,13 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
       phone: '9876543210',
       whatsapp_pass_opt_in_at: null,
       application_status: 'approved',
-      category: 'volunteer',
+      category: 'medical',
       photo_storage_path: 'synthetic/photo.png',
       event_id: 'synthetic-match-id',
       designation: null,
       media_designation: null,
-      other_role: null,
-      assigned_role: { name: 'Gate 1 Scanning', code: 'gate_1_scanning' },
+      other_role: 'Sports Photographer',
+      assigned_role: { name: 'Other', code: 'medical_others' },
       assigned_zone: 'North Stand \u00b7 Gate 1 checkpoint',
       event: { title: 'Nagaland United vs Kohima United', venue: 'Ch\u00fcmoukedima Football Stadium, Nagaland' },
     },
@@ -191,10 +210,14 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
     assert.equal(result.success, true);
     assert.equal(calls.length, 1);
     const attachments = calls[0].attachments;
-    assert.equal(attachments.length, 1);
-    assert.equal(attachments[0].content_type, 'application/pdf');
-    assert.match(attachments[0].filename, /\.pdf$/i);
-    const emailedPdf = Buffer.from(attachments[0].content, 'base64');
+    assert.equal(attachments.length, 2);
+    const pdfAttachments = attachments.filter(({ content_type }) => content_type === 'application/pdf');
+    const imageAttachments = attachments.filter(({ content_type }) => content_type === 'image/png');
+    assert.equal(pdfAttachments.length, 1);
+    assert.equal(imageAttachments.length, 1);
+    assert.match(pdfAttachments[0].filename, /\.pdf$/i);
+    assert.match(imageAttachments[0].filename, /\.png$/i);
+    const emailedPdf = Buffer.from(pdfAttachments[0].content, 'base64');
     const pdfText = emailedPdf.toString('latin1');
     assert.match(pdfText, /^%PDF-1\.4/);
     assert.match(pdfText, /\/Count 1\b/);
@@ -205,9 +228,10 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
     assert.equal(preview.success, true);
     const adminPreviewSvg = Buffer.from(preview.svgBase64, 'base64').toString('utf8');
     for (const text of [
-      'APPROVED', 'GATE 1 SCANNING', 'Gate / Checkpoint',
+      'APPROVED', 'SPORTS PHOTOGRAPHER', 'Gate / Checkpoint',
       'Valid from', 'Valid until', 'Football Stadium, Nagaland',
     ]) assert.ok(adminPreviewSvg.toLowerCase().includes(text.toLowerCase()), `Admin preview should contain ${text}`);
+    assert.doesNotMatch(adminPreviewSvg, /OTHER:\s*SPORTS PHOTOGRAPHER/i, 'Admin ID should show the specified role without the Other label');
 
     const pdfImage = extractPdfImage(emailedPdf);
     assert.equal(pdfImage.width, 1016);
@@ -218,18 +242,8 @@ test('pass email sends exactly one PDF attachment from the approved ID data', as
       .raw()
       .toBuffer();
     assert.deepEqual(pdfImage.pixels, expectedPixels, 'emailed PDF raster must exactly match the Admin preview SVG');
-
-    const qrPosition = /<image id="pass-qr" x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/.exec(adminPreviewSvg);
-    assert.ok(qrPosition, 'the Admin preview should embed a QR at a fixed position');
-    const left = Math.round(Number(qrPosition[1]) * 1016 / 860);
-    const top = Math.round(Number(qrPosition[2]) * 1701 / 1440);
-    const size = Math.round(Number(qrPosition[3]) * 1016 / 860);
-    const qrPixels = await sharp(pdfImage.pixels, { raw: { width: pdfImage.width, height: pdfImage.height, channels: 3 } })
-      .extract({ left, top, width: size, height: size })
-      .ensureAlpha()
-      .raw()
-      .toBuffer();
-    assert.equal(jsQR(new Uint8ClampedArray(qrPixels), size, size)?.data, qrToken);
+    assert.equal(await decodePdfQr(emailedPdf, adminPreviewSvg, 'pass-qr'), qrToken);
+    assert.equal(await decodePdfQr(emailedPdf, adminPreviewSvg, 'terms-qr'), termsUrl);
   } finally {
     globalThis.fetch = originalFetch;
     for (const [name, value] of Object.entries(originalEnvironment)) {
