@@ -15,7 +15,7 @@ import { handleManualRisePassRequest } from '../apps/web/src/app/api/integration
 test('RISE manual pass prices are server-owned and match the approved totals', async () => {
   const prices = getRiseSeasonPassPrices();
   assert.equal(prices['general-season'].amountMinor, 389400);
-  assert.equal(prices['premium-season'].amountMinor, 1622500);
+  assert.equal(prices['premium-season'].amountMinor, 1947000);
   assert.deepEqual(await searchRiseSeasonPassMembers(''), { members: [], passes: prices });
 });
 

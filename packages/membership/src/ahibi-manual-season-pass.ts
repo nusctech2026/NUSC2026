@@ -14,7 +14,7 @@ const SEASON_ID = 'nusc-il-2026-27';
 
 const PASS_OPTIONS = Object.freeze({
   'general-season': { ticketType: 'General Pass', amountPaise: 389400 },
-  'premium-season': { ticketType: 'Premium Pass', amountPaise: 1622500 },
+  'premium-season': { ticketType: 'Premium Pass', amountPaise: 1947000 },
 });
 
 type ManualPassRow = {

@@ -58,7 +58,7 @@ export default function PricingPage() {
                       </tr>
                       <tr>
                         <td><strong>Rise Premium</strong></td>
-                        <td style={{ fontWeight: 700, color: 'var(--navy-900)' }}>₹12,500</td>
+                        <td style={{ fontWeight: 700, color: 'var(--navy-900)' }}>₹15,000</td>
                         <td>Premium gallery seating for 10 home matches, official NUSC scarf/collectible, 10% merchandise discount &amp; early access, draw entries for player meet-and-greets</td>
                       </tr>
                       <tr>
