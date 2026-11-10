@@ -433,6 +433,8 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       const organisations = [
         'Chümoukedima District Football Association (CDFA)',
         'Department of Youth Resources & Sports',
+        'Hospitality',
+        'Transport & Accommodation',
         'Others',
       ];
       if (!organisations.includes(organisation)) {

@@ -63,6 +63,8 @@ const DEPARTMENTS = Object.entries(CATEGORY_META) as [CampaignCategory, (typeof 
 const MANAGEMENT_ORGANISATIONS = [
   { value: 'Chümoukedima District Football Association (CDFA)', label: 'Chümoukedima District Football Association (CDFA)' },
   { value: 'Department of Youth Resources & Sports', label: 'Department of Youth Resources & Sports' },
+  { value: 'Hospitality', label: 'Hospitality' },
+  { value: 'Transport & Accommodation', label: 'Transport & Accommodation' },
   { value: 'Others', label: 'Other' },
 ];
 const MEDIA_ACCESS_OPTIONS = [
