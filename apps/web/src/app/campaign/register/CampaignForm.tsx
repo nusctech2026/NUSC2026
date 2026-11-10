@@ -64,6 +64,7 @@ const MANAGEMENT_ORGANISATIONS = [
   { value: 'Chümoukedima District Football Association (CDFA)', label: 'Chümoukedima District Football Association (CDFA)' },
   { value: 'Department of Youth Resources & Sports', label: 'Department of Youth Resources & Sports' },
   { value: 'Hospitality', label: 'Hospitality' },
+  { value: 'KAKI', label: 'KAKI' },
   { value: 'Transport & Accommodation', label: 'Transport & Accommodation' },
   { value: 'Others', label: 'Other' },
 ];

@@ -434,6 +434,7 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
         'Chümoukedima District Football Association (CDFA)',
         'Department of Youth Resources & Sports',
         'Hospitality',
+        'KAKI',
         'Transport & Accommodation',
         'Others',
       ];
