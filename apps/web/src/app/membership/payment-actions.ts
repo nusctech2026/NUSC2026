@@ -9,11 +9,14 @@ const safeMessages = new Set([
   'Membership is cancelled', 'Registration is already paid', 'Registration payment is required',
   'Plan is not available for online payment', 'Choose a higher membership tier',
   'Complete the existing pending payment first', 'Membership pricing is not configured correctly',
+  'Unable to resume your payment. Please try again shortly.',
+  'Rise Premium checkout is updating. Please refresh and try again shortly.',
   'A payment is being prepared. Please try again in a few moments.',
   'Payments are temporarily unavailable. Please try again later.',
   'Unable to start payment. Please try again from your dashboard.',
   'Payment verification failed.', 'Payment order not found for your account.',
   'Payment is processing. Please wait for confirmation before changing tiers.',
+  'A payment was found. Refresh your membership and do not pay again.',
   'Unable to cancel checkout. Please try again.',
   'Unable to check your payment. Please try again shortly.',
   'Membership payments are temporarily paused. Please try again shortly.',
@@ -56,7 +59,13 @@ export async function cancelPendingMembershipPayment() {
 
 export async function startMembershipPayment(planId: string | null = null, zone: string | null = null) {
   try { return { success: true as const, order: await createMembershipCheckout(planId, zone) }; }
-  catch (error) { return { success: false as const, error: paymentError(error, 'Unable to start payment. Please try again from your dashboard.') }; }
+  catch (error) {
+    if (error instanceof Error && error.message === 'A payment was found. Refresh your membership and do not pay again.') {
+      revalidatePath('/dashboard');
+      revalidatePath('/dashboard/tickets');
+    }
+    return { success: false as const, error: paymentError(error, 'Unable to start payment. Please try again from your dashboard.') };
+  }
 }
 
 export async function verifyMembershipPayment(callback: PaymentCallback) {

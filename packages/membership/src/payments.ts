@@ -18,6 +18,7 @@ const RISE_SMOKE_UPGRADE_USER_ID = 'NUSC_RISE_LIVE_SMOKE_UPGRADE_USER_ID';
 const RISE_SMOKE_UPGRADE_EXPIRES_AT = 'NUSC_RISE_LIVE_SMOKE_UPGRADE_EXPIRES_AT';
 const RISE_SMOKE_GATE_CLOSED = 'Rise tier checkout is temporarily unavailable.';
 const RISE_SMOKE_UPGRADE_CLOSED = 'Rise smoke upgrade checkout is unavailable.';
+const RISE_PREMIUM_PRICE_PAISE = 1947000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const MAX_SMOKE_TEST_WINDOW_MS = 48 * 60 * 60 * 1000;
@@ -91,9 +92,10 @@ export async function createMembershipCheckout(planId: string | null = null, zon
   assertMembershipCheckoutEnabled();
   const db = createAdminClient();
   let passId: AhibiSeasonPassId | null = null;
+  let premiumListedPrice: number | null = null;
   if (planId) {
     const { data: selectedPlan, error: planError } = await db.from('membership_plans')
-      .select('slug,is_active,is_purchasable_online').eq('id', planId).maybeSingle();
+      .select('slug,is_active,is_purchasable_online,price').eq('id', planId).maybeSingle();
     if (planError || !selectedPlan || !selectedPlan.is_active || !selectedPlan.is_purchasable_online) {
       throw new Error('Invalid membership plan');
     }
@@ -104,6 +106,7 @@ export async function createMembershipCheckout(planId: string | null = null, zon
       }
     } else if (selectedPlan.slug === 'rise-premium') {
       passId = 'premium-season';
+      if (selectedPlan.price !== undefined) premiumListedPrice = Number(selectedPlan.price);
       if (zone !== null) throw new Error('Premium season passes do not use a seating zone.');
     } else {
       throw new Error('Plan is not available for online payment');
@@ -111,6 +114,34 @@ export async function createMembershipCheckout(planId: string | null = null, zon
   }
   const isSmokeTest = passId !== null && isRiseLiveSmokeTester(user.id);
   const isSmokeTestUpgrade = passId === 'premium-season' && isRiseLiveSmokeUpgradeTester(user.id);
+  if (passId === 'premium-season' && !isSmokeTest && !isSmokeTestUpgrade
+      && premiumListedPrice !== null && premiumListedPrice !== RISE_PREMIUM_PRICE_PAISE) {
+    throw new Error('Rise Premium checkout is updating. Please refresh and try again shortly.');
+  }
+  if (planId && passId === 'premium-season' && !isSmokeTest && !isSmokeTestUpgrade) {
+    const { data: pendingOrder, error: pendingError } = await session.from('membership_payment_orders')
+      .select('id,amount,upgrade_credit_amount,razorpay_order_id,is_smoke_test,is_smoke_test_upgrade')
+      .eq('user_id', user.id).eq('plan_id', planId).eq('purpose', 'tier')
+      .in('status', ['creating', 'pending']).maybeSingle();
+    if (pendingError) throw new Error('Unable to resume your payment. Please try again shortly.');
+    if (pendingOrder?.id && !pendingOrder.is_smoke_test && !pendingOrder.is_smoke_test_upgrade) {
+      const currentPrice = premiumListedPrice;
+      const pendingTotal = Number(pendingOrder.amount) + Number(pendingOrder.upgrade_credit_amount ?? 0);
+      if (currentPrice === null || !Number.isSafeInteger(currentPrice) || currentPrice <= 0
+          || !Number.isSafeInteger(pendingTotal)) {
+        throw new Error('Membership pricing is not configured correctly');
+      }
+      if (pendingTotal !== currentPrice) {
+        if (!pendingOrder.razorpay_order_id) {
+          throw new Error('A payment is being prepared. Please try again in a few moments.');
+        }
+        const cancelled = await cancelMembershipCheckoutForUser(session, user.id, pendingOrder.id);
+        if (cancelled.status !== 'cancelled') {
+          throw new Error('A payment was found. Refresh your membership and do not pay again.');
+        }
+      }
+    }
+  }
   const { keyId, client } = paymentGateway();
   const { data: order, error } = await db.rpc(
     isSmokeTestUpgrade ? 'begin_membership_smoke_test_upgrade_payment'
@@ -192,19 +223,27 @@ export async function recoverMembershipCheckout(): Promise<{ status: string; tic
   return settleCapturedPayment(captured);
 }
 
-export async function cancelMembershipCheckout() {
-  const session = await createServerClient();
+async function cancelMembershipCheckoutForUser(
+  session: Awaited<ReturnType<typeof createServerClient>>,
+  userId: string,
+  expectedOrderId?: string,
+) {
   const { data: { user } } = await session.auth.getUser();
-  if (!user) throw new Error('Please sign in to continue.');
-  const { data: order, error } = await session.from('membership_payment_orders').select('id,razorpay_order_id')
-    .eq('user_id', user.id).eq('purpose', 'tier').in('status', ['creating','pending']).maybeSingle();
+  if (!user || user.id !== userId) throw new Error('Please sign in to continue.');
+  let orderQuery = session.from('membership_payment_orders').select('id,razorpay_order_id')
+    .eq('user_id', user.id).eq('purpose', 'tier').in('status', ['creating','pending']);
+  if (expectedOrderId) orderQuery = orderQuery.eq('id', expectedOrderId);
+  const { data: order, error } = await orderQuery.maybeSingle();
   if (error) throw new Error('Unable to find your pending checkout.');
   if (!order) return { status: 'cancelled' };
   if (order.razorpay_order_id) {
     const { client } = paymentGateway();
     const payments = await client.orders.fetchPayments(order.razorpay_order_id);
     const captured = payments.items.find(payment => payment.status === 'captured' && payment.captured);
-    if (captured) return settleCapturedPayment(captured);
+    if (captured) {
+      if (captured.order_id !== order.razorpay_order_id) throw new Error('Payment order mismatch.');
+      return settleCapturedPayment(captured);
+    }
     if (payments.items.some(payment => payment.status === 'authorized')) {
       throw new Error('Payment is processing. Please wait for confirmation before changing tiers.');
     }
@@ -214,6 +253,13 @@ export async function cancelMembershipCheckout() {
   if (cancelError || !data) throw new Error('Unable to cancel checkout. Please try again.');
   if (data.status === 'cancelled') await releaseAhibiPassForOrder(order.id);
   return data as { status: string };
+}
+
+export async function cancelMembershipCheckout() {
+  const session = await createServerClient();
+  const { data: { user } } = await session.auth.getUser();
+  if (!user) throw new Error('Please sign in to continue.');
+  return cancelMembershipCheckoutForUser(session, user.id);
 }
 
 export async function settleCapturedPayment(payment: { id: string; order_id?: string | null; amount: number | string; currency: string; status: string; captured: boolean }): Promise<{ status: string; ticketStatus?: string }> {

@@ -1,6 +1,8 @@
 import PaymentButton from './PaymentButton';
 import type { MembershipPlan } from '@/app/dashboard/service';
 
+const RISE_PREMIUM_PRICE_PAISE = 1947000;
+
 interface UpgradePlansProps {
   plans: MembershipPlan[];
   availableUpgradeIds: string[];
@@ -147,8 +149,10 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
           const isGeneral = plan.slug === 'rise-general';
           const isCurrentTier = currentPlanSlug === plan.slug;
           const isAvailableUpgrade = availableUpgradeIds.includes(plan.id);
-          const totalPayable = plan.price / 100;
-          const basePricePaise = Math.round(plan.price * 1000 / 1298);
+          const displayedPricePaise = isPremium ? RISE_PREMIUM_PRICE_PAISE : plan.price;
+          const premiumPriceReady = !isPremium || Number(plan.price) === RISE_PREMIUM_PRICE_PAISE;
+          const totalPayable = displayedPricePaise / 100;
+          const basePricePaise = Math.round(displayedPricePaise * 1000 / 1298);
           const sportsFundPaise = Math.round(basePricePaise / 10);
           const gstPaise = Math.round((basePricePaise + sportsFundPaise) * 18 / 100);
           const formatRupees = (paise: number) => `\u20B9${Math.round(paise / 100).toLocaleString('en-IN')}`;
@@ -223,7 +227,7 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
                     </div>
                     <div className="membership-price-breakdown__total">
                       <span><strong>Total payable</strong><small>Per year</small></span>
-                      <strong>{formatRupees(plan.price)}</strong>
+                      <strong>{formatRupees(displayedPricePaise)}</strong>
                     </div>
                   </div>
                 ) : (
@@ -275,7 +279,7 @@ export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSl
                   className="membership-pay-button"
                   disabled
                   aria-label={`${plan.name} membership coming soon`}
-                >Coming soon</button> : !isAvailableUpgrade ? <button type="button" className="membership-pay-button" disabled>{hasMembership ? 'Not available as an upgrade' : 'Unavailable'}</button> : <PaymentButton planId={plan.id} requiresGeneralZone={plan.slug === 'rise-general'} disabled={!canPurchase || !plan.is_purchasable_online}>
+                >Coming soon</button> : !isAvailableUpgrade ? <button type="button" className="membership-pay-button" disabled>{hasMembership ? 'Not available as an upgrade' : 'Unavailable'}</button> : isPremium && !premiumPriceReady ? <button type="button" className="membership-pay-button" disabled aria-label="Rise Premium checkout is updating">Price update in progress</button> : <PaymentButton planId={plan.id} requiresGeneralZone={plan.slug === 'rise-general'} disabled={!canPurchase || !plan.is_purchasable_online}>
                   {hasMembership ? 'Upgrade to ' : 'Activate '}{plan.name}
                 </PaymentButton>}
               </div>

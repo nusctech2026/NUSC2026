@@ -1,5 +1,5 @@
--- Update the Rise Premium listed total while keeping already-started orders payable
--- at the previous approved totals.
+-- Update the Rise Premium listed total. A retry through the current app replaces a
+-- stale pending order after checking Razorpay; captured prior-price orders still settle.
 BEGIN;
 
 DO $$
@@ -24,24 +24,24 @@ UPDATE public.membership_plans
 SET price = 1947000
 WHERE slug = 'rise-premium';
 
--- Keep the current payment, smoke-test, settlement and authorization logic intact,
--- changing only its canonical price and the previous totals accepted for in-flight
--- orders. Fail closed if the expected prior definitions have drifted.
+-- Keep the payment, smoke-test, settlement and authorization logic intact. Reject
+-- stale prior-price orders for new checkout attempts while retaining their old
+-- amount in settlement so a captured in-flight payment can still be honored.
 DO $$
 DECLARE
   definition text;
 BEGIN
   definition := pg_get_functiondef('public.begin_membership_payment(uuid, uuid)'::regprocedure);
   IF strpos(definition, 'WHEN ''rise-premium'' THEN 1622500') = 0
-     OR strpos(definition, 'o.amount + o.upgrade_credit_amount = 1298000') = 0 THEN
+     OR strpos(definition, 'o.amount = v_amount OR (p.slug = ''rise-premium'' AND o.amount + o.upgrade_credit_amount = 1298000)') = 0 THEN
     RAISE EXCEPTION 'begin_membership_payment definition changed; review the Rise Premium pricing migration';
   END IF;
   definition := replace(definition,
     'WHEN ''rise-premium'' THEN 1622500',
     'WHEN ''rise-premium'' THEN 1947000');
   definition := replace(definition,
-    'o.amount + o.upgrade_credit_amount = 1298000',
-    'o.amount + o.upgrade_credit_amount IN (1298000, 1622500)');
+    'o.amount = v_amount OR (p.slug = ''rise-premium'' AND o.amount + o.upgrade_credit_amount = 1298000)',
+    'o.amount = v_amount');
   EXECUTE definition;
 
   definition := pg_get_functiondef('public.begin_membership_smoke_test_payment(uuid, uuid)'::regprocedure);
