@@ -48,14 +48,14 @@ export async function GET() {
       'Professional qualification / grade', 'Professional registration / licence number', 'Recent officiating experience',
       'Conflict of interest', 'Conflict details', 'Technical specialty', 'Relevant experience', 'Crew work arrangement',
       'Crew organisation / provider', 'Crew lead / supervisor name', 'Crew lead / supervisor phone',
-      'Profile photo download URL (expires in 30 minutes)', 'Terms accepted', 'WhatsApp pass updates consent', 'Status',
+      'Profile photo download URL (expires in 30 minutes)', 'Terms accepted', 'Status',
       'Assigned match', 'Assigned zone', 'Assigned shift', 'Possible duplicate', 'Submitted at',
     ]];
 
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
       const { data, error } = await supabase.from('campaign_applications')
-        .select('application_number, full_name, date_of_birth, gender, phone, email, address, photo_storage_path, category, other_role, organisation, organisation_other, designation, availability, availability_match_ids, reason_for_joining, emergency_contact_name, emergency_contact_phone, media_outlet, media_organisation_type, portfolio_url, media_access_types, professional_body, professional_qualification, professional_registration_number, professional_experience, conflict_of_interest, conflict_details, technical_specialty, experience, crew_work_arrangement, crew_organisation, crew_lead_name, crew_lead_phone, application_status, event_id, assigned_zone, assigned_shift, potential_duplicate, terms_accepted_at, whatsapp_pass_opt_in_at, submitted_at, preferred_role:campaign_roles!preferred_role_id (name, code), event:campaign_events!event_id (title)')
+        .select('application_number, full_name, date_of_birth, gender, phone, email, address, photo_storage_path, category, other_role, organisation, organisation_other, designation, availability, availability_match_ids, reason_for_joining, emergency_contact_name, emergency_contact_phone, media_outlet, media_organisation_type, portfolio_url, media_access_types, professional_body, professional_qualification, professional_registration_number, professional_experience, conflict_of_interest, conflict_details, technical_specialty, experience, crew_work_arrangement, crew_organisation, crew_lead_name, crew_lead_phone, application_status, event_id, assigned_zone, assigned_shift, potential_duplicate, terms_accepted_at, submitted_at, preferred_role:campaign_roles!preferred_role_id (name, code), event:campaign_events!event_id (title)')
         .order('submitted_at', { ascending: true })
         .range(offset, offset + pageSize - 1);
       if (error) throw new Error('Registration export query failed');
@@ -143,7 +143,6 @@ export async function GET() {
             ? photoDownloads.get(registration.photo_storage_path) || 'Unavailable'
             : '',
           registration.terms_accepted_at ? 'Yes' : 'No',
-          registration.whatsapp_pass_opt_in_at ? 'Yes' : 'No',
           registration.application_status,
           event?.title || (registration.event_id ? 'Assigned match' : 'All 10 home matches'),
           registration.assigned_zone,
