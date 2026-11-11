@@ -147,9 +147,12 @@ export async function getCampaignApplicationDetail(applicationId: string) {
 
     // All reads follow authorization and the authoritative application lookup.
     // Return editor options in this action instead of two more authenticated actions.
-    const [photo, mediaAuthorisationDocument, officialCredentialDocument, issued, roles, matches, changeHistory] = await trace.measure('related_records', () => Promise.all([
+    const [photo, photoDownload, mediaAuthorisationDocument, officialCredentialDocument, issued, roles, matches, changeHistory] = await trace.measure('related_records', () => Promise.all([
       app.photo_storage_path
         ? supabase.storage.from('campaign_documents').createSignedUrl(app.photo_storage_path, 1800)
+        : Promise.resolve({ data: null, error: null }),
+      app.photo_storage_path
+        ? supabase.storage.from('campaign_documents').createSignedUrl(app.photo_storage_path, 1800, { download: true })
         : Promise.resolve({ data: null, error: null }),
       app.category === 'media' && app.media_authorisation_storage_path
         ? supabase.storage.from('campaign_documents').createSignedUrl(app.media_authorisation_storage_path, 900, { download: true })
@@ -174,6 +177,7 @@ export async function getCampaignApplicationDetail(applicationId: string) {
     return {
       ...app,
       signedPhotoUrl: photo.data?.signedUrl || null,
+      signedPhotoDownloadUrl: photoDownload.data?.signedUrl || null,
       signedMediaAuthorisationUrl: mediaAuthorisationDocument.data?.signedUrl || null,
       signedOfficialCredentialUrl: officialCredentialDocument.data?.signedUrl || null,
       roleOptions: roles.data || [],

@@ -520,11 +520,18 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
         <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
             {app.signedPhotoUrl ? (
-              <img
-                src={app.signedPhotoUrl}
-                alt={app.full_name}
-                style={{ width: '90px', height: '115px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #cbd5e1' }}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                <img
+                  src={app.signedPhotoUrl}
+                  alt={app.full_name}
+                  style={{ width: '90px', height: '115px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #cbd5e1' }}
+                />
+                {app.signedPhotoDownloadUrl && (
+                  <a href={app.signedPhotoDownloadUrl} style={{ fontSize: '12px', fontWeight: 600 }}>
+                    Download photo
+                  </a>
+                )}
+              </div>
             ) : (
               <div style={{ width: '90px', height: '115px', background: '#e2e8f0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>
                 👤
