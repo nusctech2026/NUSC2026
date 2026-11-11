@@ -16,9 +16,9 @@ const oldPartnerOrderId = `nusc-order-${oldOrderId}`;
 const newPartnerOrderId = `nusc-order-${newOrderId}`;
 const eventIds = Array.from({ length: 10 }, (_, i) => `event-${i + 1}`);
 const fixtures = [
-  ['2026-11-14', 'Gokulam Kerala FC'], ['2026-11-30', 'Dempo SC'], ['2026-12-15', 'Sreenidi Deccan FC'],
-  ['2026-12-19', 'Mohammedan SC'], ['2027-01-04', 'Rajasthan United FC'], ['2027-01-09', 'FC Bengaluru United'],
-  ['2027-01-16', 'Shillong Lajong FC'], ['2027-02-06', 'Chanmari FC'], ['2027-03-13', 'Samaleswari SC'],
+  ['2026-11-14', 'Gokulam Kerala FC'], ['2026-11-30', 'Dempo SC'], ['2026-12-07', 'Chanmari FC'],
+  ['2026-12-15', 'Sreenidi Deccan FC'], ['2026-12-19', 'Mohammedan SC'], ['2027-01-04', 'Rajasthan United FC'],
+  ['2027-01-09', 'FC Bengaluru United'], ['2027-01-16', 'Shillong Lajong FC'], ['2027-03-13', 'Samaleswari SC'],
   ['2027-03-20', 'Real Kashmir FC'],
 ];
 const secret = 'test-partner-secret-with-at-least-thirty-two-bytes';

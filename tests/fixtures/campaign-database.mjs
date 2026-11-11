@@ -6,6 +6,40 @@ export const campaignCryptoMigration = '20261027120000_campaign_issue_crypto_sea
 export const campaignReliabilityMigration = '20261103100000_campaign_accreditation_reliability.sql';
 export const campaignSql = name => readFile(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8');
 
+export async function officialMatchDatabase() {
+  const db = new PGlite();
+  await db.exec(`
+    CREATE TABLE public.campaign_events (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      title varchar(255) NOT NULL,
+      slug varchar(100) UNIQUE NOT NULL,
+      venue varchar(255) NOT NULL,
+      start_date timestamptz NOT NULL,
+      end_date timestamptz NOT NULL,
+      is_active boolean NOT NULL DEFAULT true,
+      is_test boolean NOT NULL DEFAULT false,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      CHECK (end_date >= start_date)
+    );
+    CREATE UNIQUE INDEX campaign_events_one_official_per_india_day
+      ON public.campaign_events(((start_date AT TIME ZONE 'Asia/Kolkata')::DATE))
+      WHERE is_test = false;
+  `);
+  await db.exec(await campaignSql('20261106150000_seed_nusc_official_home_matches.sql'));
+  await db.exec(`
+    CREATE TABLE public.campaign_attendance (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      event_id uuid NOT NULL REFERENCES public.campaign_events(id)
+    );
+  `);
+  const chanmari = (await db.query(
+    "SELECT id FROM public.campaign_events WHERE slug = 'nusc-home-match-8-2027-02-06'",
+  )).rows[0];
+  await db.query('INSERT INTO public.campaign_attendance(event_id) VALUES ($1)', [chanmari.id]);
+  await db.exec(await campaignSql('20261111100000_reschedule_nusc_official_home_matches.sql'));
+  return { db, chanmariId: chanmari.id };
+}
+
 async function createCampaignDatabaseBase() {
   const db = new PGlite();
   await db.exec(`

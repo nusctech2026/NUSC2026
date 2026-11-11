@@ -1,6 +1,35 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applicant, campaignDatabase, credential, match, review, scan, workforceDatabase } from './fixtures/campaign-database.mjs';
+import { applicant, campaignDatabase, credential, match, officialMatchDatabase, review, scan, workforceDatabase } from './fixtures/campaign-database.mjs';
+
+test('official NUSC home matches use the updated dates and opponent labels', async () => {
+  const { db, chanmariId } = await officialMatchDatabase();
+  try {
+    const official = (await db.query('SELECT * FROM campaign_events WHERE is_test=false ORDER BY start_date')).rows;
+    assert.equal(official.length, 10);
+    assert.deepEqual(official.map(event => event.title), [
+      'NUSC Home Match 1 - Gokulam Kerala FC',
+      'NUSC Home Match 2 - Dempo SC',
+      'NUSC Home Match 3 - Chanmari FC',
+      'NUSC Home Match 4 - Sreenidi Deccan FC',
+      'NUSC Home Match 5 - Mohammedan SC',
+      'NUSC Home Match 6 - Rajasthan United FC',
+      'NUSC Home Match 7 - FC Bengaluru United',
+      'NUSC Home Match 8 - Shillong Lajong FC',
+      'NUSC Home Match 9 - Samaleswari SC',
+      'NUSC Home Match 10 - Real Kashmir FC',
+    ]);
+    assert.deepEqual(official.map(event => new Date(new Date(event.start_date).getTime() + 330 * 60000).toISOString().slice(0, 10)), [
+      '2026-11-14', '2026-11-30', '2026-12-07', '2026-12-15', '2026-12-19',
+      '2027-01-04', '2027-01-09', '2027-01-16', '2027-03-13', '2027-03-20',
+    ]);
+    assert.equal(official.find(event => event.title === 'NUSC Home Match 3 - Chanmari FC').id, chanmariId);
+    assert.deepEqual((await db.query('SELECT event_id FROM public.campaign_attendance')).rows, [{ event_id: chanmariId }]);
+    assert.equal(new Set(official.map(event => new Date(new Date(event.start_date).getTime() + 330 * 60000).toISOString().slice(0, 10))).size, 10);
+    assert.ok(official.every(event => new Date(new Date(event.start_date).getTime() + 330 * 60000).toISOString().slice(11, 23) === '00:00:00.000'));
+    assert.ok(official.every(event => new Date(new Date(event.end_date).getTime() + 330 * 60000).toISOString().slice(11, 23) === '23:59:59.999'));
+  } finally { await db.close(); }
+});
 
 test('anonymous and authenticated clients cannot read private campaign data or invoke privileged functions', async () => {
   const db = await campaignDatabase();
