@@ -465,18 +465,12 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
         return { success: false, error: 'Use the media organisation and designation fields for Press and Media registrations.' };
       }
       if (category !== 'media') {
-        const organisationAndDesignationRequired = category === 'crew' || category === 'volunteer';
-        const invalidOrganisation = organisationAndDesignationRequired
-          ? organisation.length < 2 || organisation.length > 255
-          : Boolean(organisation && (organisation.length < 2 || organisation.length > 255));
-        const invalidDesignation = organisationAndDesignationRequired
-          ? designation.length < 2 || designation.length > 255
-          : Boolean(designation && (designation.length < 2 || designation.length > 255));
-        if (invalidOrganisation || invalidDesignation) {
-          const error = organisationAndDesignationRequired
-            ? `${category === 'crew' ? 'Crew' : 'Volunteer'} applicants must enter an organisation and designation (2 to 255 characters each).`
-            : 'Use 2 to 255 characters for organisation and designation.';
-          return { success: false, error };
+        if (organisation.length < 2 || organisation.length > 255
+          || designation.length < 2 || designation.length > 255) {
+          return {
+            success: false,
+            error: 'Applicants must enter an organisation and designation (2 to 255 characters each).',
+          };
         }
       }
     }
