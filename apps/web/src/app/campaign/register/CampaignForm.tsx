@@ -35,7 +35,7 @@ const CATEGORY_META: Record<CampaignCategory, { label: string; description: stri
   },
   volunteer: {
     label: 'Volunteers',
-    description: 'Stretcher, perimeter, security and supervisory teams.',
+    description: 'Ball boys, stretcher, perimeter, security and supervisory teams.',
   },
   media: {
     label: 'Press and Media',
