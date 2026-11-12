@@ -555,7 +555,7 @@ export const CampaignApplicationDetailView: React.FC<DetailViewProps> = ({
             <div><strong>Phone:</strong> {app.phone}</div>
             {app.email && <div><strong>Email:</strong> {app.email}</div>}
             {displayOrganisation && <div style={{ marginTop: '6px' }}><strong>Organisation / affiliation:</strong> {displayOrganisation}</div>}
-            {app.category === 'media' && app.designation && <div style={{ marginTop: '6px' }}><strong>Designation / Role:</strong> {app.designation}</div>}
+            {app.designation && <div style={{ marginTop: '6px' }}><strong>Designation / Role:</strong> {app.designation}</div>}
             {app.address && <div style={{ marginTop: '6px' }}><strong>Residential Address:</strong> {app.address}</div>}
             {app.availability && <div style={{ marginTop: '6px' }}><strong>Availability:</strong> {app.availability}</div>}
             {app.category === 'media' && <div style={{ marginTop: '6px' }}><strong>Name of Media Organisation / Publication:</strong> {app.media_outlet || 'Not provided'}</div>}

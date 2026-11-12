@@ -361,7 +361,10 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
     const technicalSpecialty = readText('technicalSpecialty');
     const experience = readText('experience');
     const crewWorkArrangement = readText('crewWorkArrangement');
-    const crewOrganisation = readText('crewOrganisation');
+    const crewOrganisationInput = readText('crewOrganisation');
+    const crewOrganisation = category === 'crew' && crewWorkArrangement === 'organisation'
+      ? crewOrganisationInput || organisation
+      : crewOrganisationInput;
     const crewLeadName = readText('crewLeadName');
     const rawCrewLeadPhone = readText('crewLeadPhone');
     const crewLeadPhone = normalizeWorkforcePhone(rawCrewLeadPhone);
@@ -438,8 +441,8 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
         'Transport & Accommodation',
         'Others',
       ];
-      if (!organisations.includes(organisation)) {
-        return { success: false, error: 'Management applicants must select an organisation.' };
+      if (!organisations.includes(organisation) || designation.length < 2 || designation.length > 255) {
+        return { success: false, error: 'Management applicants must select an organisation and enter a designation.' };
       }
       if (organisation === 'Others' && (organisationOther.length < 2 || organisationOther.length > 255)) {
         return { success: false, error: 'Please specify the management organisation.' };
@@ -450,8 +453,18 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       if (preferredRoleId) {
         return { success: false, error: 'Management registrations do not use a role selection.' };
       }
-    } else if (organisation || organisationOther || designation) {
-      return { success: false, error: 'Management details are only accepted for Management registrations.' };
+    } else {
+      if (organisationOther) {
+        return { success: false, error: 'Only Management registrations can specify an alternate organisation.' };
+      }
+      if (category === 'media' && (organisation || designation)) {
+        return { success: false, error: 'Use the media organisation and designation fields for Press and Media registrations.' };
+      }
+      if (category !== 'media'
+        && ((organisation && (organisation.length < 2 || organisation.length > 255))
+          || (designation && (designation.length < 2 || designation.length > 255)))) {
+        return { success: false, error: 'Use 2 to 255 characters for organisation and designation.' };
+      }
     }
 
     let portfolioUrl: string | null = null;
@@ -644,7 +657,7 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
 
     const idempotencyRequestHash = createHash('sha256').update(JSON.stringify({
       fullName, phone, email, category, preferredRoleId, otherRole,
-      organisation, organisationOther, designation: category === 'management' ? '' : designation,
+      organisation, organisationOther, designation,
       mediaAccessTypes: [...mediaAccessTypes].sort(),
       mediaOutlet, mediaOrganisationType, mediaDesignation, portfolioUrl: portfolioUrl || portfolioUrlInput,
       professionalBody, professionalQualification, professionalRegistrationNumber, professionalExperience,
@@ -739,9 +752,13 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
       category,
       preferred_role_id: roleRecord?.id ?? null,
       other_role: isOtherRole ? otherRole : null,
-      organisation: category === 'management' ? organisation : null,
+      organisation: category === 'management'
+        ? organisation
+        : category === 'media' || (category === 'crew' && crewWorkArrangement === 'organisation')
+          ? null
+          : organisation || null,
       organisation_other: category === 'management' && organisation === 'Others' ? organisationOther : null,
-      designation: category === 'media' ? mediaDesignation : null,
+      designation: category === 'media' ? mediaDesignation : designation || null,
       media_outlet: category === 'media' ? mediaOutlet || null : null,
       media_organisation_type: category === 'media' ? mediaOrganisationType : null,
       portfolio_url: category === 'media' ? portfolioUrl : null,

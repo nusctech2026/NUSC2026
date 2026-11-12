@@ -519,6 +519,11 @@ export async function updateCampaignRegistrationDetails(
   if (app.category === 'management' && (!organisation || organisation.length > 255)) {
     throw new Error('Management registrations need an organisation');
   }
+  if (app.category !== 'management' && app.category !== 'media'
+      && ((organisation && (organisation.length < 2 || organisation.length > 255))
+        || (designation && (designation.length < 2 || designation.length > 255)))) {
+    throw new Error('Use 2 to 255 characters for organisation and designation');
+  }
 
   let portfolioUrl: string | null = null;
   if (app.category === 'media') {
@@ -601,9 +606,13 @@ export async function updateCampaignRegistrationDetails(
     phone,
     email: email || null,
     other_role: requiresOtherRole ? otherRole : null,
-    organisation: app.category === 'management' ? organisation : null,
+    organisation: app.category === 'management'
+      ? organisation
+      : app.category === 'media' || (app.category === 'crew' && crewWorkArrangement === 'organisation')
+        ? null
+        : organisation || null,
     organisation_other: null,
-    designation: app.category === 'media' ? designation : null,
+    designation: designation || null,
     availability: 'Available for all 10 NUSC home matches',
     availability_mode: 'all',
     availability_match_ids: [],

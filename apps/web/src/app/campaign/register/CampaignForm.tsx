@@ -104,6 +104,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
   const [otherRole, setOtherRole] = useState('');
   const [organisation, setOrganisation] = useState('');
   const [organisationOther, setOrganisationOther] = useState('');
+  const [designation, setDesignation] = useState('');
   const [mediaDesignation, setMediaDesignation] = useState('');
   const [mediaOutlet, setMediaOutlet] = useState('');
   const [mediaOrganisationType, setMediaOrganisationType] = useState('');
@@ -117,7 +118,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
   const [technicalSpecialty, setTechnicalSpecialty] = useState('');
   const [experience, setExperience] = useState('');
   const [crewWorkArrangement, setCrewWorkArrangement] = useState<'' | 'organisation' | 'independent'>('');
-  const [crewOrganisation, setCrewOrganisation] = useState('');
   const [crewLeadName, setCrewLeadName] = useState('');
   const [crewLeadPhone, setCrewLeadPhone] = useState('');
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
@@ -183,6 +183,8 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
     || selectedRole?.name === 'Others' || selectedRole?.name === 'Other';
   const isManagement = category === 'management';
   const usesRoleSelection = Boolean(category && !isManagement);
+  const usesCommonOrganisationFields = Boolean(category && category !== 'management' && category !== 'media');
+  const crewOrganisationRequired = category === 'crew' && crewWorkArrangement === 'organisation';
   const needsOtherOrganisation = isManagement && organisation === 'Others';
   const meta = category ? CATEGORY_META[category] : {
     label: 'Choose a department',
@@ -328,9 +330,22 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
       setErrorMessage('Please specify your role.');
       return;
     }
-    if (isManagement && !organisation) {
-      rejectField('organisation', 'Select an organisation.');
-      setErrorMessage('Select an organisation.');
+    if (isManagement && (!organisation || designation.trim().length < 2 || designation.trim().length > 255)) {
+      const field = !organisation ? 'organisation' : 'designation';
+      const message = !organisation
+        ? 'Select an organisation.'
+        : 'Enter a designation using 2 to 255 characters.';
+      rejectField(field, message);
+      setErrorMessage(message);
+      return;
+    }
+    if (usesCommonOrganisationFields
+      && ((organisation.trim() && (organisation.trim().length < 2 || organisation.trim().length > 255))
+        || (designation.trim() && (designation.trim().length < 2 || designation.trim().length > 255)))) {
+      const invalidOrganisation = organisation.trim().length === 1 || organisation.trim().length > 255;
+      const field = invalidOrganisation ? 'organisation' : 'designation';
+      rejectField(field, 'Use 2 to 255 characters for organisation and designation.');
+      setErrorMessage('Use 2 to 255 characters for organisation and designation.');
       return;
     }
     if (needsOtherOrganisation && organisationOther.trim().length < 2) {
@@ -392,11 +407,11 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
       return;
     }
     if (category === 'crew' && crewWorkArrangement === 'organisation'
-      && (crewOrganisation.trim().length < 2 || crewOrganisation.trim().length > 255
+      && (organisation.trim().length < 2 || organisation.trim().length > 255
         || crewLeadName.trim().length < 2 || crewLeadName.trim().length > 255
         || !/^\d{10}$/.test(crewLeadPhone.replace(/\D/g, '')))) {
-      const field = crewOrganisation.trim().length < 2 || crewOrganisation.trim().length > 255
-        ? 'crewOrganisation'
+      const field = organisation.trim().length < 2 || organisation.trim().length > 255
+        ? 'organisation'
         : crewLeadName.trim().length < 2 || crewLeadName.trim().length > 255
           ? 'crewLeadName' : 'crewLeadPhone';
       rejectField(field, 'Enter the organisation and crew lead contact details.');
@@ -474,8 +489,9 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
       formData.append('category', category);
       if (usesRoleSelection && preferredRoleId) formData.append('preferredRoleId', preferredRoleId);
       if (isOtherRoleSelected) formData.append('otherRole', otherRole);
+      formData.append('organisation', organisation);
+      formData.append('designation', designation);
       if (isManagement) {
-        formData.append('organisation', organisation);
         if (needsOtherOrganisation) formData.append('organisationOther', organisationOther);
       }
       if (category === 'media') {
@@ -502,7 +518,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
         formData.append('experience', experience);
         formData.append('crewWorkArrangement', crewWorkArrangement);
         if (crewWorkArrangement === 'organisation') {
-          formData.append('crewOrganisation', crewOrganisation);
+          formData.append('crewOrganisation', organisation);
           formData.append('crewLeadName', crewLeadName);
           formData.append('crewLeadPhone', crewLeadPhone.replace(/\D/g, ''));
         }
@@ -693,6 +709,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                 setOtherRole('');
                 setOrganisation('');
                 setOrganisationOther('');
+                setDesignation('');
                 setMediaDesignation('');
                 setMediaOutlet('');
                 setMediaOrganisationType('');
@@ -709,7 +726,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                 setTechnicalSpecialty('');
                 setExperience('');
                 setCrewWorkArrangement('');
-                setCrewOrganisation('');
                 setCrewLeadName('');
                 setCrewLeadPhone('');
               }}
@@ -800,6 +816,23 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
               </select>
               {inlineError('organisation')}
             </div>
+            <div className="form-group">
+              <label htmlFor="designation">Designation / position <span className="req" aria-hidden="true">*</span></label>
+              <input
+                id="designation"
+                type="text"
+                className="form-control"
+                value={designation}
+                onChange={(event) => setDesignation(event.target.value)}
+                minLength={2}
+                maxLength={255}
+                aria-invalid={Boolean(fieldErrors.designation)}
+                aria-describedby={fieldErrors.designation ? 'designation-error' : undefined}
+                onInvalid={() => setFieldErrors((current) => ({ ...current, designation: 'Enter a designation using 2 to 255 characters.' }))}
+                required
+              />
+              {inlineError('designation')}
+            </div>
             {needsOtherOrganisation && (
               <div className="form-group">
                 <label htmlFor="organisationOther">Specify organisation <span className="req" aria-hidden="true">*</span></label>
@@ -819,6 +852,49 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
               </div>
             )}
           </>
+        )}
+
+        {usesCommonOrganisationFields && (
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label htmlFor="organisation">
+                {category === 'crew' ? 'Organisation / crew provider' : 'Organisation / affiliation'}{' '}
+                {crewOrganisationRequired
+                  ? <span className="req" aria-hidden="true">*</span>
+                  : <span className="hint">(optional)</span>}
+              </label>
+              <input
+                id="organisation"
+                type="text"
+                className="form-control"
+                value={organisation}
+                onChange={(event) => setOrganisation(event.target.value)}
+                minLength={2}
+                maxLength={255}
+                aria-invalid={Boolean(fieldErrors.organisation)}
+                aria-describedby={fieldErrors.organisation ? 'organisation-error' : undefined}
+                onInvalid={() => setFieldErrors((current) => ({ ...current, organisation: 'Enter an organisation using 2 to 255 characters.' }))}
+                required={crewOrganisationRequired}
+              />
+              {inlineError('organisation')}
+            </div>
+            <div className="form-group">
+              <label htmlFor="designation">Designation / position <span className="hint">(optional)</span></label>
+              <input
+                id="designation"
+                type="text"
+                className="form-control"
+                value={designation}
+                onChange={(event) => setDesignation(event.target.value)}
+                minLength={2}
+                maxLength={255}
+                aria-invalid={Boolean(fieldErrors.designation)}
+                aria-describedby={fieldErrors.designation ? 'designation-error' : undefined}
+                onInvalid={() => setFieldErrors((current) => ({ ...current, designation: 'Enter a designation using 2 to 255 characters.' }))}
+              />
+              {inlineError('designation')}
+            </div>
+          </div>
         )}
 
         {category === 'media' && (
@@ -1137,7 +1213,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                   const arrangement = event.target.value as '' | 'organisation' | 'independent';
                   setCrewWorkArrangement(arrangement);
                   if (arrangement !== 'organisation') {
-                    setCrewOrganisation('');
                     setCrewLeadName('');
                     setCrewLeadPhone('');
                   }
@@ -1152,22 +1227,6 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
             </div>
             {crewWorkArrangement === 'organisation' && (
               <>
-                <div className="form-group">
-                  <label htmlFor="crewOrganisation">Organisation / crew provider <span className="req" aria-hidden="true">*</span></label>
-                  <input
-                    id="crewOrganisation"
-                    type="text"
-                    className="form-control"
-                    value={crewOrganisation}
-                    onChange={(event) => setCrewOrganisation(event.target.value)}
-                    minLength={2}
-                    maxLength={255}
-                    aria-invalid={Boolean(fieldErrors.crewOrganisation)}
-                    aria-describedby={fieldErrors.crewOrganisation ? 'crewOrganisation-error' : undefined}
-                    required
-                  />
-                  {inlineError('crewOrganisation')}
-                </div>
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label htmlFor="crewLeadName">Crew lead / supervisor name <span className="req" aria-hidden="true">*</span></label>
