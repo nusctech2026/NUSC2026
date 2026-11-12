@@ -184,7 +184,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
   const isManagement = category === 'management';
   const usesRoleSelection = Boolean(category && !isManagement);
   const usesCommonOrganisationFields = Boolean(category && category !== 'management' && category !== 'media');
-  const crewOrganisationRequired = category === 'crew';
+  const organisationAndDesignationRequired = category === 'crew' || category === 'volunteer';
   const needsOtherOrganisation = isManagement && organisation === 'Others';
   const meta = category ? CATEGORY_META[category] : {
     label: 'Choose a department',
@@ -342,15 +342,15 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
     if (usesCommonOrganisationFields) {
       const organisationLength = organisation.trim().length;
       const designationLength = designation.trim().length;
-      const invalidOrganisation = crewOrganisationRequired
+      const invalidOrganisation = organisationAndDesignationRequired
         ? organisationLength < 2 || organisationLength > 255
         : organisationLength > 0 && (organisationLength < 2 || organisationLength > 255);
-      const invalidDesignation = category === 'crew'
+      const invalidDesignation = organisationAndDesignationRequired
         ? designationLength < 2 || designationLength > 255
         : designationLength > 0 && (designationLength < 2 || designationLength > 255);
       if (invalidOrganisation || invalidDesignation) {
         const field = invalidOrganisation ? 'organisation' : 'designation';
-        const message = category === 'crew'
+        const message = organisationAndDesignationRequired
           ? 'Enter your organisation and designation using 2 to 255 characters each.'
           : 'Use 2 to 255 characters for organisation and designation.';
         rejectField(field, message);
@@ -869,7 +869,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
             <div className="form-group">
               <label htmlFor="organisation">
                 {category === 'crew' ? 'Organisation / crew provider' : 'Organisation / affiliation'}{' '}
-                {crewOrganisationRequired
+                {organisationAndDesignationRequired
                   ? <span className="req" aria-hidden="true">*</span>
                   : <span className="hint">(optional)</span>}
               </label>
@@ -884,14 +884,14 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                 aria-invalid={Boolean(fieldErrors.organisation)}
                 aria-describedby={fieldErrors.organisation ? 'organisation-error' : undefined}
                 onInvalid={() => setFieldErrors((current) => ({ ...current, organisation: 'Enter an organisation using 2 to 255 characters.' }))}
-                required={crewOrganisationRequired}
+                required={organisationAndDesignationRequired}
               />
               {inlineError('organisation')}
             </div>
             <div className="form-group">
               <label htmlFor="designation">
                 Designation / position{' '}
-                {category === 'crew'
+                {organisationAndDesignationRequired
                   ? <span className="req" aria-hidden="true">*</span>
                   : <span className="hint">(optional)</span>}
               </label>
@@ -906,7 +906,7 @@ export default function CampaignForm({ fixedCategory }: CampaignFormProps) {
                 aria-invalid={Boolean(fieldErrors.designation)}
                 aria-describedby={fieldErrors.designation ? 'designation-error' : undefined}
                 onInvalid={() => setFieldErrors((current) => ({ ...current, designation: 'Enter a designation using 2 to 255 characters.' }))}
-                required={category === 'crew'}
+                required={organisationAndDesignationRequired}
               />
               {inlineError('designation')}
             </div>
