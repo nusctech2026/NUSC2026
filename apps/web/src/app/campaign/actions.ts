@@ -280,6 +280,10 @@ export interface CampaignRoleItem {
   description: string | null;
 }
 
+function isRemovedVolunteerHospitalityRole(role: Pick<CampaignRoleItem, 'category' | 'name'>): boolean {
+  return role.category === 'volunteer' && role.name.trim().toLowerCase() === 'hospitality';
+}
+
 /**
  * Fetch active roles for a given category (or all categories)
  */
@@ -301,7 +305,7 @@ export async function getCampaignRoles(category?: string): Promise<CampaignRoleI
       console.error('getCampaignRoles error:', error);
       return [];
     }
-    return data as CampaignRoleItem[];
+    return (data as CampaignRoleItem[]).filter((role) => !isRemovedVolunteerHospitalityRole(role));
   } catch (err) {
     console.error('getCampaignRoles exception:', err);
     return [];
@@ -588,7 +592,11 @@ export async function submitCampaignApplication(formData: FormData): Promise<Cam
     if (roleRequiredButMissing) {
       return { success: false, error: 'Select a role for your department.' };
     }
-    if (preferredRoleId && (!roleRecord || roleRecord.category !== category)) {
+    if (preferredRoleId && (
+      !roleRecord
+      || roleRecord.category !== category
+      || isRemovedVolunteerHospitalityRole(roleRecord)
+    )) {
       return { success: false, error: 'The selected role is not available in that department.' };
     }
 

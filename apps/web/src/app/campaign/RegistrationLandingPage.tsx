@@ -98,7 +98,7 @@ export default function CampaignLandingPage() {
               <div className="category-icon">🤝</div>
               <h3>3. Matchday Volunteers</h3>
               <p>
-                The heartbeat of stadium operations. Support player welfare, matchday safety, hospitality, and perimeter crowd guidance.
+                The heartbeat of stadium operations. Support player welfare, matchday safety, and perimeter crowd guidance.
               </p>
               <div className="category-roles-list">
                 <h4>Available Roles</h4>
@@ -107,7 +107,6 @@ export default function CampaignLandingPage() {
                   <span className="role-tag">Perimeter Team</span>
                   <span className="role-tag">Security Coordination</span>
                   <span className="role-tag">Supervisors</span>
-                  <span className="role-tag">VIP Hospitality</span>
                 </div>
               </div>
               <Link href="/campaign/register/volunteer" className="btn-primary" style={{ marginTop: 'auto' }}>
