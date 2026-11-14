@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { clearActiveStaff } from '@/lib/offline-store'
 
-export function SignOutButton({ compact = false }: { compact?: boolean }) {
+export function SignOutButton({ compact = false, staffUserId = '' }: { compact?: boolean; staffUserId?: string }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -28,6 +29,8 @@ export function SignOutButton({ compact = false }: { compact?: boolean }) {
       setBusy(false)
       return
     }
+
+    if (staffUserId) await clearActiveStaff(staffUserId).catch(() => {})
 
     router.replace('/login')
     router.refresh()

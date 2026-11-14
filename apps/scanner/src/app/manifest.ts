@@ -3,9 +3,9 @@ import type { MetadataRoute } from 'next'
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: '/',
-    name: 'NUSC Workforce ID Scanner',
+    name: 'NUSC Accreditation Scanner',
     short_name: 'NUSC Scanner',
-    description: 'Scan approved workforce IDs and record matchday attendance.',
+    description: 'Scan approved NUSC accreditation IDs and record matchday attendance.',
     start_url: '/',
     scope: '/',
     display: 'standalone',
