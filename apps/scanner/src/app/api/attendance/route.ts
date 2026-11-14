@@ -10,6 +10,7 @@ const qrTokenPattern = /^[0-9a-f]{64}$/i
 const gates = new Set(['Gate 1', 'Gate 2', 'Gate 3', 'Gate 4'])
 
 type ScanInput = {
+  operationId?: string
   qrValue: string
   action: 'check_in' | 'check_out'
   checkpointType: 'gate' | 'booth'
@@ -37,6 +38,7 @@ function resultFailure(code: string, message: string) {
 function parseInput(value: unknown): ScanInput | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const body = value as Record<string, unknown>
+  if (body.operationId !== undefined && (typeof body.operationId !== 'string' || !uuidPattern.test(body.operationId))) return null
   if (typeof body.qrValue !== 'string' || body.qrValue.trim().length === 0 || body.qrValue.length > 160) return null
   if (body.action !== 'check_in' && body.action !== 'check_out') return null
   if (body.checkpointType !== 'gate' && body.checkpointType !== 'booth') return null
@@ -49,6 +51,7 @@ function parseInput(value: unknown): ScanInput | null {
   if (!uuidPattern.test(body.eventId)) return null
 
   return {
+    ...(typeof body.operationId === 'string' ? { operationId: body.operationId } : {}),
     qrValue: body.qrValue.trim(),
     action: body.action,
     checkpointType: body.checkpointType,
@@ -114,14 +117,23 @@ export async function POST(request: Request) {
       return resultFailure('INVALID_TOKEN', 'Credential not recognised.')
     }
 
-    const { data, error } = await supabase.rpc('record_campaign_attendance_scan', {
+    const rpcName = input.operationId
+      ? 'record_campaign_attendance_scan_idempotent'
+      : 'record_campaign_attendance_scan'
+    const rpcArgs = {
       p_qr_token: qrToken,
       p_action: input.action,
       p_checkpoint_type: input.checkpointType,
       p_checkpoint: input.checkpoint,
       p_event_id: input.eventId,
       p_scanned_by: authorization.staff.email,
-    })
+      ...(input.operationId ? {
+        p_operation_id: input.operationId,
+        p_scanner_user_id: authorization.staff.userId,
+        p_scan_credential: input.qrValue,
+      } : {}),
+    }
+    const { data, error } = await supabase.rpc(rpcName, rpcArgs)
 
     if (error || !data || typeof data !== 'object' || typeof data.success !== 'boolean') {
       return scannerJson({
@@ -136,6 +148,7 @@ export async function POST(request: Request) {
 
     if (candidate) {
       delete candidate.photo_storage_path
+      candidate.photo_available = typeof photoPath === 'string' && photoPath.length > 0
       if (typeof photoPath === 'string' && photoPath.length > 0) {
         try {
           const { data: signedPhoto } = await supabase.storage

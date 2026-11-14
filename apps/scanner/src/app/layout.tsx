@@ -3,9 +3,9 @@ import './globals.css'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 
 export const metadata: Metadata = {
-  title: 'NUSC Workforce Scanner',
-  description: 'NUSC matchday workforce ID scanner.',
-  applicationName: 'NUSC Workforce ID Scanner',
+  title: 'NUSC Accreditation Scanner',
+  description: 'NUSC matchday accreditation ID scanner.',
+  applicationName: 'NUSC Accreditation Scanner',
   manifest: '/manifest.webmanifest',
   robots: { index: false, follow: false },
   icons: {

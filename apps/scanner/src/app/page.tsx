@@ -48,6 +48,7 @@ export default async function HomePage() {
       matches={matches}
       matchesUnavailable={matchesUnavailable}
       staffEmail={authorization.staff.email}
+      initialStaffUserId={authorization.staff.userId}
     />
   )
 }
