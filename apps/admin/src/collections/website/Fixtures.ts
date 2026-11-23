@@ -41,6 +41,24 @@ export const Fixtures: CollectionConfig = {
       defaultValue: 'home',
     },
     {
+      name: 'homeTeamLogo',
+      label: 'Home Club Logo',
+      type: 'upload',
+      relationTo: 'website-media',
+      admin: {
+        description: 'Shown as the home team crest in the homepage fixture table and match cards. If NUSC is away, upload the opponent crest here.',
+      },
+    },
+    {
+      name: 'awayTeamLogo',
+      label: 'Away Club Logo',
+      type: 'upload',
+      relationTo: 'website-media',
+      admin: {
+        description: 'Shown as the away team crest in the homepage fixture table and match cards. If NUSC is away, upload the NUSC crest here.',
+      },
+    },
+    {
       name: 'venue',
       type: 'text',
     },
@@ -62,6 +80,7 @@ export const Fixtures: CollectionConfig = {
       defaultValue: 'upcoming',
       admin: {
         position: 'sidebar',
+        description: 'Upcoming fixtures appear in the homepage Next Match card. Completed fixtures appear in Latest Result.',
       },
     },
     {
@@ -69,7 +88,7 @@ export const Fixtures: CollectionConfig = {
       label: 'Score / Result',
       type: 'text',
       admin: {
-        description: 'e.g. 2-1 (W)',
+        description: 'Final score in home-away order, for example 2-1 (W). Required for the homepage result card.',
       },
     },
     {

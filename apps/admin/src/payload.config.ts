@@ -18,6 +18,7 @@ import { Events } from './collections/website/Events'
 import { Sponsors } from './collections/website/Sponsors'
 import { Galleries } from './collections/website/Galleries'
 import { WebsiteMedia } from './collections/website/WebsiteMedia'
+import { WebsiteVideos } from './collections/website/WebsiteVideos'
 import { WebsiteSettings } from './globals/website/WebsiteSettings'
 import { Navigation } from './globals/website/Navigation'
 import { MembershipPlans } from './collections/membership/MembershipPlans'
@@ -163,6 +164,7 @@ export default buildConfig({
     ...[
       Admins,
       WebsiteMedia,
+      WebsiteVideos,
       Pages,
       News,
       Teams,
@@ -258,6 +260,7 @@ export default buildConfig({
         collections: {
           media: true,
           'website-media': true,
+          'website-videos': true,
         },
         bucket: process.env.S3_BUCKET,
         config: {

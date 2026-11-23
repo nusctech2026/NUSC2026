@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     admins: Admin;
     'website-media': WebsiteMedia;
+    'website-videos': WebsiteVideo;
     pages: Page;
     news: News;
     teams: Team;
@@ -98,6 +99,7 @@ export interface Config {
   collectionsSelect: {
     admins: AdminsSelect<false> | AdminsSelect<true>;
     'website-media': WebsiteMediaSelect<false> | WebsiteMediaSelect<true>;
+    'website-videos': WebsiteVideosSelect<false> | WebsiteVideosSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     news: NewsSelect<false> | NewsSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
@@ -226,6 +228,23 @@ export interface WebsiteMedia {
       filename?: string | null;
     };
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "website-videos".
+ */
+export interface WebsiteVideo {
+  id: string;
+  title: string;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -385,11 +404,22 @@ export interface Fixture {
   opponent: string;
   dateTime: string;
   homeAway?: ('home' | 'away') | null;
+  /**
+   * Shown as the home team crest in the homepage fixture table and match cards. If NUSC is away, upload the opponent crest here.
+   */
+  homeTeamLogo?: (string | null) | WebsiteMedia;
+  /**
+   * Shown as the away team crest in the homepage fixture table and match cards. If NUSC is away, upload the NUSC crest here.
+   */
+  awayTeamLogo?: (string | null) | WebsiteMedia;
   venue?: string | null;
   competition?: string | null;
+  /**
+   * Upcoming fixtures appear in the homepage Next Match card. Completed fixtures appear in Latest Result.
+   */
   matchStatus?: ('upcoming' | 'in_progress' | 'completed' | 'postponed' | 'cancelled') | null;
   /**
-   * e.g. 2-1 (W)
+   * Final score in home-away order, for example 2-1 (W). Required for the homepage result card.
    */
   scoreResult?: string | null;
   /**
@@ -515,6 +545,9 @@ export interface MembershipBenefit {
  */
 export interface Member {
   id: string;
+  member_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
   /**
    * Supabase auth.user UUID
    */
@@ -684,10 +717,21 @@ export interface JerseyInterestRegistration {
   email: string;
   phone?: string | null;
   /**
-   * This is only an estimate. The final jersey size chart is not available yet.
+   * Auto-summarized preferences for quick viewing in lists and exports.
+   */
+  selectedKitsSummary?: string | null;
+  interestedInOfficial?: boolean | null;
+  officialKitSize?: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL' | 'Not sure') | null;
+  interestedInAway?: boolean | null;
+  awayKitSize?: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL' | 'Not sure') | null;
+  interestedInReserve?: boolean | null;
+  reserveKitSize?: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL' | 'Not sure') | null;
+  /**
+   * Fallback/general estimate if individual kit size is not specified.
    */
   usualSize?: string | null;
   quantity: number;
+  notes?: string | null;
   contactConsent: boolean;
   interestStatus?: string | null;
   updatedAt: string;
@@ -799,6 +843,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'website-media';
         value: string | WebsiteMedia;
+      } | null)
+    | ({
+        relationTo: 'website-videos';
+        value: string | WebsiteVideo;
       } | null)
     | ({
         relationTo: 'pages';
@@ -993,6 +1041,22 @@ export interface WebsiteMediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "website-videos_select".
+ */
+export interface WebsiteVideosSelect<T extends boolean = true> {
+  title?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "pages_select".
  */
 export interface PagesSelect<T extends boolean = true> {
@@ -1090,6 +1154,8 @@ export interface FixturesSelect<T extends boolean = true> {
   opponent?: T;
   dateTime?: T;
   homeAway?: T;
+  homeTeamLogo?: T;
+  awayTeamLogo?: T;
   venue?: T;
   competition?: T;
   matchStatus?: T;
@@ -1180,6 +1246,9 @@ export interface MembershipBenefitsSelect<T extends boolean = true> {
  * via the `definition` "members_select".
  */
 export interface MembersSelect<T extends boolean = true> {
+  member_name?: T;
+  contact_email?: T;
+  contact_phone?: T;
   user_id?: T;
   plan?: T;
   status?: T;
@@ -1313,8 +1382,16 @@ export interface JerseyInterestRegistrationsSelect<T extends boolean = true> {
   fullName?: T;
   email?: T;
   phone?: T;
+  selectedKitsSummary?: T;
+  interestedInOfficial?: T;
+  officialKitSize?: T;
+  interestedInAway?: T;
+  awayKitSize?: T;
+  interestedInReserve?: T;
+  reserveKitSize?: T;
   usualSize?: T;
   quantity?: T;
+  notes?: T;
   contactConsent?: T;
   interestStatus?: T;
   updatedAt?: T;
@@ -1420,6 +1497,80 @@ export interface WebsiteSetting {
     logo?: (string | null) | WebsiteMedia;
     favicon?: (string | null) | WebsiteMedia;
   };
+  /**
+   * Add at least two slides for carousel navigation and automatic rotation. Reorder slides here; the fallback image below is used when this list is empty.
+   */
+  homePageHeroSlides?:
+    | {
+        image: string | WebsiteMedia;
+        /**
+         * Optional; uses the media item alt text when blank.
+         */
+        alt?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Shown only when no carousel slides are configured. Use a wide, high-resolution football photo.
+   */
+  homePageHeroImage?: (string | null) | WebsiteMedia;
+  /**
+   * Add up to five photo or carousel posts. The last row appears first on the homepage; the remaining posts follow their row order. Leave Thumbnail Image empty to show the Instagram embed.
+   */
+  homePageInstagramPosts?:
+    | {
+        title: string;
+        /**
+         * Choose Carousel when the Instagram post contains multiple slides.
+         */
+        format: 'photo' | 'carousel';
+        /**
+         * Optional. Leave this blank to embed the public Instagram post directly on the homepage.
+         */
+        thumbnail?: (string | null) | WebsiteMedia;
+        /**
+         * Optional; overrides the uploaded thumbnail alt text.
+         */
+        altText?: string | null;
+        /**
+         * Use a public post URL. When no thumbnail is uploaded, the homepage displays Instagram’s embed.
+         */
+        instagramUrl: string;
+        showOnHomepage?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Add up to five Reels with a thumbnail and Instagram URL. Upload an MP4 or WebM in each Reel to autoplay it inline on the homepage.
+   */
+  homePageInstagramReels?:
+    | {
+        title: string;
+        /**
+         * Upload the Reel video here to autoplay it inline on the homepage. The video starts muted; visitors can pause or play it.
+         */
+        video?: (string | null) | WebsiteVideo;
+        thumbnail: string | WebsiteMedia;
+        /**
+         * Optional; overrides the uploaded thumbnail alt text.
+         */
+        altText?: string | null;
+        instagramUrl: string;
+        showOnHomepage?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Choose up to two YouTube videos for NUSC TV. Paste each video URL, then reorder rows to change their display order.
+   */
+  homePageYoutubeHighlights?:
+    | {
+        videoUrl: string;
+        title: string;
+        category: string;
+        id?: string | null;
+      }[]
+    | null;
   defaultSEO?: {
     /**
      * Optimized title for search engines. Leave blank to fallback to the default title.
@@ -1500,6 +1651,44 @@ export interface WebsiteSettingsSelect<T extends boolean = true> {
     | {
         logo?: T;
         favicon?: T;
+      };
+  homePageHeroSlides?:
+    | T
+    | {
+        image?: T;
+        alt?: T;
+        id?: T;
+      };
+  homePageHeroImage?: T;
+  homePageInstagramPosts?:
+    | T
+    | {
+        title?: T;
+        format?: T;
+        thumbnail?: T;
+        altText?: T;
+        instagramUrl?: T;
+        showOnHomepage?: T;
+        id?: T;
+      };
+  homePageInstagramReels?:
+    | T
+    | {
+        title?: T;
+        video?: T;
+        thumbnail?: T;
+        altText?: T;
+        instagramUrl?: T;
+        showOnHomepage?: T;
+        id?: T;
+      };
+  homePageYoutubeHighlights?:
+    | T
+    | {
+        videoUrl?: T;
+        title?: T;
+        category?: T;
+        id?: T;
       };
   defaultSEO?:
     | T
