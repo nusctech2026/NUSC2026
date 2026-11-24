@@ -1,5 +1,153 @@
 /* apps/web/src/app/dashboard/dashboard.css */
 
+.tier-sales-closed {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) minmax(175px, 215px);
+  align-items: center;
+  gap: 20px;
+  overflow: hidden;
+  padding: 25px clamp(20px, 3vw, 34px);
+  background: linear-gradient(110deg, #fff 0%, #fff 58%, #f6f8fc 100%);
+  border: 1px solid #d8e1ee;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(15, 34, 62, 0.055);
+}
+
+.tier-sales-closed::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 5px;
+  content: '';
+  background: linear-gradient(180deg, #e31f2b, #b7131e);
+}
+
+.tier-sales-closed__icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  color: #a9222c;
+  background: #fff0f0;
+  border: 1px solid #f5d7d8;
+  border-radius: 15px;
+}
+
+.tier-sales-closed__icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.tier-sales-closed__copy {
+  min-width: 0;
+}
+
+.tier-sales-closed__eyebrow {
+  margin: 0 0 5px;
+  color: #64748b;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.tier-sales-closed__eyebrow span {
+  padding: 0 4px;
+  color: #e31f2b;
+}
+
+.tier-sales-closed__copy h2 {
+  margin: 0;
+  color: #10213c;
+  font-family: var(--font-barlow), 'Barlow Condensed', Impact, sans-serif;
+  font-size: clamp(1.7rem, 3vw, 2.45rem);
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  line-height: 0.98;
+  text-transform: uppercase;
+}
+
+.tier-sales-closed__copy > p:last-child {
+  max-width: 720px;
+  margin: 9px 0 0;
+  color: #53657e;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.tier-sales-closed__status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 0 14px 20px;
+  border-left: 1px solid #dce3ee;
+}
+
+.tier-sales-closed__status > span {
+  color: #738197;
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.tier-sales-closed__status strong {
+  color: #17355b;
+  font-family: var(--font-barlow), 'Barlow Condensed', Impact, sans-serif;
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.tier-sales-closed__status small {
+  color: #53657e;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 900px) {
+  .tier-sales-closed {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  .tier-sales-closed__status {
+    grid-column: 2;
+    padding: 12px 0 0;
+    border-top: 1px solid #dce3ee;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .tier-sales-closed {
+    grid-template-columns: 46px minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+    padding: 20px 18px;
+  }
+
+  .tier-sales-closed__icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+  }
+
+  .tier-sales-closed__icon svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .tier-sales-closed__copy h2 {
+    font-size: 1.8rem;
+  }
+
+  .tier-sales-closed__status {
+    grid-column: 1 / -1;
+    margin-left: 60px;
+  }
+}
+
 .dashboard-layout {
   display: flex;
   min-height: 100vh;

@@ -6,6 +6,7 @@ import PaymentButton from '@/components/membership/PaymentButton';
 import CancelCheckoutButton from '@/components/membership/CancelCheckoutButton';
 import CheckPaymentButton from '@/components/membership/CheckPaymentButton';
 import UpgradePlans from '@/components/membership/UpgradePlans';
+import { RISE_TIER_SALES_OPEN } from '@nusc/membership/src/rise-tier-sales';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,7 @@ export default async function DashboardPage() {
   }
 
   const { profile, membership, availablePlans, pendingPayment } = dashboardData;
+  const tierSalesOpen = RISE_TIER_SALES_OPEN;
   const registered = membership?.registration_payment_status === 'paid';
   const tierActive = registered && membership.status === 'active'
     && (!membership.end_date || new Date(membership.end_date) > new Date());
@@ -50,7 +52,7 @@ export default async function DashboardPage() {
       : !tierActive
         ? 'Expired'
         : membership?.plan.slug === 'registration'
-          ? 'Registered · choose a tier below'
+          ? (tierSalesOpen ? 'Registered · choose a tier below' : 'Registered')
           : 'Active';
   const membershipEndDate = membership?.end_date
     ? new Date(membership.end_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
@@ -62,28 +64,30 @@ export default async function DashboardPage() {
         Welcome back, {profile.first_name || profile.email}!
       </h1>
       <p style={{ color: '#64748b', marginBottom: '40px' }}>
-        Manage your membership and choose your annual Rise tier.
+        {tierSalesOpen ? 'Manage your membership and choose your annual Rise tier.' : 'Manage your membership and review your current membership status.'}
       </p>
 
       {!membership && <p><Link href="/membership">Register as a member</Link> to get started.</p>}
       {membership && !registered && <div className="registration-payment-notice">
         <h2>Complete your ₹10 membership fee</h2>
-        <p>Your account is saved. Pay the registration fee to activate a Rise tier. Tier fees are separate.</p>
+        <p>Your account is saved. Pay the registration fee to activate your membership account. Annual tier sales are closed for the 2026 season.</p>
         <PaymentButton>Pay ₹10 membership fee</PaymentButton>
         {pendingPayment?.purpose === 'registration' && <CheckPaymentButton />}
       </div>}
       {pendingPayment?.purpose === 'tier' && <div className="registration-payment-notice">
-        <p>You have an unfinished tier payment. Resume it to continue.</p>
-        {pendingPayment.ahibi_zone && <p>Your General season pass zone is {pendingPayment.ahibi_zone} for all ten matches.</p>}
-        {pendingPayment.ahibi_pass_status === 'held' && pendingPayment.ahibi_reservation_expires_at
+        <p>{tierSalesOpen
+          ? 'You have an unfinished tier payment. Resume it to continue.'
+          : 'Annual tier sales are closed, so this tier checkout cannot be resumed. You can check its status or cancel it if it has not been captured.'}</p>
+        {tierSalesOpen && pendingPayment.ahibi_zone && <p>Your General season pass zone is {pendingPayment.ahibi_zone} for all ten matches.</p>}
+        {tierSalesOpen && pendingPayment.ahibi_pass_status === 'held' && pendingPayment.ahibi_reservation_expires_at
           && new Date(pendingPayment.ahibi_reservation_expires_at) <= new Date()
           && <p role="status">The Ahibi ticket hold has expired. Cancel this checkout, then start a new one to reserve a fresh pass.</p>}
-        <PaymentButton
+        {tierSalesOpen && <PaymentButton
           planId={pendingPayment.plan_id}
           requiresGeneralZone={pendingPayment.ahibi_pass_id === 'general-season' || pendingPlan?.slug === 'rise-general'}
           initialZone={pendingPayment.ahibi_zone}
           zoneLocked={Boolean(pendingPayment.ahibi_zone)}
-        >Resume tier payment</PaymentButton>
+        >Resume tier payment</PaymentButton>}
         <CheckPaymentButton />
         <CancelCheckoutButton />
       </div>}
@@ -163,6 +167,7 @@ export default async function DashboardPage() {
         currentPlanSlug={tierActive && membership?.plan.slug.startsWith('rise-') ? membership.plan.slug : null}
         hasMembership={!!tierActive && membership?.plan.slug !== 'registration'}
         canPurchase={!!registered && membership?.status !== 'cancelled' && !pendingPayment}
+        tierSalesOpen={tierSalesOpen}
       />
 
     </div>

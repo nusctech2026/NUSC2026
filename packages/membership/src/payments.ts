@@ -3,6 +3,7 @@ import Razorpay from 'razorpay';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { AhibiSeasonPassError, type AhibiSeasonPassId, type AhibiSeasonPassZone } from './ahibi-season-pass';
 import { ensureAhibiPassIssued, releaseAhibiPassForOrder, reserveAhibiPassForOrder } from './ahibi-season-pass-flow';
+import { RISE_TIER_SALES_CLOSED_MESSAGE, RISE_TIER_SALES_OPEN } from './rise-tier-sales';
 
 export function assertMembershipCheckoutEnabled() {
   if (process.env.MEMBERSHIP_CHECKOUT_ENABLED === 'false') {
@@ -86,6 +87,7 @@ export interface CheckoutOrder {
 export async function createMembershipCheckout(planId: string | null = null, zone: string | null = null): Promise<CheckoutOrder> {
   if (planId !== null && (typeof planId !== 'string' || !/^[a-f0-9-]{36}$/i.test(planId))) throw new Error('Invalid membership plan');
   if (planId === null && zone !== null) throw new Error('Invalid membership plan');
+  if (planId !== null && !RISE_TIER_SALES_OPEN) throw new Error(RISE_TIER_SALES_CLOSED_MESSAGE);
   const session = await createServerClient();
   const { data: { user }, error: authError } = await session.auth.getUser();
   if (authError || !user) throw new Error('Please sign in to continue.');

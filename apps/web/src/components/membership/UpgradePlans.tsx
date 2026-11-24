@@ -9,6 +9,7 @@ interface UpgradePlansProps {
   currentPlanSlug: string | null;
   hasMembership: boolean;
   canPurchase: boolean;
+  tierSalesOpen: boolean;
 }
 
 const CheckIcon = () => (
@@ -127,7 +128,31 @@ export function TierBenefits({ plans }: { plans: MembershipPlan[] }) {
   </details>;
 }
 
-export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSlug, hasMembership, canPurchase }: UpgradePlansProps) {
+export default function UpgradePlans({ plans, availableUpgradeIds, currentPlanSlug, hasMembership, canPurchase, tierSalesOpen }: UpgradePlansProps) {
+  if (!tierSalesOpen) {
+    return (
+      <section className="tier-sales-closed" role="status" aria-labelledby="rise-tier-sales-closed">
+        <div className="tier-sales-closed__icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 5.5h12l6 6v15H7a2 2 0 0 1-2-2v-17a2 2 0 0 1 2-2Z" />
+            <path d="M19 5.5v6h6M10 17h12M10 21h8" />
+            <path d="M22.5 20.5v3m0 2v.1" />
+          </svg>
+        </div>
+        <div className="tier-sales-closed__copy">
+          <p className="tier-sales-closed__eyebrow">Season update <span>·</span> 14 November</p>
+          <h2 id="rise-tier-sales-closed">Annual membership tiers are closed</h2>
+          <p>Full-season tiers include access to all 10 home matches. Sales closed after the 14 November fixture so a new tier would not start with a match already played.</p>
+        </div>
+        <aside className="tier-sales-closed__status">
+          <span>MEMBERSHIP STATUS</span>
+          <strong>Existing members</strong>
+          <small>memberships remain unchanged</small>
+        </aside>
+      </section>
+    );
+  }
+
   return (
     <div style={{ marginTop: '20px' }}>
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
