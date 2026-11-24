@@ -2,6 +2,7 @@
 
 import { createMembershipCheckout, confirmMembershipCheckout, cancelMembershipCheckout, recoverMembershipCheckout, type PaymentCallback } from '@nusc/membership/src/payments';
 import { AhibiSeasonPassError } from '@nusc/membership/src/ahibi-season-pass';
+import { RISE_TIER_SALES_CLOSED_MESSAGE } from '@nusc/membership/src/rise-tier-sales';
 import { revalidatePath } from 'next/cache';
 
 const safeMessages = new Set([
@@ -25,6 +26,7 @@ const safeMessages = new Set([
   'Rise live smoke test has already been used.',
   'Rise smoke upgrade checkout is unavailable.',
   'Rise smoke upgrade has already been used.',
+  RISE_TIER_SALES_CLOSED_MESSAGE,
 ]);
 function paymentError(error: unknown, fallback = 'Unable to confirm payment. Please refresh your dashboard shortly or try again.') {
   const message = error instanceof Error ? error.message : '';
