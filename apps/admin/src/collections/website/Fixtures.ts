@@ -32,30 +32,33 @@ export const Fixtures: CollectionConfig = {
     },
     {
       name: 'homeAway',
-      label: 'Home or Away',
+      label: 'NUSC Home or Away',
       type: 'radio',
       options: [
         { label: 'Home', value: 'home' },
         { label: 'Away', value: 'away' },
       ],
       defaultValue: 'home',
+      admin: {
+        description: 'Whether NUSC is the home or away team. Match cards position the team crests to match this setting.',
+      },
     },
     {
       name: 'homeTeamLogo',
-      label: 'Home Club Logo',
+      label: 'NUSC Club Logo',
       type: 'upload',
       relationTo: 'website-media',
       admin: {
-        description: 'Shown as the home team crest in the homepage fixture table and match cards. If NUSC is away, upload the opponent crest here.',
+        description: 'NUSC crest for both home and away fixtures. Match cards place it on the side set by NUSC Home or Away.',
       },
     },
     {
       name: 'awayTeamLogo',
-      label: 'Away Club Logo',
+      label: 'Opponent Club Logo',
       type: 'upload',
       relationTo: 'website-media',
       admin: {
-        description: 'Shown as the away team crest in the homepage fixture table and match cards. If NUSC is away, upload the NUSC crest here.',
+        description: 'Crest for the opponent named in Opponent. Match cards place it on the side opposite NUSC.',
       },
     },
     {

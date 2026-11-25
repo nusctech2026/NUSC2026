@@ -211,8 +211,10 @@ function parseMatch(value: unknown, origin: string): HomepageMatch | null {
   const dateTime = typeof value.dateTime === 'string' ? value.dateTime : '';
   if (!opponent || !dateTime || !Number.isFinite(Date.parse(dateTime))) return null;
   const homeAway = value.homeAway === 'away' ? 'away' : 'home';
-  const nuscLogo = homeAway === 'home' ? value.homeTeamLogo : value.awayTeamLogo;
-  const opponentLogo = homeAway === 'home' ? value.awayTeamLogo : value.homeTeamLogo;
+  // These legacy CMS fields store the clubs by identity: NUSC, then opponent.
+  // The renderer uses homeAway to place those clubs on the home and away sides.
+  const nuscLogo = value.homeTeamLogo;
+  const opponentLogo = value.awayTeamLogo;
 
   return {
     opponent,
