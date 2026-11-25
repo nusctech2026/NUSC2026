@@ -6,8 +6,6 @@ import { HomepageFixturesTable } from '@/components/sections/HomepageFixturesTab
 import { InstagramFeedFallback, InstagramFeedSection } from '@/components/sections/InstagramFeedSection';
 import { YoutubeHighlightsSection } from '@/components/sections/YoutubeHighlightsSection';
 import { Club } from '@/components/sections/Club';
-import { Journey } from '@/components/sections/Journey';
-import { Honours } from '@/components/sections/Honours';
 import { Sponsors } from '@/components/sections/Sponsors';
 import { Footer } from '@/components/sections/Footer';
 import { getHomepageContent } from '@/lib/homepage-content';
@@ -49,8 +47,6 @@ export default function Home() {
           <AdminManagedHomepage />
         </Suspense>
         <Club />
-        <Journey />
-        <Honours />
         <Sponsors />
       </main>
       <Footer />

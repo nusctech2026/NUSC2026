@@ -51,9 +51,7 @@ function formatResult(match: HomepageMatch) {
   const score = match.scoreResult?.match(/(\d{1,2})\s*[-–:]\s*(\d{1,2})/);
   if (!score) return match.scoreResult || '—';
 
-  return match.homeAway === 'away'
-    ? `${score[2]} – ${score[1]}`
-    : `${score[1]} – ${score[2]}`;
+  return `${score[1]} – ${score[2]}`;
 }
 
 function getOpponentInitials(opponent: string) {
@@ -78,13 +76,22 @@ function ClubBadge({ logoUrl, fallback, isNusc = false }: { logoUrl: string | nu
   );
 }
 
+function getMatchTeams(match: HomepageMatch) {
+  const nusc = { name: 'NUSC', logoUrl: match.nuscLogoUrl, fallback: 'NU', isNusc: true };
+  const opponent = {
+    name: match.opponent,
+    logoUrl: match.opponentLogoUrl,
+    fallback: getOpponentInitials(match.opponent),
+    isNusc: false,
+  };
+
+  return match.homeAway === 'home'
+    ? { homeTeam: nusc, awayTeam: opponent }
+    : { homeTeam: opponent, awayTeam: nusc };
+}
+
 function Matchup({ match }: { match: HomepageMatch }) {
-  const homeTeam = match.homeAway === 'home'
-    ? { name: 'NUSC', logoUrl: match.nuscLogoUrl, fallback: 'NU', isNusc: true }
-    : { name: match.opponent, logoUrl: match.opponentLogoUrl, fallback: getOpponentInitials(match.opponent), isNusc: false };
-  const awayTeam = match.homeAway === 'home'
-    ? { name: match.opponent, logoUrl: match.opponentLogoUrl, fallback: getOpponentInitials(match.opponent), isNusc: false }
-    : { name: 'NUSC', logoUrl: match.nuscLogoUrl, fallback: 'NU', isNusc: true };
+  const { homeTeam, awayTeam } = getMatchTeams(match);
 
   return (
     <div className="home-match-card__matchup home-match-card__matchup--fixture" role="group" aria-label={`${homeTeam.name} versus ${awayTeam.name}`}>
@@ -100,6 +107,32 @@ function Matchup({ match }: { match: HomepageMatch }) {
         <ClubBadge logoUrl={awayTeam.logoUrl} fallback={awayTeam.fallback} isNusc={awayTeam.isNusc} />
       </div>
     </div>
+  );
+}
+
+function MatchResult({ match }: { match: HomepageMatch }) {
+  const { homeTeam, awayTeam } = getMatchTeams(match);
+  const score = formatResult(match);
+
+  return (
+    <>
+      <div className="home-match-card__result-row">
+        <div className="home-match-card__team">
+          <ClubBadge logoUrl={homeTeam.logoUrl} fallback={homeTeam.fallback} isNusc={homeTeam.isNusc} />
+          <span>{homeTeam.name}</span>
+        </div>
+        <strong className="home-match-card__score" aria-label={`${homeTeam.name} ${score} ${awayTeam.name}`}>
+          {score}
+        </strong>
+        <div className="home-match-card__team">
+          <ClubBadge logoUrl={awayTeam.logoUrl} fallback={awayTeam.fallback} isNusc={awayTeam.isNusc} />
+          <span>{awayTeam.name}</span>
+        </div>
+      </div>
+      <p className="home-match-card__footnote">
+        {formatMatchDate(match.dateTime)}{match.venue ? ` · ${match.venue}` : ''}
+      </p>
+    </>
   );
 }
 
@@ -128,24 +161,7 @@ export function HomepageMatchCards({ latestMatch, nextMatch }: HomepageMatchCard
             <span className="home-match-card__tag">{latestMatch ? 'Full Time' : 'Awaiting Result'}</span>
           </div>
           {latestMatch ? (
-            <>
-              <div className="home-match-card__result-row">
-                <div className="home-match-card__team">
-                  <ClubBadge logoUrl={latestMatch.nuscLogoUrl} fallback="NU" isNusc />
-                  <span>NUSC</span>
-                </div>
-                <strong className="home-match-card__score" aria-label={`NUSC ${formatResult(latestMatch)} ${latestMatch.opponent}`}>
-                  {formatResult(latestMatch)}
-                </strong>
-                <div className="home-match-card__team">
-                  <ClubBadge logoUrl={latestMatch.opponentLogoUrl} fallback={getOpponentInitials(latestMatch.opponent)} />
-                  <span>{latestMatch.opponent}</span>
-                </div>
-              </div>
-              <p className="home-match-card__footnote">
-                {formatMatchDate(latestMatch.dateTime)}{latestMatch.venue ? ` · ${latestMatch.venue}` : ''}
-              </p>
-            </>
+            <MatchResult match={latestMatch} />
           ) : (
             <p className="home-match-card__empty">No completed result has been published yet.</p>
           )}

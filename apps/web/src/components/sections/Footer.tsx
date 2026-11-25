@@ -21,8 +21,8 @@ export function Footer() {
           <h4>Explore</h4>
           <Link href="/#home">Home</Link>
           <Link href="/#club">About</Link>
-          <Link href="/#journey">Our Journey</Link>
-          <Link href="/#honours">Honours</Link>
+          <Link href="/club#journey">Our Journey</Link>
+          <Link href="/honours#honours">Honours</Link>
           <Link href="/jersey-interest">Jersey</Link>
           <Link href="/membership">Membership</Link>
         </div>
