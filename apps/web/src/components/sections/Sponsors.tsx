@@ -77,7 +77,7 @@ export function Sponsors() {
                     height={120}
                   />
                 </a>
-                <p className="sponsor-partnership__role">Tourism Partner</p>
+                <p className="sponsor-partnership__role">OFFICIAL PARTNER</p>
               </div>
 
               <div className="sponsor-partnership__divider" aria-hidden="true" />
