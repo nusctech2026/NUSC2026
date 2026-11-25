@@ -23,11 +23,13 @@ export function Hero({ heroSlides, latestMatch, nextMatch }: {
             taking Nagaland’s football ambitions to the national stage.
           </p>
           <div className="hero-actions" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <a className="btn btn-red btn-lg hero-cta-desktop" href="/#journey">
-              Explore Our Journey
-              <svg className="hero-cta-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 4v15m-6-6 6 6 6-6" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            <a
+              className="btn btn-red btn-lg hero-cta-desktop"
+              href="https://www.youtube.com/@NagalandUnitedSportsClub"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              NUSC YT <span className="ar" aria-hidden="true">↗</span>
             </a>
             <a className="btn btn-red btn-lg hero-cta-mobile" href="/membership">
               Membership
