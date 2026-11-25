@@ -4582,25 +4582,48 @@ noscript .reveal { opacity: 1 !important; transform: none !important; transition
   }
 }
 
-/* Keep the mobile homepage hero focused on the headline and primary action. */
+/* Mobile homepage hero: bring the story and actions together at the image edge. */
+.hero.home-hero .hero-sub-mobile {
+  display: none;
+}
+
 @media (max-width: 600px) {
   .hero.home-hero {
-    min-height: clamp(440px, 58svh, 520px);
+    min-height: clamp(380px, 50svh, 420px);
+    align-items: flex-end;
   }
 
   .hero.home-hero .hero-in {
     width: min(100% - 1.5rem, 1200px);
-    padding: 88px 0 106px;
+    padding: 0 0 74px;
   }
 
-  .hero.home-hero .hero-club,
+  .hero.home-hero .hero-club {
+    display: block;
+    margin-bottom: 9px;
+    font-size: .64rem;
+    letter-spacing: .14em;
+  }
+
   .hero.home-hero .hero-sub {
+    display: block;
+    max-width: 34rem;
+    margin: 10px 0 14px;
+    font-size: .84rem;
+    line-height: 1.4;
+  }
+
+  .hero.home-hero .hero-sub-desktop {
     display: none;
   }
 
+  .hero.home-hero .hero-sub-mobile {
+    display: block;
+  }
+
   .hero.home-hero h1 {
-    margin: 0 0 20px;
-    font-size: clamp(3.2rem, 14vw, 4.1rem);
+    margin: 0;
+    font-size: clamp(2.25rem, 10.5vw, 2.85rem);
     line-height: .9;
   }
 
@@ -4609,38 +4632,40 @@ noscript .reveal { opacity: 1 !important; transform: none !important; transition
     flex-direction: row;
     flex-wrap: nowrap !important;
     align-items: center;
-    gap: 8px !important;
+    gap: 10px !important;
   }
 
   .hero.home-hero .hero-actions .btn {
     width: auto;
-    min-height: 46px;
-    padding: 0 12px;
-    font-size: .72rem;
+    min-height: 44px;
+    padding: 0 11px;
+    font-size: .68rem;
   }
 
   .hero.home-hero .hero-actions .hero-cta-mobile {
-    min-width: 0;
-    max-width: 250px;
-    flex: 1 1 0;
+    width: fit-content;
+    min-width: 160px;
+    max-width: 100%;
+    flex: 0 1 auto;
     justify-content: center;
+    padding: 0 20px;
   }
 
   .hero.home-hero .hero-actions > .btn-ghost {
-    flex: 0 1 auto;
-    padding: 0 8px;
-    font-size: .66rem;
-    letter-spacing: .08em;
+    display: none;
+  }
+
+  .hero.home-hero .home-hero__shade {
+    background: linear-gradient(180deg, rgba(3, 9, 21, .2) 0%, rgba(3, 9, 21, .22) 38%, rgba(3, 9, 21, .9) 100%);
   }
 
   .home-hero-carousel__controls {
     right: 1rem;
-    bottom: 28px;
+    bottom: 24px;
     left: auto;
   }
 
   .home-match-ribbon {
-    margin-top: 0;
-    margin-bottom: 0;
+    margin: 12px auto 20px;
   }
 }

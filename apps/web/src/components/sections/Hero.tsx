@@ -19,8 +19,10 @@ export function Hero({ heroSlides, latestMatch, nextMatch }: {
           <div className="eyebrow on-dark hero-club">Nagaland United Sports Club</div>
           <h1><span className="rise">Rise</span><span className="tog">Together.</span></h1>
           <p className="hero-sub">
-            Nagaland United Sports Club competes in the Indian Football League (IFL),
-            taking Nagaland’s football ambitions to the national stage.
+            <span className="hero-sub-desktop">
+              Nagaland United Sports Club competes in the Indian Football League (IFL), taking Nagaland’s football ambitions to the national stage.
+            </span>
+            <span className="hero-sub-mobile">Competing in the IFL. Building Nagaland&apos;s football future.</span>
           </p>
           <div className="hero-actions" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <a
