@@ -17,76 +17,45 @@ export function Sponsors() {
       <div className="sponsor-partnership__shade" aria-hidden="true" />
 
       <div className="wrap sponsor-partnership__content">
-        <p className="sponsor-partnership__club-name">Nagaland United Sports Club</p>
-        <p className="sponsor-partnership__eyebrow">
+        <h2 className="sponsor-partnership__eyebrow" id="sponsor-partnership-title">
           <span aria-hidden="true" />
           Our Partners
           <span aria-hidden="true" />
-        </p>
+        </h2>
 
         <div className="sponsor-partnership__partners">
           <article className="sponsor-partnership__partner">
-            <div className="sponsor-partnership__feature">
-              <div className="sponsor-partnership__identity">
-                <a
-                  className="sponsor-partnership__logo-link"
-                  href="https://www.stepout.ai/en/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Visit StepOut website"
-                >
-                  <Image
-                    src="/images/sponsors/stepout-logo.svg"
-                    alt="StepOut Live The Game logo"
-                    width={370}
-                    height={120}
-                  />
-                </a>
-                <p className="sponsor-partnership__role">Football Analytics Partner</p>
-              </div>
-
-              <div className="sponsor-partnership__divider" aria-hidden="true" />
-
-              <div className="sponsor-partnership__copy">
-                <h2 id="sponsor-partnership-title">
-                  StepOut joins NUSC as the club&apos;s Performance Analytics Partner.
-                </h2>
-                <span className="sponsor-partnership__accent" aria-hidden="true" />
-                <p>
-                  StepOut supports NUSC with advanced analytics to enhance player
-                  development, match analysis and overall club performance.
-                </p>
-              </div>
-            </div>
+            <a
+              className="sponsor-partnership__logo-link"
+              href="https://www.stepout.ai/en/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit StepOut website"
+            >
+              <Image
+                src="/images/sponsors/stepout-logo.svg"
+                alt="StepOut Live The Game logo"
+                width={370}
+                height={120}
+              />
+            </a>
           </article>
 
           <article className="sponsor-partnership__partner">
-            <div className="sponsor-partnership__feature">
-              <div className="sponsor-partnership__identity">
-                <a
-                  className="sponsor-partnership__logo-link"
-                  href="https://tourism.nagaland.gov.in/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Visit Nagaland Tourism website"
-                >
-                  <Image
-                    src="/images/sponsors/nagaland-tourism.webp"
-                    alt="Nagaland Tourism logo"
-                    width={370}
-                    height={120}
-                  />
-                </a>
-                <p className="sponsor-partnership__role">OFFICIAL PARTNER</p>
-              </div>
-
-              <div className="sponsor-partnership__divider" aria-hidden="true" />
-
-              <div className="sponsor-partnership__copy">
-                <h2>Nagaland Tourism joins NUSC as a partner.</h2>
-                <span className="sponsor-partnership__accent" aria-hidden="true" />
-              </div>
-            </div>
+            <a
+              className="sponsor-partnership__logo-link"
+              href="https://tourism.nagaland.gov.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit Nagaland Tourism website"
+            >
+              <Image
+                src="/images/sponsors/nagaland-tourism.webp"
+                alt="Nagaland Tourism logo"
+                width={370}
+                height={120}
+              />
+            </a>
           </article>
         </div>
       </div>
